@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Silent Renew</title>
+  </head>
+  <body>
+    <script>
+      /**
+       * OIDC silent token renewal page.
+       * Keycloak redirects here in a hidden iframe to refresh the access token
+       * without interrupting the user session.
+       *
+       * oidc-client-ts posts a message to the parent window — no DOM needed.
+       * The parent window's UserManager.signinSilentCallback() handles the rest.
+       */
+      window.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'authorization_response') {
+          window.parent && window.parent.postMessage(e.data, e.origin);
+        }
+      });
+    </script>
+  </body>
+</html>
