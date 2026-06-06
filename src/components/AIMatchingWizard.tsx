@@ -2,15 +2,20 @@ import { useState } from 'react'
 import {
   Sparkles, Brain, Barcode, Building2, FlaskConical, Pill,
   CheckCircle2, ShieldCheck, Eye, ArrowLeft, Loader2, X,
-  Zap, Database, Target,
+  Database, Target,
 } from 'lucide-react'
 
 interface AIMatchingWizardProps {
   isOpen: boolean
   onClose: () => void
+  /**
+   * Fires when the user confirms. Parent should enqueue the rematch job
+   * and then close the wizard — live progress is shown by the
+   * ImportProgressToast (persistent, non-blocking).
+   */
   onConfirm: () => void
+  /** Brief spinner while the enqueue HTTP call is in flight (≤ 1 s typically). */
   isPending: boolean
-  result?: { scanned: number; autoLinked: number; suggested: number } | null
   unlinkedCount: number
 }
 
@@ -30,7 +35,7 @@ const COLORS: Record<string, { bg: string; text: string; border: string }> = {
   indigo:  { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200' },
 }
 
-export function AIMatchingWizard({ isOpen, onClose, onConfirm, isPending, result, unlinkedCount }: AIMatchingWizardProps) {
+export function AIMatchingWizard({ isOpen, onClose, onConfirm, isPending, unlinkedCount }: AIMatchingWizardProps) {
   const [step, setStep] = useState<'intro' | 'how' | 'confirm'>('intro')
 
   if (!isOpen) return null
@@ -63,85 +68,20 @@ export function AIMatchingWizard({ isOpen, onClose, onConfirm, isPending, result
           </div>
 
           {/* Progress dots */}
-          {!result && (
-            <div className="relative mt-5 flex items-center gap-2">
-              {(['intro', 'how', 'confirm'] as const).map((s, i) => (
-                <div key={s} className="flex items-center gap-2 flex-1">
-                  <div className={`h-1.5 flex-1 rounded-full transition-all ${
-                    step === s ? 'bg-white' : (['intro','how','confirm'].indexOf(step) > i ? 'bg-white/80' : 'bg-white/30')
-                  }`} />
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="relative mt-5 flex items-center gap-2">
+            {(['intro', 'how', 'confirm'] as const).map((s, i) => (
+              <div key={s} className="flex items-center gap-2 flex-1">
+                <div className={`h-1.5 flex-1 rounded-full transition-all ${
+                  step === s ? 'bg-white' : (['intro','how','confirm'].indexOf(step) > i ? 'bg-white/80' : 'bg-white/30')
+                }`} />
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* ── RESULT STATE ─────────────────────────────────────────── */}
-          {result ? (
-            <div className="text-center py-4">
-              <div className="inline-flex p-4 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-3xl mb-4">
-                <CheckCircle2 size={48} className="text-emerald-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">اكتمل التحليل بنجاح!</h3>
-              <p className="text-sm text-gray-500 mb-6">قام الذكاء الاصطناعي بتحليل {result.scanned} منتج في المخزون</p>
-
-              <div className="grid grid-cols-3 gap-3 max-w-xl mx-auto mb-6">
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-                  <Database size={20} className="mx-auto mb-2 text-blue-600" />
-                  <p className="text-3xl font-bold text-blue-700">{result.scanned}</p>
-                  <p className="text-xs text-blue-600 font-semibold mt-1">تم فحصها</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200">
-                  <Zap size={20} className="mx-auto mb-2 text-emerald-600" />
-                  <p className="text-3xl font-bold text-emerald-700">{result.autoLinked}</p>
-                  <p className="text-xs text-emerald-600 font-semibold mt-1">ربط تلقائي</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200">
-                  <Eye size={20} className="mx-auto mb-2 text-amber-600" />
-                  <p className="text-3xl font-bold text-amber-700">{result.suggested}</p>
-                  <p className="text-xs text-amber-600 font-semibold mt-1">بحاجة لمراجعتك</p>
-                </div>
-              </div>
-
-              {result.suggested > 0 ? (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-start">
-                  <div className="flex gap-3">
-                    <div className="p-2 bg-amber-100 rounded-lg shrink-0"><Eye size={16} className="text-amber-600" /></div>
-                    <div>
-                      <p className="font-bold text-amber-900 text-sm">الخطوة التالية</p>
-                      <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                        يوجد {result.suggested} اقتراح بحاجة لتأكيدك. عند إغلاق هذه النافذة سيتم نقلك تلقائياً إلى قائمة المراجعة. اضغط على شارة الربط بجوار أي منتج لرؤية الاقتراح.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : result.autoLinked > 0 ? (
-                <p className="text-sm text-emerald-700 font-semibold">جميع المنتجات عالية الثقة تم ربطها تلقائياً ✓</p>
-              ) : (
-                <p className="text-sm text-gray-500">لم نعثر على مطابقات. يمكنك إضافة منتجات للكتالوج عبر طلبات المراجعة.</p>
-              )}
-            </div>
-          ) : isPending ? (
-            /* ── LOADING STATE ──────────────────────────────────────── */
-            <div className="text-center py-12">
-              <div className="relative inline-flex">
-                <div className="absolute inset-0 bg-violet-300 rounded-full blur-2xl animate-pulse" />
-                <div className="relative p-5 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-3xl">
-                  <Brain size={48} className="text-white animate-pulse" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mt-6 mb-2">جاري التحليل…</h3>
-              <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
-                الذكاء الاصطناعي يقوم الآن بمقارنة كل منتج في مخزونك مع الكتالوج المركزي وحساب درجات الثقة.
-              </p>
-              <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
-                <Loader2 size={12} className="animate-spin" />
-                <span>تطبيع النصوص العربية · حساب التشابه · ترتيب النتائج</span>
-              </div>
-            </div>
-          ) : step === 'intro' ? (
+          {step === 'intro' ? (
             /* ── STEP 1: INTRO ──────────────────────────────────────── */
             <div className="space-y-5">
               <div className="text-center">
@@ -263,47 +203,36 @@ export function AIMatchingWizard({ isOpen, onClose, onConfirm, isPending, result
         </div>
 
         {/* Footer */}
-        {!isPending && (
-          <div className="border-t border-gray-100 bg-gray-50 p-4 flex items-center justify-between gap-3">
-            {result ? (
-              <>
-                <div />
-                <button
-                  onClick={onClose}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl shadow-md">
-                  <Eye size={14} /> عرض النتائج في القائمة
-                </button>
-              </>
+        <div className="border-t border-gray-100 bg-gray-50 p-4 flex items-center justify-between gap-3">
+          <button
+            disabled={isPending}
+            onClick={() => {
+              if (step === 'intro') onClose()
+              else if (step === 'how') setStep('intro')
+              else setStep('how')
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-xl transition-colors disabled:opacity-40">
+            {step === 'intro' ? 'إلغاء' : <><ArrowLeft size={14} /> السابق</>}
+          </button>
+          <div className="flex items-center gap-2">
+            {step !== 'confirm' ? (
+              <button
+                onClick={() => setStep(step === 'intro' ? 'how' : 'confirm')}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gray-900 hover:bg-gray-800 text-white rounded-xl">
+                التالي
+              </button>
             ) : (
-              <>
-                <button
-                  onClick={() => {
-                    if (step === 'intro') onClose()
-                    else if (step === 'how') setStep('intro')
-                    else setStep('how')
-                  }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-xl transition-colors">
-                  {step === 'intro' ? 'إلغاء' : <><ArrowLeft size={14} /> السابق</>}
-                </button>
-                <div className="flex items-center gap-2">
-                  {step !== 'confirm' ? (
-                    <button
-                      onClick={() => setStep(step === 'intro' ? 'how' : 'confirm')}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gray-900 hover:bg-gray-800 text-white rounded-xl">
-                      التالي
-                    </button>
-                  ) : (
-                    <button
-                      onClick={onConfirm}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl shadow-md">
-                      <Sparkles size={14} /> تشغيل الذكاء الاصطناعي
-                    </button>
-                  )}
-                </div>
-              </>
+              <button
+                disabled={isPending}
+                onClick={onConfirm}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 disabled:opacity-70 text-white rounded-xl shadow-md">
+                {isPending
+                  ? <><Loader2 size={14} className="animate-spin" /> جاري البدء…</>
+                  : <><Sparkles size={14} /> تشغيل الذكاء الاصطناعي</>}
+              </button>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

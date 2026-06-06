@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { inventoryApi } from '../../api/inventory.api'
 import { catalogRequestsApi } from '../../api/catalog-requests.api'
+import { importsApi } from '../../api/imports.api'
 import client from '../../api/client'
 import { Modal } from '../../components/ui/Modal'
 import { Badge } from '../../components/ui/Badge'
@@ -18,6 +19,8 @@ import { FullPageSpinner } from '../../components/ui/Spinner'
 import { LinkStatusBadge } from '../../components/LinkStatusBadge'
 import { ProductLinkModal } from '../../components/ProductLinkModal'
 import { AIMatchingWizard } from '../../components/AIMatchingWizard'
+import { ImportProgressToast } from '../../components/ImportProgressToast'
+import { rememberActiveBatch, getRememberedBatch } from '../../hooks/useImportProgress'
 import type { InventoryItem, Product } from '../../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,22 +49,20 @@ function expiryLabel(item: InventoryItem) {
 }
 
 // ── Bulk Upload Modal ─────────────────────────────────────────────────────────
-function BulkUploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (stats: any) => void }) {
+function BulkUploadModal({ onClose, onEnqueued }: { onClose: () => void; onEnqueued: (batchId: string, total: number) => void }) {
   const { t } = useTranslation()
-  const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
 
   const importMutation = useMutation({
-    mutationFn: () => {
-      const form = new FormData()
-      form.append('file', file!)
-      return client.post('/inventory/import', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-    },
+    // Two-phase pipeline: server parses + stages + enqueues, returns {batchId, total}.
+    // The sticky ImportProgressToast (mounted by parent) polls /inventory/imports/:id
+    // and shows live progress + counters + cancel button.
+    mutationFn: () => importsApi.ingestCsv(file!),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['inventory'] })
-      onSuccess(res.data)
+      rememberActiveBatch(res.batchId)
+      onEnqueued(res.batchId, res.total)
       onClose()
     },
   })
@@ -136,8 +137,8 @@ function BulkUploadModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         <button onClick={() => importMutation.mutate()} disabled={!file || importMutation.isPending}
           className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl">
           {importMutation.isPending
-            ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />جاري الرفع...</>
-            : <><Upload size={15} />{t('inventory.upload.upload_btn')}</>}
+            ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />جاري الإرسال…</>
+            : <><Upload size={15} />ابدأ الرفع الذكي</>}
         </button>
       </div>
     </div>
@@ -1312,7 +1313,28 @@ export default function InventoryPage() {
   const [requestItem, setRequestItem]         = useState<InventoryItem | null>(null)
   const [linkItem, setLinkItem]               = useState<InventoryItem | null>(null)
   const [showAIWizard, setShowAIWizard]       = useState(false)
-  const [aiResult, setAIResult]               = useState<{ scanned: number; autoLinked: number; suggested: number } | null>(null)
+  // Async catalog-matching: holds the id of the currently-running ImportBatch
+  // so the ImportProgressToast can poll progress and show counters. Cleared
+  // when the user dismisses the toast. Persisted across page reloads via
+  // localStorage so the user always sees in-flight work.
+  const [activeBatchId, setActiveBatchId]     = useState<string | null>(null)
+
+  // Restore a running batch on first mount — handles browser refresh during
+  // long imports. Validates via API; if the batch is already terminal we
+  // silently clear it (the notification bell will surface the result).
+  useEffect(() => {
+    const remembered = getRememberedBatch()
+    if (!remembered) return
+    importsApi.get(remembered)
+      .then(b => {
+        if (b.status === 'queued' || b.status === 'matching') {
+          setActiveBatchId(b.id)
+        } else {
+          rememberActiveBatch(null)
+        }
+      })
+      .catch(() => rememberActiveBatch(null))
+  }, [])
   // Close menu when clicking outside or scrolling/resizing
   useEffect(() => {
     if (!openMenu) return
@@ -1447,15 +1469,14 @@ export default function InventoryPage() {
       setFormError(err?.response?.data?.message || 'تعذّر إرسال الطلب'),
   })
 
+  // Smart Link — enqueue an async tenant-wide rematch job. The server returns
+  // a batchId immediately; the ImportProgressToast then polls live progress.
   const runMatchingMutation = useMutation({
-    mutationFn: () => inventoryApi.runMatching().then(r => r.data),
-    onSuccess: (res: any) => {
-      qc.invalidateQueries({ queryKey: ['inventory'] })
-      setAIResult({
-        scanned:    res?.scanned    ?? 0,
-        autoLinked: res?.autoLinked ?? 0,
-        suggested:  res?.suggested  ?? 0,
-      })
+    mutationFn: () => importsApi.runMatching(),
+    onSuccess: (res) => {
+      rememberActiveBatch(res.batchId)
+      setActiveBatchId(res.batchId)
+      setShowAIWizard(false)
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || 'تعذّر تشغيل الذكاء الاصطناعي'
@@ -1594,11 +1615,14 @@ export default function InventoryPage() {
         {uploadToast && <UploadToast stats={uploadToast} onDismiss={() => setUploadToast(null)} />}
         <InventorySetupLanding onBulkUpload={() => setShowBulkUpload(true)} onAddManually={() => { setShowAdd(true); setFormError(null) }} />
         <Modal isOpen={showBulkUpload} onClose={() => setShowBulkUpload(false)} title={t('inventory.upload.title')} size="lg">
-          <BulkUploadModal onClose={() => setShowBulkUpload(false)} onSuccess={s => { setUploadToast(s) }} />
+          <BulkUploadModal onClose={() => setShowBulkUpload(false)} onEnqueued={(batchId) => setActiveBatchId(batchId)} />
         </Modal>
         <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title={t('inventory.add.title')} size="lg">
           <AddProductModal {...sharedAddProps} />
         </Modal>
+        {activeBatchId && (
+          <ImportProgressToast batchId={activeBatchId} onDismiss={() => setActiveBatchId(null)} />
+        )}
       </>
     )
   }
@@ -1633,7 +1657,7 @@ export default function InventoryPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setAIResult(null); setShowAIWizard(true) }}
+              onClick={() => setShowAIWizard(true)}
               disabled={runMatchingMutation.isPending}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white text-sm font-medium rounded-xl disabled:opacity-60 shadow-sm"
               title="مطابقة جميع منتجات المخزون مع الكتالوج تلقائياً">
@@ -1925,7 +1949,7 @@ export default function InventoryPage() {
 
       {/* Modals */}
       <Modal isOpen={showBulkUpload} onClose={() => setShowBulkUpload(false)} title={t('inventory.upload.title')} size="lg">
-        <BulkUploadModal onClose={() => setShowBulkUpload(false)} onSuccess={s => { setUploadToast(s); setShowBulkUpload(false) }} />
+        <BulkUploadModal onClose={() => setShowBulkUpload(false)} onEnqueued={(batchId) => setActiveBatchId(batchId)} />
       </Modal>
 
       <Modal isOpen={showAdd} onClose={() => { setShowAdd(false); setFormError(null); setSimilarCandidates(null) }} title={t('inventory.add.title')} size="lg">
@@ -2047,15 +2071,9 @@ export default function InventoryPage() {
 
       <AIMatchingWizard
         isOpen={showAIWizard}
-        onClose={() => {
-          setShowAIWizard(false)
-          // After viewing results, jump to review queue if there are suggestions
-          if (aiResult && aiResult.suggested > 0) setStatFilter('review')
-          setAIResult(null)
-        }}
+        onClose={() => setShowAIWizard(false)}
         onConfirm={() => runMatchingMutation.mutate()}
         isPending={runMatchingMutation.isPending}
-        result={aiResult}
         unlinkedCount={inventory.filter(i => i.linkStatus === 'unlinked' || i.linkStatus === 'suggested').length}
       />
 
@@ -2074,6 +2092,17 @@ export default function InventoryPage() {
           />
         )}
       </Modal>
+
+      {/* Sticky live-progress toast for any in-flight import / Smart Link.
+          Persists across navigations within the inventory page and across
+          page reloads (via localStorage). Auto-disappears 6 s after a
+          terminal status (completed/failed/cancelled) is acknowledged. */}
+      {activeBatchId && (
+        <ImportProgressToast
+          batchId={activeBatchId}
+          onDismiss={() => setActiveBatchId(null)}
+        />
+      )}
     </>
   )
 }

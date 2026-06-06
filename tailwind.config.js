@@ -18,6 +18,16 @@ export default {
           900: '#1e3a8a',
         },
       },
+      keyframes: {
+        // Shimmer band that travels across the import-progress bar.
+        shimmer: {
+          '0%':   { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
+      animation: {
+        shimmer: 'shimmer 2s linear infinite',
+      },
     },
   },
   plugins: [],

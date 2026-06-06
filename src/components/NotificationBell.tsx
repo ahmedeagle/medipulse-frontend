@@ -1,31 +1,37 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Package, ShoppingCart, FileText, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Package, ShoppingCart, FileText, CheckCircle, AlertTriangle, Sparkles, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { notificationsApi } from '../api/notifications.api';
 
 const TYPE_ICON: Record<string, React.ElementType> = {
-  high_risk_stockout:    AlertTriangle,
-  order_status_changed:  ShoppingCart,
-  draft_created:         FileText,
-  supplier_overdue:      AlertTriangle,
-  delivery_confirmed:    CheckCircle,
-  forecast_spike:        AlertTriangle,
-  reorder_deadline:      Package,
-  dead_stock_warning:    Package,
-  system:                Bell,
+  high_risk_stockout:       AlertTriangle,
+  order_status_changed:     ShoppingCart,
+  draft_created:            FileText,
+  supplier_overdue:         AlertTriangle,
+  delivery_confirmed:       CheckCircle,
+  forecast_spike:           AlertTriangle,
+  reorder_deadline:         Package,
+  dead_stock_warning:       Package,
+  inventory_batch_complete: Sparkles,
+  inventory_batch_failed:   XCircle,
+  system:                   Bell,
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  high_risk_stockout:   'text-red-500',
-  order_status_changed: 'text-blue-500',
-  draft_created:        'text-purple-500',
-  delivery_confirmed:   'text-green-500',
-  reorder_deadline:     'text-orange-500',
+  high_risk_stockout:       'text-red-500',
+  order_status_changed:     'text-blue-500',
+  draft_created:            'text-purple-500',
+  delivery_confirmed:       'text-green-500',
+  reorder_deadline:         'text-orange-500',
+  inventory_batch_complete: 'text-emerald-500',
+  inventory_batch_failed:   'text-red-500',
 };
 
 export function NotificationBell() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -120,7 +126,17 @@ export function NotificationBell() {
                 return (
                   <button
                     key={n.id}
-                    onClick={() => { if (!n.isRead) markRead.mutate(n.id); }}
+                    onClick={() => {
+                      if (!n.isRead) markRead.mutate(n.id);
+                      // Backend stores deep-link target in resourceRef; following
+                      // it (when present and a relative path) takes the user
+                      // directly to the actionable screen — e.g. the suggested-
+                      // review queue after a successful import.
+                      if (n.resourceRef && typeof n.resourceRef === 'string' && n.resourceRef.startsWith('/')) {
+                        setOpen(false);
+                        navigate(n.resourceRef);
+                      }
+                    }}
                     className={clsx(
                       'w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0',
                       !n.isRead && 'bg-blue-50/40',

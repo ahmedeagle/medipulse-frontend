@@ -1,0 +1,411 @@
+{\rtf1\ansi\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset1 Segoe UI Emoji;}{\f1\fnil\fcharset0 Calibri;}{\f2\fnil Calibri;}{\f3\fnil\fcharset1 Segoe UI Symbol;}}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9\u-10178?\u-8736?\f1  PRD v2 \f2\emdash\f1  AI Workforce Platform for Pharmacies\par
+\par
+Version: 2.0 (Enterprise-Ready Foundation)\par
+Scope: Independent Pharmacies (MVP)\par
+Future-ready: Chain/Enterprise expansion (design-compatible, not implemented)\par
+\par
+1. Executive Summary\par
+\par
+The product is a Governed AI Workforce Platform for Pharmacies, embedded inside pharmacy management systems.\par
+\par
+It transforms passive pharmacy data into:\par
+\par
+Operational intelligence\par
+Risk detection\par
+Purchase recommendations\par
+Inventory optimization guidance\par
+Catalog quality enforcement\par
+\par
+The system is not a chatbot.\par
+\par
+It is a controlled AI decision system with human approval at every critical step.\par
+\par
+2. Product Vision\par
+Core Vision\par
+\par
+Turn pharmacy software from a record system into a decision-making workforce.\par
+\par
+Key Principle\par
+\ldblquote AI suggests. Humans decide. System ensures traceability.\rdblquote\par
+3. Problem Statement\par
+\par
+Pharmacies today suffer from:\par
+\par
+Poor inventory visibility\par
+Manual purchasing decisions\par
+Overstock and dead stock\par
+Expiry-related losses\par
+Supplier inefficiency\par
+Catalog duplication and inconsistencies\par
+Core gap:\par
+\par
+Current systems = \ldblquote data storage\rdblquote\par
+\par
+Not:\par
+\par
+decision support\par
+operational intelligence\par
+risk prevention\par
+4. Product Principle (VERY IMPORTANT)\par
+The 3 Rules of the System\par
+No autonomous execution (MVP)\par
+Every action is explainable\par
+Every recommendation is auditable\par
+5. System Architecture (Conceptual)\par
+\f0\u-10178?\u-8736?\f1  AI Workforce Layer\par
+\par
+A set of governed agents:\par
+\par
+Inventory Expert\par
+Purchase Expert\par
+Catalog Expert\par
+Dead Stock Expert\par
+Expiry Expert\par
+Marketplace Expert\par
+\f0\u-10178?\u-8727?\f1  Governance Layer (CORE SYSTEM)\par
+\par
+Controls:\par
+\par
+permissions\par
+approvals\par
+audit trail\par
+action safety rules\par
+agent enablement\par
+\f3\u-10179?\u-9014?\f1  Execution Layer\par
+Tasks\par
+Drafts\par
+Recommendations\par
+Approvals\par
+\f3\u-10179?\u-8986?\f1  Data Layer\par
+Inventory\par
+Sales\par
+Products\par
+Suppliers\par
+Transactions\par
+6. Core Concept \f2\emdash\f1  Agent Model\par
+Agent =\par
+\par
+Identity + Skills + Permissions + Output Rules\par
+\par
+Example\par
+Inventory Expert\par
+\par
+Skills:\par
+\par
+Demand forecasting\par
+Stock analysis\par
+Risk detection\par
+\par
+Permissions:\par
+\par
+Read inventory\par
+Read sales\par
+\par
+Restrictions:\par
+\par
+Cannot modify data\par
+Cannot create purchase orders\par
+\par
+Outputs:\par
+\par
+Recommendations only\par
+7. AI Center (Main Module)\par
+Navigation\par
+Workforce Dashboard\par
+Agents\par
+Tasks\par
+Approvals\par
+Audit Logs\par
+Settings (Admin only)\par
+8. Workforce Dashboard (MVP Core Screen)\par
+Purpose\par
+\par
+Daily operational control center for pharmacy owner\par
+\par
+UI Philosophy\par
+Simple Arabic-first UI\par
+Minimal technical language\par
+Action-focused (not data-heavy)\par
+Widgets\par
+1. Stock Risks\par
+Low stock items\par
+Out-of-stock risk\par
+2. Expiry Risks\par
+Near expiry products\par
+3. Dead Stock\par
+No movement items\par
+4. Purchase Suggestions\par
+AI-generated drafts\par
+5. Catalog Issues\par
+duplicates / mismatches\par
+6. Pending Approvals\par
+tasks waiting action\par
+UX Rule\par
+\par
+\ldblquote Show 5\f2\endash\f1 10 critical actions max. Everything else is hidden or grouped.\rdblquote\par
+\par
+9. Agents (MVP Scope)\par
+9.1 Inventory Expert\par
+Objective:\par
+\par
+Prevent stockouts and overstock\par
+\par
+Outputs:\par
+risk alerts\par
+reorder suggestions\par
+demand trends\par
+Example Output:\par
+\par
+Panadol Extra\par
+Stock: 10\par
+Daily Sales: 5\par
+\par
+Risk: Stockout in 2 days\par
+Recommendation: 30 units\par
+\par
+Confidence: High\par
+Why: Based on 60-day sales trend\par
+\par
+9.2 Purchase Expert\par
+Objective:\par
+\par
+Optimize purchasing decisions\par
+\par
+Outputs:\par
+draft purchase orders\par
+supplier suggestions\par
+timing recommendations\par
+Key Rule:\par
+\par
+All outputs require approval\par
+\par
+9.3 Catalog Expert\par
+Objective:\par
+\par
+Improve catalog integrity\par
+\par
+Capabilities:\par
+duplicate detection\par
+product matching\par
+catalog scoring\par
+Scores:\par
+Name match\par
+Barcode match\par
+Visual match\par
+Output:\par
+suggested linking\par
+duplicates flagged\par
+9.4 Dead Stock Expert\par
+Objective:\par
+\par
+Identify non-moving inventory\par
+\par
+Rules:\par
+30 / 60 / 90 day inactivity thresholds\par
+Recommendations:\par
+discount\par
+bundle\par
+transfer\par
+marketplace listing\par
+9.5 Expiry Expert\par
+Objective:\par
+\par
+Reduce expiry loss\par
+\par
+Priorities:\par
+Critical (<30 days)\par
+High\par
+Medium\par
+Low\par
+Actions:\par
+discount\par
+promotion\par
+return suggestion\par
+9.6 Marketplace Expert\par
+Objective:\par
+\par
+Improve liquidity\par
+\par
+Outputs:\par
+listing suggestions\par
+transferable stock\par
+demand matching\par
+10. Tasks System (CORE EXECUTION MODEL)\par
+\par
+Agents do NOT execute.\par
+\par
+They create Tasks.\par
+\par
+Task Example\par
+\par
+Type: Purchase Task\par
+Status: Pending Approval\par
+\par
+Content:\par
+Buy 20 units Panadol Extra\par
+Reason: Stockout risk in 2 days\par
+\par
+Task Types\par
+Purchase Draft\par
+Discount Suggestion\par
+Product Linking\par
+Listing Suggestion\par
+Risk Alert Action\par
+11. Approval Center (CRITICAL SYSTEM)\par
+Purpose\par
+\par
+Single control point for all execution\par
+\par
+Features\par
+approve\par
+reject\par
+modify request\par
+bulk approval\par
+Rule\par
+\par
+No action is executed without approval\par
+\par
+Future-ready extension (NOT MVP)\par
+approval rules engine\par
+auto-approval thresholds\par
+12. Audit & Governance Layer (ENTERPRISE CORE)\par
+\par
+Every AI action is logged.\par
+\par
+Audit Log Fields\par
+Agent Name\par
+User\par
+Timestamp\par
+Action Type\par
+Input Data\par
+Output Data\par
+Approval Status\par
+Approver\par
+Why this matters\par
+\par
+This is what makes:\par
+\par
+compliance possible\par
+enterprise adoption possible\par
+trust measurable\par
+13. Explanation Requirement Engine (VERY IMPORTANT UX RULE)\par
+\par
+Every AI output MUST include:\par
+\par
+Why this recommendation was made\par
+What data influenced it\par
+No exceptions\par
+\par
+Even simple alerts must answer:\par
+\par
+\ldblquote Why am I seeing this?\rdblquote\par
+\par
+14. Confidence System\par
+\par
+Instead of technical AI scores:\par
+\par
+Use:\par
+\par
+Very High\par
+High\par
+Medium\par
+Low\par
+Rule\par
+\par
+Confidence must always be explained:\par
+\par
+Example:\par
+\par
+High confidence because:\par
+\par
+consistent sales pattern\par
+stable supplier behavior\par
+15. Morning Briefing (MVP LIGHT VERSION)\par
+\par
+Daily summary:\par
+\par
+Stock risks\par
+Expiry risks\par
+Purchase opportunities\par
+\par
+Delivered via:\par
+\par
+In-app (MVP)\par
+Email (optional MVP)\par
+16. UX / UI SYSTEM RULES\par
+Mandatory UX Principles\par
+Arabic-first UI\par
+Non-technical language\par
+One-click actions\par
+No AI jargon exposed\par
+Tooltips everywhere\par
+Guided onboarding\par
+Empty state education\par
+Progressive disclosure\par
+UI Philosophy\par
+\par
+\ldblquote Pharmacy owner should never feel they are using an AI system.\rdblquote\par
+\par
+They should feel:\par
+\par
+\ldblquote The system is helping me run my pharmacy.\rdblquote\par
+\par
+17. Phase Plan (UPDATED FOR MVP REALITY)\par
+Phase 1 (MVP CORE)\par
+Inventory Expert\par
+Purchase Expert\par
+Catalog Expert\par
+Approval Center\par
+Audit Logs\par
+Workforce Dashboard\par
+Phase 2\par
+Dead Stock Expert\par
+Expiry Expert\par
+Morning Briefing\par
+Phase 3\par
+Marketplace Expert\par
+Supplier Intelligence\par
+18. Success Metrics\par
+Operational Impact\par
+20% reduction in inventory waste\par
+15% reduction in dead stock\par
+50% faster purchasing decisions\par
+95% catalog accuracy\par
+Adoption Metrics\par
+60% daily AI engagement\par
+70% approval conversion rate\par
+19. What makes this \ldblquote Enterprise-Grade\rdblquote  now?\par
+\par
+This version adds:\par
+\par
+1. Governance-first architecture\par
+2. Decision traceability model\par
+3. Standard task execution system\par
+4. UX simplification layer (\ldblquote no AI complexity visible\rdblquote )\par
+5. Auditability built-in (not added later)\par
+6. Approval-first execution engine\par
+\f3\u-10179?\u-8576?\f1  Final honest assessment\par
+\par
+You are no longer building:\par
+\par
+Pharmacy software with AI features\par
+\par
+You are building:\par
+\par
+\ldblquote Controlled AI Decision System for Healthcare Retail Operations\rdblquote\par
+\par
+That is a new category, not an upgrade.\par
+\par
+If you want next step, I can help you with:\par
+\par
+System architecture diagram (services + DB + AI orchestration)\par
+Database schema for agents/tasks/approvals\par
+UX wireframes for AI Center\par
+Or \par
+execution roadmap for your dev team (Sprint 1\f2\endash\f1 4 breakdown)\par
+\par
+Just tell me \f3\u-10179?\u-9139?\f1\par
+}
+ 
