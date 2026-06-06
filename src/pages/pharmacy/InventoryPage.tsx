@@ -167,6 +167,22 @@ function UploadToast({ stats, onDismiss }: { stats: any; onDismiss: () => void }
               <p className="text-xs text-gray-500 mt-0.5">
                 {stats.imported} منتج جديد · {stats.updated} محدَّث · {stats.skipped} تم تجاهله
               </p>
+              {(stats.autoLinked > 0 || stats.suggested > 0 || stats.unlinked > 0) && (
+                <div className="grid grid-cols-3 gap-1.5 mt-2 text-[11px]">
+                  <div className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+                    <span className="font-bold">{stats.autoLinked || 0}</span>
+                    <span className="block opacity-80">ربط تلقائي</span>
+                  </div>
+                  <div className="px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
+                    <span className="font-bold">{stats.suggested || 0}</span>
+                    <span className="block opacity-80">للمراجعة</span>
+                  </div>
+                  <div className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-gray-600">
+                    <span className="font-bold">{stats.unlinked || 0}</span>
+                    <span className="block opacity-80">جديد</span>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-3 mt-2">
                 <div className={`flex items-center gap-1 text-xs ${accent.label}`}>
                   <div className={`w-2 h-2 rounded-full ${accent.dot}`} />
