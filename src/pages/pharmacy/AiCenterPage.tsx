@@ -470,16 +470,23 @@ function DashboardTab() {
 function ApprovalsTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const focusId = searchParams.get('id')
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'modified' | 'approved' | 'rejected' | 'all'>('pending')
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'modified' | 'approved' | 'rejected' | 'failed' | 'all'>('pending')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const qc = useQueryClient()
   const { toast, confirm } = useActions()
 
   const list = useQuery({
     queryKey: ['ai-center', 'approvals', statusFilter],
-    queryFn:  () => aiCenterApi.listApprovals(
-      statusFilter === 'all' ? {} : { status: statusFilter }
-    ),
+    queryFn:  async () => {
+      // 'failed' is a synthetic client-side filter over status=executed.
+      if (statusFilter === 'failed') {
+        const r = await aiCenterApi.listApprovals({ status: 'executed', limit: 200 })
+        return { ...r, data: r.data.filter(a => a.executionResult?.failed === true) }
+      }
+      return aiCenterApi.listApprovals(
+        statusFilter === 'all' ? {} : { status: statusFilter }
+      )
+    },
     refetchInterval: 30_000,
   })
 
@@ -523,6 +530,7 @@ function ApprovalsTab() {
             { k: 'modified', l: 'بعد تعديلك' },
             { k: 'approved', l: 'موافَق عليه' },
             { k: 'rejected', l: 'مرفوض' },
+            { k: 'failed',   l: 'فشل التنفيذ' },
             { k: 'all',      l: 'الكل' },
           ] as const).map(p => (
             <button
@@ -647,8 +655,21 @@ function ApprovalRow({
         {PRIORITY_LABEL_AR[approval.priority]}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-900 text-sm">{approval.title}</div>
+        <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+          <span className="truncate">{approval.title}</span>
+          {approval.status === 'executed' && approval.executionResult?.failed && (
+            <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 text-[10px] font-semibold">
+              <AlertOctagon size={10} />
+              فشل التنفيذ
+            </span>
+          )}
+        </div>
         <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{approval.summary}</div>
+        {approval.status === 'executed' && approval.executionResult?.failed && (
+          <div className="text-[11px] text-red-700 mt-1 line-clamp-1">
+            السبب: {String(approval.executionResult.error ?? 'غير معروف')}
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-1.5">
           <Tooltip text={approval.confidenceReason ?? 'درجة ثقة المساعد بالاقتراح بناءً على البيانات المتوفرة.'}>
             <span className={`px-1.5 py-0.5 rounded text-[10px] cursor-help ${CONFIDENCE_STYLE[approval.confidenceLabel]}`}>
@@ -678,9 +699,30 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
   const approve = useMutation({
     mutationFn: () => aiCenterApi.approve(approval!.id, note || undefined),
     onSuccess: () => {
+      const approvalId = approval!.id
       toast('success', 'تمت الموافقة — جارٍ تنفيذ الإجراء.')
       setNote(''); setShowModify(false)
       qc.invalidateQueries({ queryKey: ['ai-center'] })
+
+      // Domain executors run async via event listeners. Poll the approval
+      // for up to ~6 s; if it lands in executed-with-failure, surface the
+      // real reason so the pharmacist isn't left wondering "did anything
+      // happen?".
+      let tries = 0
+      const poll = async () => {
+        tries++
+        try {
+          const fresh = await aiCenterApi.getApproval(approvalId)
+          if (fresh.status === 'executed' && fresh.executionResult?.failed) {
+            toast('error', `لم يتمكّن النظام من تنفيذ القرار: ${String(fresh.executionResult.error ?? 'سبب غير معروف')}`)
+            qc.invalidateQueries({ queryKey: ['ai-center'] })
+            return
+          }
+          if (fresh.status === 'executed') return
+        } catch { /* network blip — keep polling */ }
+        if (tries < 6) setTimeout(poll, 1_000)
+      }
+      setTimeout(poll, 1_000)
     },
     onError: (e: any) => toast('error', e?.message ?? 'تعذّرت الموافقة.'),
   })
