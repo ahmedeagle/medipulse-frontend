@@ -8,7 +8,7 @@ import {
   Archive, Link as LinkIcon, ShoppingCart, Package,
   AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft,
   AlertCircle, Info, Loader2, X, Edit3,
-  Store, Eye, RefreshCw,
+  Store, Eye, RefreshCw, Activity, Ban, Zap,
 } from 'lucide-react'
 import {
   aiCenterApi,
@@ -963,6 +963,11 @@ function AgentsTab() {
   const qc = useQueryClient()
   const { toast } = useActions()
   const list = useQuery({ queryKey: ['ai-center', 'agents'], queryFn: aiCenterApi.listAgents })
+  const usage = useQuery({
+    queryKey: ['ai-center', 'token-usage', 'today'],
+    queryFn:  aiCenterApi.tokenUsageToday,
+    refetchInterval: 60_000,
+  })
 
   const toggle = useMutation({
     mutationFn: (a: Agent) => aiCenterApi.updateAgent(a.code, { enabled: !a.enabled }),
@@ -988,6 +993,8 @@ function AgentsTab() {
 
   return (
     <div className="space-y-6">
+      <TokenBudgetBanner usage={usage.data} loading={usage.isLoading} />
+
       {[1, 2, 3].map(phase => groups[phase] && (
         <div key={phase}>
           <div className="flex items-center gap-2 mb-3">
@@ -1075,8 +1082,65 @@ function skillLabelAr(code: string): string {
   return map[code] ?? code
 }
 
-function ToggleSwitch({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange: () => void }) {
+function TokenBudgetBanner({
+  usage, loading,
+}: {
+  usage:   import('../../api/ai-center.api').TokenUsageToday | undefined
+  loading: boolean
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+        <div className="h-4 w-32 bg-gray-100 rounded animate-pulse mb-2" />
+        <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
+      </div>
+    )
+  }
+  if (!usage) return null
+
+  const fmt = (n: number) => n.toLocaleString('ar-EG')
+  const danger  = usage.percent >= 90
+  const warn    = usage.percent >= 70 && !danger
+  const ok      = !warn && !danger
+
+  const toneBar = danger ? 'bg-red-500' : warn ? 'bg-amber-500' : 'bg-emerald-500'
+  const toneBg  = danger ? 'border-red-200 bg-red-50' :
+                  warn   ? 'border-amber-200 bg-amber-50' :
+                           'border-emerald-200 bg-emerald-50'
+  const toneText = danger ? 'text-red-900' : warn ? 'text-amber-900' : 'text-emerald-900'
+
   return (
+    <div className={`rounded-2xl border ${toneBg} p-4`}>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2">
+          <Zap size={16} className={toneText} />
+          <h3 className={`text-sm font-semibold ${toneText}`}>استهلاك الذكاء الاصطناعي اليوم</h3>
+          <Tooltip text="حدّ يومي على رموز الإخراج (Output Tokens) لكل صيدلية — يحمي من أي استهلاك غير متوقع. يعاد ضبطه تلقائياً عند منتصف الليل بتوقيت UTC.">
+            <Info size={12} className={`${toneText} opacity-60 cursor-help`} />
+          </Tooltip>
+        </div>
+        <div className={`text-xs font-medium ${toneText} tabular-nums`}>
+          {fmt(usage.outputTokens)} / {fmt(usage.cap)} رمز ({usage.percent}٪)
+        </div>
+      </div>
+
+      <div className="h-2 rounded-full bg-white/70 overflow-hidden mb-2">
+        <div className={`h-full ${toneBar} transition-all`} style={{ width: `${Math.min(100, usage.percent)}%` }} />
+      </div>
+
+      <div className={`flex items-center justify-between text-[11px] ${toneText} opacity-80`}>
+        <span>{fmt(usage.calls)} استدعاء · مُدخَل: {fmt(usage.inputTokens)}</span>
+        <span>
+          {danger ? '⚠️ اقترب من الحدّ اليومي — قد يتحول النظام إلى وضع القواعد فقط.' :
+           warn   ? 'استهلاك مرتفع — راقب نشاط المساعدين.' :
+           ok     ? `متبقي: ${fmt(usage.remaining)} رمز اليوم.` : ''}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function ToggleSwitch({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange: () => void }) {  return (
     <button
       role="switch"
       aria-checked={checked}
@@ -1096,77 +1160,224 @@ function ToggleSwitch({ checked, disabled, onChange }: { checked: boolean; disab
 // ═════════════════════════════════════════════════════════════════════════════
 
 function AuditTab() {
-  const [view, setView] = useState<'ai' | 'all'>('ai')
+  const [view, setView] = useState<'decisions' | 'runs'>('decisions')
+  const [days, setDays] = useState<7 | 30>(7)
+
   const events = useQuery({
-    queryKey: ['ai-center', 'audit', view],
+    queryKey: ['ai-center', 'audit', 'events'],
     queryFn:  () => aiCenterApi.approvalEvents(200, 0),
   })
+  const stats = useQuery({
+    queryKey: ['ai-center', 'audit', 'ai-stats', days],
+    queryFn:  () => aiCenterApi.aiRunStats(days),
+  })
+  const runs = useQuery({
+    queryKey: ['ai-center', 'audit', 'ai-runs'],
+    queryFn:  () => aiCenterApi.aiRuns(50),
+    enabled:  view === 'runs',
+  })
+
+  const fmtNum = (n: number) => n.toLocaleString('ar-EG')
+  const fmtMs  = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)} ث` : `${n} مللي`
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={18} className="text-violet-600" />
-          <h2 className="text-base font-semibold text-gray-900">سجل القرارات (شفافية كاملة)</h2>
+    <div className="space-y-5">
+      {/* AI generation stats banner */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Activity size={18} className="text-violet-600" />
+            <h2 className="text-base font-semibold text-gray-900">أداء مساعديك الأذكياء</h2>
+            <Tooltip text="مقاييس استدعاءات الذكاء الاصطناعي خلال الفترة المختارة. تساعدك على التحقق من سلامة وكفاءة عمل المساعدين.">
+              <Info size={13} className="text-gray-400 cursor-help" />
+            </Tooltip>
+          </div>
+          <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setDays(7)}
+              className={`px-3 py-1 rounded-md text-xs font-medium ${days === 7 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+            >آخر ٧ أيام</button>
+            <button
+              onClick={() => setDays(30)}
+              className={`px-3 py-1 rounded-md text-xs font-medium ${days === 30 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+            >آخر ٣٠ يوم</button>
+          </div>
         </div>
-        <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
-          <button
-            onClick={() => setView('ai')}
-            className={`px-3 py-1 rounded-md text-xs font-medium ${view === 'ai' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
-          >
-            قرارات الذكاء فقط
-          </button>
-          <button
-            onClick={() => setView('all')}
-            className={`px-3 py-1 rounded-md text-xs font-medium ${view === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
-          >
-            كل الإجراءات
-          </button>
-        </div>
+
+        {stats.isLoading ? (
+          <div className="p-5"><SkeletonRows /></div>
+        ) : stats.data ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-4">
+            <StatCard label="إجمالي العمليات" value={fmtNum(stats.data.totalRuns)}        icon={Activity}     tone="violet" />
+            <StatCard label="ناجحة"          value={fmtNum(stats.data.success)}          icon={CheckCircle2} tone="emerald" />
+            <StatCard label="فشلت"           value={fmtNum(stats.data.failed)}           icon={XCircle}      tone="red" />
+            <StatCard label="مُحجوبة"         value={fmtNum(stats.data.blocked)}          icon={Ban}          tone="amber"
+              hint="استدعاءات منعتها بوابة الأمان (محتوى مرفوض، أو تجاوز حدود الاستهلاك)." />
+            <StatCard label="متوسط الزمن"     value={fmtMs(stats.data.avgLatencyMs)}      icon={Clock}        tone="sky"
+              hint={`P95: ${fmtMs(stats.data.p95LatencyMs)} — أبطأ ٥٪ من الاستدعاءات.`} />
+            <StatCard label="رموز مُنتَجة"    value={fmtNum(stats.data.totalOutputTokens)} icon={Zap}          tone="fuchsia"
+              hint={`المُدخَلة: ${fmtNum(stats.data.totalInputTokens)} — إجمالي رموز الإخراج هو ما يُحاسَب عليه عادةً.`} />
+          </div>
+        ) : null}
       </div>
 
-      {view === 'all' && (
-        <div className="px-5 py-3 bg-sky-50 border-b border-sky-100 text-sky-900 text-xs flex items-center gap-2">
-          <Info size={13} />
-          عرض الإجراءات على مستوى النظام بالكامل سيُتاح قريباً. حالياً نعرض القرارات المتعلقة بالمساعدين الأذكياء.
+      {/* Tabs */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-violet-600" />
+            <h2 className="text-base font-semibold text-gray-900">السجل الكامل (شفافية تامة)</h2>
+          </div>
+          <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setView('decisions')}
+              className={`px-3 py-1 rounded-md text-xs font-medium ${view === 'decisions' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+            >قرارات الاعتماد</button>
+            <button
+              onClick={() => setView('runs')}
+              className={`px-3 py-1 rounded-md text-xs font-medium ${view === 'runs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+            >استدعاءات الذكاء</button>
+          </div>
         </div>
-      )}
 
-      {events.isLoading ? (
-        <SkeletonRows />
-      ) : (events.data?.data.length ?? 0) === 0 ? (
-        <EmptyState
-          icon={ShieldCheck}
-          iconCls="bg-violet-100 text-violet-700"
-          title="السجل فارغ"
-          body="عندما يقترح مساعدوك إجراءات وتتخذ قرارات بشأنها، ستظهر هنا — كل خطوة، كل قرار، كل تعديل."
-        />
-      ) : (
-        <ul className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
-          {events.data!.data.map(ev => (
-            <li key={ev.id} className="px-5 py-3 text-sm flex items-start gap-3">
-              <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
-                ev.toStatus === 'approved'    ? 'bg-emerald-500' :
-                ev.toStatus === 'rejected'    ? 'bg-red-500' :
-                ev.toStatus === 'modified'    ? 'bg-amber-500' :
-                ev.toStatus === 'executed'    ? 'bg-violet-500' :
-                ev.toStatus === 'expired'     ? 'bg-gray-400' :
-                                                'bg-sky-500'
-              }`} />
-              <div className="flex-1 min-w-0">
-                <div className="text-gray-900 text-xs">
-                  {transitionLabelAr(ev.fromStatus, ev.toStatus, ev.actorType)}
-                </div>
-                {ev.note && <div className="text-gray-500 text-[11px] mt-0.5">{ev.note}</div>}
-                <div className="text-[10px] text-gray-400 mt-0.5">
-                  {new Date(ev.createdAt).toLocaleString('ar-EG')}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+        {view === 'decisions' ? (
+          events.isLoading ? <SkeletonRows /> :
+          (events.data?.data.length ?? 0) === 0 ? (
+            <EmptyState
+              icon={ShieldCheck}
+              iconCls="bg-violet-100 text-violet-700"
+              title="السجل فارغ"
+              body="عندما يقترح مساعدوك إجراءات وتتخذ قرارات بشأنها، ستظهر هنا — كل خطوة، كل قرار، كل تعديل."
+            />
+          ) : (
+            <ul className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
+              {events.data!.data.map(ev => (
+                <li key={ev.id} className="px-5 py-3 text-sm flex items-start gap-3">
+                  <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
+                    ev.toStatus === 'approved'    ? 'bg-emerald-500' :
+                    ev.toStatus === 'rejected'    ? 'bg-red-500' :
+                    ev.toStatus === 'modified'    ? 'bg-amber-500' :
+                    ev.toStatus === 'executed'    ? 'bg-violet-500' :
+                    ev.toStatus === 'expired'     ? 'bg-gray-400' :
+                                                    'bg-sky-500'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-gray-900 text-xs">
+                      {transitionLabelAr(ev.fromStatus, ev.toStatus, ev.actorType)}
+                    </div>
+                    {ev.note && <div className="text-gray-500 text-[11px] mt-0.5">{ev.note}</div>}
+                    <div className="text-[10px] text-gray-400 mt-0.5">
+                      {new Date(ev.createdAt).toLocaleString('ar-EG')}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : (
+          // RUNS view
+          runs.isLoading ? <SkeletonRows /> :
+          (runs.data?.length ?? 0) === 0 ? (
+            <EmptyState
+              icon={Activity}
+              iconCls="bg-violet-100 text-violet-700"
+              title="لم تُسجَّل أي استدعاءات بعد"
+              body="ستظهر هنا تفاصيل كل استدعاء للذكاء الاصطناعي: الحالة، الزمن، الرموز المستهلكة، والإصدار المستخدم."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 text-gray-500">
+                  <tr>
+                    <th className="text-start px-4 py-2.5 font-medium">الوقت</th>
+                    <th className="text-start px-4 py-2.5 font-medium">الحالة</th>
+                    <th className="text-start px-4 py-2.5 font-medium">الإصدار</th>
+                    <th className="text-start px-4 py-2.5 font-medium">التوصيات</th>
+                    <th className="text-start px-4 py-2.5 font-medium">الزمن</th>
+                    <th className="text-start px-4 py-2.5 font-medium">المُدخَل / المُخرَج</th>
+                    <th className="text-start px-4 py-2.5 font-medium">حُجِب</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {runs.data!.map(r => (
+                    <tr key={r.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
+                        {new Date(r.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RunStatusBadge status={r.status} />
+                        {r.errorMessage && (
+                          <Tooltip text={r.errorMessage}>
+                            <span className="ms-1.5 text-[10px] text-red-600 underline cursor-help">السبب</span>
+                          </Tooltip>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-600 font-mono text-[10px]">{r.promptVersion}</td>
+                      <td className="px-4 py-2.5 text-gray-700 tabular-nums">{r.recommendationsGenerated}</td>
+                      <td className="px-4 py-2.5 text-gray-700 tabular-nums">{fmtMs(r.latencyMs)}</td>
+                      <td className="px-4 py-2.5 text-gray-600 tabular-nums">
+                        {fmtNum(r.inputTokens)} / <span className="text-fuchsia-700 font-medium">{fmtNum(r.outputTokens)}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-700 tabular-nums">
+                        {r.outputsBlocked > 0
+                          ? <span className="text-amber-700 font-medium">{r.outputsBlocked}</span>
+                          : <span className="text-gray-300">٠</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+      </div>
     </div>
+  )
+}
+
+function StatCard({
+  label, value, icon: Icon, tone, hint,
+}: {
+  label: string
+  value: string
+  icon:  React.ComponentType<any>
+  tone:  'violet' | 'emerald' | 'red' | 'amber' | 'sky' | 'fuchsia'
+  hint?: string
+}) {
+  const tones: Record<string, string> = {
+    violet:  'bg-violet-50 text-violet-700 border-violet-200',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    red:     'bg-red-50 text-red-700 border-red-200',
+    amber:   'bg-amber-50 text-amber-700 border-amber-200',
+    sky:     'bg-sky-50 text-sky-700 border-sky-200',
+    fuchsia: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+  }
+  const inner = (
+    <div className={`rounded-xl border p-3 ${tones[tone]} ${hint ? 'cursor-help' : ''}`}>
+      <div className="flex items-center justify-between mb-1">
+        <Icon size={14} />
+        {hint && <Info size={11} className="opacity-50" />}
+      </div>
+      <div className="text-[11px] opacity-80 mb-0.5">{label}</div>
+      <div className="text-lg font-bold tabular-nums leading-tight">{value}</div>
+    </div>
+  )
+  return hint ? <Tooltip text={hint}>{inner}</Tooltip> : inner
+}
+
+function RunStatusBadge({ status }: { status: string }) {
+  const map: Record<string, { ar: string; cls: string }> = {
+    success:        { ar: 'ناجح',         cls: 'bg-emerald-100 text-emerald-700' },
+    failed:         { ar: 'فشل',          cls: 'bg-red-100 text-red-700' },
+    blocked_input:  { ar: 'حُجب الإدخال', cls: 'bg-amber-100 text-amber-700' },
+    blocked_output: { ar: 'حُجب الإخراج', cls: 'bg-amber-100 text-amber-700' },
+    rate_limited:   { ar: 'تجاوز الحدّ',  cls: 'bg-orange-100 text-orange-700' },
+  }
+  const m = map[status] ?? { ar: status, cls: 'bg-gray-100 text-gray-700' }
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${m.cls}`}>
+      {m.ar}
+    </span>
   )
 }
 

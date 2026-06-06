@@ -115,7 +115,41 @@ export interface WorkforceSummary {
   }>
 }
 
-// ── API surface ──────────────────────────────────────────────────────────────
+export interface AiRunStats {
+  windowDays:        number
+  totalRuns:         number
+  success:           number
+  failed:            number
+  blocked:           number
+  avgLatencyMs:      number
+  p95LatencyMs:      number
+  totalInputTokens:  number
+  totalOutputTokens: number
+  recommendationsGenerated: number
+}
+
+export interface AiRunRow {
+  id:                       string
+  createdAt:                string
+  model:                    string
+  promptVersion:            string
+  status:                   string
+  recommendationsGenerated: number
+  latencyMs:                number
+  inputTokens:              number
+  outputTokens:             number
+  outputsBlocked:           number
+  errorMessage:             string | null
+}
+
+export interface TokenUsageToday {
+  inputTokens:  number
+  outputTokens: number
+  calls:        number
+  cap:          number
+  remaining:    number
+  percent:      number
+}
 
 export const aiCenterApi = {
   workforceSummary: (): Promise<WorkforceSummary> =>
@@ -163,10 +197,19 @@ export const aiCenterApi = {
   updateAgent: (code: string, patch: { enabled?: boolean; minConfidence?: number | null }): Promise<unknown> =>
     client.patch(`/ai-center/agents/${code}`, patch).then(r => r.data),
 
+  tokenUsageToday: (): Promise<TokenUsageToday> =>
+    client.get('/ai-center/agents/token-usage/today').then(r => r.data),
+
   // Audit
   approvalEvents: (limit = 100, offset = 0):
     Promise<{ data: ApprovalEvent[]; total: number; limit: number; offset: number }> =>
     client.get('/ai-center/audit/approval-events', { params: { limit, offset } }).then(r => r.data),
+
+  aiRunStats: (days = 7): Promise<AiRunStats> =>
+    client.get('/ai-center/audit/ai-runs/stats', { params: { days } }).then(r => r.data),
+
+  aiRuns: (limit = 50): Promise<AiRunRow[]> =>
+    client.get('/ai-center/audit/ai-runs', { params: { limit } }).then(r => r.data),
 
   // Maintenance
   syncNow: (): Promise<{
