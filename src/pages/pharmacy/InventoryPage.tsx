@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo, Fragment } from 'rea
 import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import {
   Plus, Search, Pencil, Trash2, AlertCircle, Upload, CheckCircle,
   Download, Package, Sparkles, FileSpreadsheet, ArrowRight,
@@ -1197,7 +1198,7 @@ function BatchesSubRow({
 }
 
 // ── MAIN PAGE ──────────────────────────────────────────────────────────────────
-type StatFilter = 'all' | 'low' | 'expiring' | 'dead' | 'review'
+type StatFilter = 'all' | 'low' | 'expiring' | 'expired' | 'dead' | 'review'
 interface Filters {
   category: string
   stockRange: '' | '0-10' | '10-50' | '50-100' | '100-500' | '500+'
@@ -1289,6 +1290,7 @@ const inStockRange = (qty: number, range: Filters['stockRange']) => {
 export default function InventoryPage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
+  const [searchParams] = useSearchParams()
 
   // UI state
   const [search, setSearch]                   = useState('')
@@ -1335,6 +1337,25 @@ export default function InventoryPage() {
       })
       .catch(() => rememberActiveBatch(null))
   }, [])
+
+  // React to deep-links from notifications / toast CTA, e.g.
+  //   /pharmacy/inventory?linkStatus=suggested&batchId=...
+  // Sets the appropriate stat filter so the user lands directly on the rows
+  // that need their attention. Runs on every URL change.
+  useEffect(() => {
+    const linkStatus = searchParams.get('linkStatus')
+    const batchId = searchParams.get('batchId')
+    if (linkStatus === 'suggested' || linkStatus === 'unlinked') {
+      setStatFilter('review')
+    } else if (linkStatus === 'linked' || linkStatus === 'all') {
+      setStatFilter('all')
+    }
+    if (batchId) {
+      // resume showing the toast for this batch (in case worker is still running)
+      setActiveBatchId(prev => prev ?? batchId)
+    }
+    // We intentionally only run on searchParams changes — not on filter state
+  }, [searchParams])
   // Close menu when clicking outside or scrolling/resizing
   useEffect(() => {
     if (!openMenu) return
@@ -1490,7 +1511,12 @@ export default function InventoryPage() {
   const stats = {
     all:      inventory.length,
     low:      inventory.filter(i => i.quantity <= i.minThreshold).length,
+    // Strictly future expiry (within 30 days, not yet past). Expired stock
+    // is counted separately so it never hides inside "expiring soon".
     expiring: inventory.filter(i => i.expiryDate && daysUntilExpiry(i.expiryDate)! <= 30 && daysUntilExpiry(i.expiryDate)! >= 0).length,
+    // Already past expiry — regulatory/patient-safety priority. Drugs in this
+    // bucket must be quarantined and removed from any dispense workflow.
+    expired:  inventory.filter(i => i.expiryDate && daysUntilExpiry(i.expiryDate)! < 0).length,
     dead:     inventory.filter(i => i.quantity > 0 && i.updatedAt && (now - new Date(i.updatedAt).getTime()) > 60 * 86400000).length,
     review:   inventory.filter(i => i.linkStatus === 'suggested' || i.linkStatus === 'unlinked').length,
   }
@@ -1507,7 +1533,8 @@ export default function InventoryPage() {
     )) return false
 
     if (statFilter === 'low'      && item.quantity > item.minThreshold) return false
-    if (statFilter === 'expiring' && !(item.expiryDate && daysUntilExpiry(item.expiryDate)! <= 30)) return false
+    if (statFilter === 'expiring' && !(item.expiryDate && daysUntilExpiry(item.expiryDate)! <= 30 && daysUntilExpiry(item.expiryDate)! >= 0)) return false
+    if (statFilter === 'expired'  && !(item.expiryDate && daysUntilExpiry(item.expiryDate)! < 0)) return false
     if (statFilter === 'dead'     && !((now - new Date(item.updatedAt).getTime()) > 60 * 86400000)) return false
     if (statFilter === 'review'   && !(item.linkStatus === 'suggested' || item.linkStatus === 'unlinked')) return false
 
@@ -1631,17 +1658,22 @@ export default function InventoryPage() {
   const STAT_CARDS = [
     { key:'all' as StatFilter,      label:'كل المنتجات',     count: stats.all,      desc:'عرض جميع المنتجات المتاحة في المخزون',    color:'teal'   },
     { key:'review' as StatFilter,   label:'بحاجة مراجعة',    count: stats.review,   desc:'اقتراحات الذكاء الاصطناعي ومنتجات بلا ربط بالكتالوج', color:'violet' },
-    { key:'dead' as StatFilter,     label:'منتجات راكدة',    count: stats.dead,     desc:'منتجات لم تتحرك منذ فترة وتحتاج إلى متابعة', color:'gray'   },
+    { key:'expired' as StatFilter,  label:'منتهية الصلاحية', count: stats.expired,  desc:'⚠ منتجات تجاوزت تاريخ الصلاحية — يجب عزلها فوراً ومنع الصرف', color:'crimson' },
     { key:'expiring' as StatFilter, label:'تنتهي قريباً',    count: stats.expiring, desc:'دفعات تقترب من تاريخ الانتهاء وتحتاج إلى إجراء سريع', color:'orange' },
     { key:'low' as StatFilter,      label:'مخزون منخفض',    count: stats.low,      desc:'منتجات أوشكت على النفاد وتحتاج إلى إعادة تعبئة',   color:'red'    },
+    { key:'dead' as StatFilter,     label:'منتجات راكدة',    count: stats.dead,     desc:'منتجات لم تتحرك منذ فترة وتحتاج إلى متابعة', color:'gray'   },
   ] as const
 
   const colorMap = {
-    teal:   { card: statFilter==='all'      ? 'border-teal-400 bg-teal-50'   : 'border-gray-200 hover:border-teal-300', count: 'text-teal-700',   icon: 'bg-teal-100 text-teal-600' },
-    violet: { card: statFilter==='review'   ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-violet-300', count: 'text-violet-700', icon: 'bg-violet-100 text-violet-500' },
-    gray:   { card: statFilter==='dead'     ? 'border-gray-400 bg-gray-50'   : 'border-gray-200 hover:border-gray-300', count: 'text-gray-700',   icon: 'bg-gray-100 text-gray-500' },
-    orange: { card: statFilter==='expiring' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300', count: 'text-orange-600', icon: 'bg-orange-100 text-orange-500' },
-    red:    { card: statFilter==='low'      ? 'border-red-400 bg-red-50'     : 'border-gray-200 hover:border-red-300', count: 'text-red-600',    icon: 'bg-red-100 text-red-500' },
+    teal:    { card: statFilter==='all'      ? 'border-teal-400 bg-teal-50'   : 'border-gray-200 hover:border-teal-300', count: 'text-teal-700',   icon: 'bg-teal-100 text-teal-600' },
+    violet:  { card: statFilter==='review'   ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-violet-300', count: 'text-violet-700', icon: 'bg-violet-100 text-violet-500' },
+    gray:    { card: statFilter==='dead'     ? 'border-gray-400 bg-gray-50'   : 'border-gray-200 hover:border-gray-300', count: 'text-gray-700',   icon: 'bg-gray-100 text-gray-500' },
+    orange:  { card: statFilter==='expiring' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300', count: 'text-orange-600', icon: 'bg-orange-100 text-orange-500' },
+    red:     { card: statFilter==='low'      ? 'border-red-400 bg-red-50'     : 'border-gray-200 hover:border-red-300', count: 'text-red-600',    icon: 'bg-red-100 text-red-500' },
+    // Crimson = already-expired stock. Deliberately darker than `red` (low
+    // stock) so the user instantly distinguishes "need to reorder" from
+    // "must quarantine" — a regulatory + patient-safety priority.
+    crimson: { card: statFilter==='expired'  ? 'border-rose-500 bg-rose-50 ring-1 ring-rose-300' : 'border-rose-200 hover:border-rose-400', count: 'text-rose-700',   icon: 'bg-rose-100 text-rose-600' },
   }
 
   return (

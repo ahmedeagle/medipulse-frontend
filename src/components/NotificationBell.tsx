@@ -16,6 +16,7 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   dead_stock_warning:       Package,
   inventory_batch_complete: Sparkles,
   inventory_batch_failed:   XCircle,
+  morning_briefing:         Sparkles,
   system:                   Bell,
 };
 
@@ -27,6 +28,7 @@ const TYPE_COLOR: Record<string, string> = {
   reorder_deadline:         'text-orange-500',
   inventory_batch_complete: 'text-emerald-500',
   inventory_batch_failed:   'text-red-500',
+  morning_briefing:         'text-violet-500',
 };
 
 export function NotificationBell() {
@@ -83,14 +85,14 @@ export function NotificationBell() {
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+          <span className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-96 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+        <div className="absolute end-0 top-12 w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <div className="flex items-center gap-2">

@@ -1,11 +1,12 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Package, ShoppingCart, Sparkles, BookOpen,
   Building2, Users, ListChecks, Inbox, BarChart2, Star,
   User, Upload, TrendingUp, Shield, Plug, GitBranch,
-  Calendar, AlertTriangle,
+  Calendar, AlertTriangle, CheckCircle2, ShieldCheck, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from 'react-oidc-context';
 import { useProfileStore } from '../../store/auth.store';
@@ -13,10 +14,19 @@ import { getRoleFromToken } from '../../auth/oidc';
 
 interface NavItem { labelKey: string; to: string; icon: React.ElementType }
 
+// ── AI Center sub-tabs (deep-link into the page via ?tab=…) ────────────────
+const aiCenterSubTabs: Array<{ tab: string; labelAr: string; labelEn: string; icon: React.ElementType }> = [
+  { tab: 'dashboard', labelAr: 'لوحة العمل',        labelEn: 'Workboard',  icon: LayoutDashboard },
+  { tab: 'approvals', labelAr: 'مركز الموافقات',    labelEn: 'Approvals',  icon: Inbox },
+  { tab: 'tasks',     labelAr: 'مهامي',              labelEn: 'My Tasks',   icon: CheckCircle2 },
+  { tab: 'agents',    labelAr: 'مساعدوك الأذكياء',  labelEn: 'Agents',     icon: Users },
+  { tab: 'audit',     labelAr: 'السجل والشفافية',   labelEn: 'Audit',      icon: ShieldCheck },
+];
+
 const pharmacyNav: NavItem[] = [
   { labelKey: 'nav.dashboard',           to: '/pharmacy',             icon: LayoutDashboard },
+  // AI Center rendered as a special group below — do NOT put it here.
   { labelKey: 'nav.procurement_queue',   to: '/pharmacy/queue',       icon: Inbox },
-  { labelKey: 'nav.ai_recommendations',  to: '/pharmacy/ai',          icon: Sparkles },
   { labelKey: 'nav.forecast',            to: '/pharmacy/forecast',    icon: BarChart2 },
   { labelKey: 'nav.order_schedule',      to: '/pharmacy/eoq',         icon: Calendar },
   { labelKey: 'nav.dead_stock',          to: '/pharmacy/dead-stock',  icon: AlertTriangle },
@@ -69,6 +79,11 @@ export function Sidebar() {
   const role       = profile?.role ?? getRoleFromToken(auth.user);
   const navItems   = NAV_MAP[role ?? ''] ?? adminNav;
   const tenantName = profile?.tenant?.name ?? '';
+  const location   = useLocation();
+  const isAiCenter = location.pathname.startsWith('/pharmacy/ai-center');
+  const activeSub  = new URLSearchParams(location.search).get('tab') ?? 'dashboard';
+  const [aiOpen, setAiOpen] = useState(isAiCenter);
+  const showAiGroup = role === 'pharmacy_admin';
 
   return (
     <aside className={clsx('w-64 min-h-screen bg-slate-800 flex flex-col', isRTL && 'font-arabic')}>
@@ -81,7 +96,86 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ labelKey, to, icon: Icon }) => (
+        {/* ── Dashboard (always first) ─────────────────────────────── */}
+        {navItems.slice(0, 1).map(({ labelKey, to, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end
+            className={({ isActive }) =>
+              clsx(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
+                isRTL && 'flex-row-reverse text-right',
+                isActive
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700 hover:text-white',
+              )
+            }
+          >
+            <Icon size={18} />
+            {t(labelKey)}
+          </NavLink>
+        ))}
+
+        {/* ── AI Center group — flagship feature, prominent gradient header ── */}
+        {showAiGroup && (
+          <div className="mt-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setAiOpen(v => !v)}
+              className={clsx(
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all',
+                isRTL && 'flex-row-reverse text-right',
+                isAiCenter
+                  ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md'
+                  : 'bg-slate-700/40 text-slate-100 hover:bg-slate-700',
+              )}
+            >
+              <Sparkles size={18} className={isAiCenter ? 'text-white' : 'text-violet-300'} />
+              <span className="flex-1">{t('nav.ai_center')}</span>
+              <span className={clsx(
+                'px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider',
+                isAiCenter ? 'bg-white/20 text-white' : 'bg-violet-500/20 text-violet-200',
+              )}>
+                AI
+              </span>
+              <ChevronDown
+                size={14}
+                className={clsx('transition-transform', aiOpen && 'rotate-180')}
+              />
+            </button>
+            {aiOpen && (
+              <div className={clsx(
+                'mt-1 space-y-0.5 ps-2',
+                isRTL ? 'border-r-2 border-violet-500/40 me-3' : 'border-l-2 border-violet-500/40 ms-3',
+              )}>
+                {aiCenterSubTabs.map(({ tab, labelAr, labelEn, icon: SubIcon }) => {
+                  const to = `/pharmacy/ai-center?tab=${tab}`;
+                  const active = isAiCenter && activeSub === tab;
+                  return (
+                    <NavLink
+                      key={tab}
+                      to={to}
+                      className={clsx(
+                        'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all',
+                        isRTL && 'flex-row-reverse text-right',
+                        active
+                          ? 'bg-violet-500/20 text-violet-100 font-medium'
+                          : 'text-slate-400 hover:bg-slate-700/60 hover:text-slate-100',
+                      )}
+                    >
+                      <SubIcon size={14} className={active ? 'text-violet-200' : 'text-slate-500'} />
+                      {isRTL ? labelAr : labelEn}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Rest of nav (skip the dashboard we already rendered) ──── */}
+        {navItems.slice(1).map(({ labelKey, to, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

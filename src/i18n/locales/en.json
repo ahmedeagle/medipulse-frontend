@@ -34,6 +34,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "ai_center": "AI Center",
     "inventory": "Inventory",
     "orders": "Orders",
     "supplier_catalog": "Supplier Catalog",

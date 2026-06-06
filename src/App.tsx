@@ -8,11 +8,11 @@ import LoginPage            from './pages/auth/LoginPage';
 
 // ── Pharmacy ──────────────────────────────────────────────────────────────────
 import PharmacyDashboardPage   from './pages/pharmacy/DashboardPage';
+import AiCenterPage             from './pages/pharmacy/AiCenterPage';
 import InventoryPage           from './pages/pharmacy/InventoryPage';
 import CatalogPage             from './pages/pharmacy/CatalogPage';
 import CatalogRequestsPage     from './pages/pharmacy/CatalogRequestsPage';
 import PharmacyOrdersPage      from './pages/pharmacy/OrdersPage';
-import AIRecommendationsPage   from './pages/pharmacy/AIRecommendationsPage';
 import ProcurementQueuePage    from './pages/pharmacy/ProcurementQueuePage';
 import AnalyticsDashboardPage  from './pages/pharmacy/AnalyticsDashboardPage';
 import ConnectionsPage         from './pages/pharmacy/ConnectionsPage';
@@ -90,8 +90,9 @@ export default function App() {
           element={<ProtectedRoute requiredRole="pharmacy_admin"><AppLayout /></ProtectedRoute>}
         >
           <Route index                    element={<PharmacyDashboardPage />} />
+          <Route path="ai-center"         element={<AiCenterPage />} />
           <Route path="queue"             element={<ProcurementQueuePage />} />
-          <Route path="ai"               element={<AIRecommendationsPage />} />
+          <Route path="ai"               element={<Navigate to="/pharmacy/ai-center" replace />} />
           <Route path="forecast"         element={<ForecastPage />} />
           <Route path="eoq"              element={<EoqPage />} />
           <Route path="dead-stock"       element={<DeadStockPage />} />
