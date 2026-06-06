@@ -53,6 +53,11 @@ export interface ApprovalEvent {
   note:         string | null
   payloadDiff:  Record<string, { from: any; to: any }> | null
   createdAt:    string
+  // Enriched by tenantEvents() for the audit feed
+  approvalTitle?:       string | null
+  approvalSubjectType?: string | null
+  approvalSubjectId?:   string | null
+  approvalPriority?:    ApprovalPriority | null
 }
 
 export interface ApprovalCounts {
@@ -218,4 +223,17 @@ export const aiCenterApi = {
     catalog:         { created: number; existed: number }
   }> =>
     client.post('/ai-center/maintenance/sync-now').then(r => r.data),
+
+  // Generation (replaces legacy /ai/recommendations/generate)
+  generate: (): Promise<{ jobId: string; status: 'queued' }> =>
+    client.post('/ai-center/generate').then(r => r.data),
+
+  generateStatus: (jobId: string): Promise<{
+    jobId:            string
+    status:           'queued' | 'waiting' | 'active' | 'delayed' | 'completed' | 'failed' | 'unknown'
+    recommendations?: unknown
+    error?:           string
+    attempts?:        number
+  }> =>
+    client.get(`/ai-center/generate/${jobId}`).then(r => r.data),
 }

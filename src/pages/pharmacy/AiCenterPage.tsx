@@ -955,6 +955,28 @@ function transitionLabelAr(from: string | null, to: string, actor: string): stri
   return `${from} → ${to}`
 }
 
+function subjectTypeLabelAr(t: string): string {
+  switch (t) {
+    case 'recommendation':     return 'توصية مخزون'
+    case 'procurement_draft':  return 'طلب شراء'
+    case 'inventory_item':     return 'ربط منتج'
+    case 'order':              return 'طلب'
+    default:                   return t
+  }
+}
+
+function agentCodeLabelAr(code: string): string {
+  switch (code) {
+    case 'inventory_expert':   return 'خبير المخزون'
+    case 'purchase_expert':    return 'خبير الشراء'
+    case 'catalog_expert':     return 'خبير الكاتالوج'
+    case 'pricing_expert':     return 'خبير التسعير'
+    case 'expiry_expert':      return 'خبير الصلاحيات'
+    case 'compliance_expert':  return 'خبير الامتثال'
+    default:                   return code
+  }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // AGENTS TAB
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1207,7 +1229,7 @@ function AuditTab() {
         {stats.isLoading ? (
           <div className="p-5"><SkeletonRows /></div>
         ) : stats.data ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 p-4">
             <StatCard label="إجمالي العمليات" value={fmtNum(stats.data.totalRuns)}        icon={Activity}     tone="violet" />
             <StatCard label="ناجحة"          value={fmtNum(stats.data.success)}          icon={CheckCircle2} tone="emerald" />
             <StatCard label="فشلت"           value={fmtNum(stats.data.failed)}           icon={XCircle}      tone="red" />
@@ -1253,7 +1275,7 @@ function AuditTab() {
             <ul className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
               {events.data!.data.map(ev => (
                 <li key={ev.id} className="px-5 py-3 text-sm flex items-start gap-3">
-                  <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
+                  <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
                     ev.toStatus === 'approved'    ? 'bg-emerald-500' :
                     ev.toStatus === 'rejected'    ? 'bg-red-500' :
                     ev.toStatus === 'modified'    ? 'bg-amber-500' :
@@ -1262,12 +1284,46 @@ function AuditTab() {
                                                     'bg-sky-500'
                   }`} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-gray-900 text-xs">
+                    {/* WHAT — subject of the decision (title + type pill) */}
+                    {ev.approvalTitle && (
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-medium text-gray-900 text-xs truncate">{ev.approvalTitle}</span>
+                        {ev.approvalSubjectType && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600 border border-gray-200 shrink-0">
+                            {subjectTypeLabelAr(ev.approvalSubjectType)}
+                          </span>
+                        )}
+                        {ev.approvalPriority && ev.approvalPriority !== 'medium' && (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] border shrink-0 ${PRIORITY_STYLE[ev.approvalPriority]}`}>
+                            {PRIORITY_LABEL_AR[ev.approvalPriority]}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* WHO + ACTION */}
+                    <div className="text-gray-700 text-[11px]">
                       {transitionLabelAr(ev.fromStatus, ev.toStatus, ev.actorType)}
+                      {ev.agentCode && (
+                        <span className="text-gray-400"> · {agentCodeLabelAr(ev.agentCode)}</span>
+                      )}
                     </div>
-                    {ev.note && <div className="text-gray-500 text-[11px] mt-0.5">{ev.note}</div>}
-                    <div className="text-[10px] text-gray-400 mt-0.5">
-                      {new Date(ev.createdAt).toLocaleString('ar-EG')}
+                    {/* PAYLOAD DIFF (modified events) */}
+                    {ev.payloadDiff && Object.keys(ev.payloadDiff).length > 0 && (
+                      <div className="mt-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1">
+                        {Object.entries(ev.payloadDiff).slice(0, 3).map(([k, v]) => (
+                          <div key={k} className="truncate">
+                            <span className="font-medium">{k}:</span> {JSON.stringify(v.from)} → {JSON.stringify(v.to)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {ev.note && (
+                      <div className="text-gray-500 text-[11px] mt-0.5 italic">«{ev.note}»</div>
+                    )}
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
+                      <span>{new Date(ev.createdAt).toLocaleString('ar-EG')}</span>
+                      <span>·</span>
+                      <span className="font-mono text-gray-300">#{ev.approvalId.slice(0, 8)}</span>
                     </div>
                   </div>
                 </li>
@@ -1353,13 +1409,13 @@ function StatCard({
     fuchsia: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
   }
   const inner = (
-    <div className={`rounded-xl border p-3 ${tones[tone]} ${hint ? 'cursor-help' : ''}`}>
+    <div className={`rounded-xl border p-3 min-w-0 ${tones[tone]} ${hint ? 'cursor-help' : ''}`}>
       <div className="flex items-center justify-between mb-1">
         <Icon size={14} />
         {hint && <Info size={11} className="opacity-50" />}
       </div>
-      <div className="text-[11px] opacity-80 mb-0.5">{label}</div>
-      <div className="text-lg font-bold tabular-nums leading-tight">{value}</div>
+      <div className="text-[11px] opacity-80 mb-0.5 truncate">{label}</div>
+      <div className="text-lg font-bold tabular-nums leading-tight truncate">{value}</div>
     </div>
   )
   return hint ? <Tooltip text={hint}>{inner}</Tooltip> : inner

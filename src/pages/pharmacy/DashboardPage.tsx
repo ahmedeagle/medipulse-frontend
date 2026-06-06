@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Package, AlertTriangle, ShoppingCart, Sparkles, Loader2 } from 'lucide-react'
 import { inventoryApi } from '../../api/inventory.api'
 import { ordersApi } from '../../api/orders.api'
-import { aiApi } from '../../api/ai.api'
+import { aiCenterApi } from '../../api/ai-center.api'
 import { StatCard } from '../../components/ui/StatCard'
 import { Table } from '../../components/ui/Table'
 import { Badge } from '../../components/ui/Badge'
@@ -27,24 +27,24 @@ export default function PharmacyDashboardPage() {
     queryFn: () => ordersApi.getAll().then((r) => r.data),
   })
   const { data: aiData } = useQuery({
-    queryKey: ['ai-recommendations'],
-    queryFn: () => aiApi.getRecommendations().then((r) => r.data),
+    queryKey: ['ai-center', 'workforce-summary'],
+    queryFn:  aiCenterApi.workforceSummary,
   })
 
   const generateMutation = useMutation({
-    mutationFn: () => aiApi.generate(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-recommendations'] }),
+    mutationFn: () => aiCenterApi.generate(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-center'] }),
   })
 
   const inventory: InventoryItem[] = inventoryData || []
   const lowStock: InventoryItem[] = lowStockData || []
   const orders: Order[] = (ordersData as any)?.data ?? ordersData ?? []
-  const recommendations = aiData || []
+  const pendingApprovals = aiData?.pendingApprovals.total ?? 0
 
   const pendingOrders = orders.filter((o) =>
     ['submitted', 'accepted', 'shipped', 'received_pending_qc'].includes(o.status)
   )
-  const activeRecs = recommendations.filter((r: any) => !r.isDismissed)
+  const activeRecs = { length: pendingApprovals }
 
   if (invLoading || ordersLoading) return <FullPageSpinner />
 
