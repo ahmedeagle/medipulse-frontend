@@ -8,6 +8,7 @@ import {
   BookOpen, BarChart2, Building2, Users, Shield,
   Inbox, TrendingUp, AlertTriangle, Calendar, Star,
   Plug, GitBranch, Upload, ListChecks, Bell,
+  CheckCircle2, ShieldCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProfileStore } from '../../store/auth.store';
@@ -27,7 +28,6 @@ const PHARMACY_NAV: NavGroup[] = [
     icon: Inbox,
     items: [
       { labelKey: 'nav.procurement_queue',  to: '/pharmacy/queue',     icon: Inbox },
-      { labelKey: 'nav.ai_recommendations', to: '/pharmacy/ai',        icon: Sparkles },
       { labelKey: 'nav.forecast',           to: '/pharmacy/forecast',  icon: BarChart2 },
       { labelKey: 'nav.order_schedule',     to: '/pharmacy/eoq',       icon: Calendar },
       { labelKey: 'nav.dead_stock',         to: '/pharmacy/dead-stock',icon: AlertTriangle },
@@ -217,6 +217,96 @@ function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean
   );
 }
 
+// ── AI Center flagship menu (only for pharmacy_admin) ──────────────────────
+const AI_CENTER_SUBTABS = [
+  { tab: 'dashboard', labelAr: 'لوحة العمل',        labelEn: 'Workboard',  icon: LayoutDashboard },
+  { tab: 'approvals', labelAr: 'مركز الموافقات',    labelEn: 'Approvals',  icon: Inbox },
+  { tab: 'tasks',     labelAr: 'مهامي',              labelEn: 'My Tasks',   icon: CheckCircle2 },
+  { tab: 'agents',    labelAr: 'مساعدوك الأذكياء',  labelEn: 'Agents',     icon: Users },
+  { tab: 'audit',     labelAr: 'السجل والشفافية',   labelEn: 'Audit',      icon: ShieldCheck },
+] as const;
+
+function AiCenterMenu() {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isActive = location.pathname.startsWith('/pharmacy/ai-center');
+  const activeSub = new URLSearchParams(location.search).get('tab') ?? 'dashboard';
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <div className={clsx(
+        'flex items-center rounded-lg overflow-hidden transition-all shadow-sm',
+        isActive
+          ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white'
+          : 'bg-gradient-to-r from-violet-50 to-fuchsia-50 text-violet-700 hover:from-violet-100 hover:to-fuchsia-100',
+      )}>
+        <button
+          onClick={() => navigate('/pharmacy/ai-center')}
+          className="flex items-center gap-1.5 ps-3 pe-2 py-2 text-sm font-semibold"
+        >
+          <Sparkles size={15} className={isActive ? 'text-white' : 'text-violet-600'} />
+          {t('nav.ai_center')}
+          <span className={clsx(
+            'ms-1 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider',
+            isActive ? 'bg-white/25 text-white' : 'bg-violet-200/60 text-violet-700',
+          )}>AI</span>
+        </button>
+        <button
+          onClick={() => setOpen(o => !o)}
+          className={clsx('pe-2 py-2', isActive ? 'text-white/80 hover:text-white' : 'text-violet-500 hover:text-violet-700')}
+        >
+          <ChevronDown size={13} className={clsx('transition-transform', open && 'rotate-180')} />
+        </button>
+      </div>
+
+      {open && (
+        <div className={clsx(
+          'absolute top-full mt-1 w-64 bg-white rounded-xl shadow-xl border border-violet-100 py-1 z-50',
+          isRTL ? 'right-0' : 'left-0',
+        )}>
+          <div className="px-3 py-2 border-b border-gray-100 mb-1">
+            <p className="text-[11px] text-gray-500 leading-tight">
+              {isRTL
+                ? 'مساعدوك الأذكياء يراقبون صيدليتك ويقترحون قرارات — وأنت من يقرر.'
+                : 'Your AI agents watch your pharmacy and suggest decisions — you always decide.'}
+            </p>
+          </div>
+          {AI_CENTER_SUBTABS.map(({ tab, labelAr, labelEn, icon: Icon }) => {
+            const to = `/pharmacy/ai-center?tab=${tab}`;
+            const active = isActive && activeSub === tab;
+            return (
+              <Link
+                key={tab}
+                to={to}
+                onClick={() => setOpen(false)}
+                className={clsx(
+                  'flex items-center gap-2.5 px-3.5 py-2.5 text-sm transition-colors',
+                  active ? 'bg-violet-50 text-violet-700 font-medium' : 'text-gray-700 hover:bg-gray-50',
+                )}
+              >
+                <Icon size={14} className={active ? 'text-violet-600' : 'text-gray-400'} />
+                {isRTL ? labelAr : labelEn}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TopNav() {
   const { t, i18n } = useTranslation();
   const auth = useAuth();
@@ -278,6 +368,8 @@ export function TopNav() {
               {t('nav.dashboard')}
             </Link>
           )}
+
+          {role === 'pharmacy_admin' && <AiCenterMenu />}
 
           {navConfig?.groups.map((group) => (
             <DropdownGroup
