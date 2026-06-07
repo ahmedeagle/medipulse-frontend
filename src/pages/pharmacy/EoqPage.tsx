@@ -16,7 +16,7 @@ function urgencyConfig(days: number | null) {
 export default function EoqPage() {
   const { data: inventory = [], isLoading: loadingInv } = useQuery({
     queryKey: ['inventory-items'],
-    queryFn: () => inventoryApi.getAll().then((r) => r.data),
+    queryFn: () => inventoryApi.getAll({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   });
 
   // Fetch schedules for all products in parallel

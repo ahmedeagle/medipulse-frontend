@@ -1,8 +1,8 @@
 import client from './client'
 
 export const supplierApi = {
-  getCatalog: () =>
-    client.get('/supplier/catalog'),
+  getCatalog: (params?: { limit?: number; offset?: number }) =>
+    client.get('/supplier/catalog', { params }),
 
   createCatalogItem: (data: { productId: string; price: number; stock: number; currency?: string }) =>
     client.post('/supplier/catalog', data),

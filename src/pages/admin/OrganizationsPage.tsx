@@ -20,8 +20,8 @@ export default function OrganizationsPage() {
   });
 
   const { data: tenants = [] } = useQuery({
-    queryKey: ['admin-tenants'],
-    queryFn: () => adminApi.getTenants().then((r) => r.data),
+    queryKey: ['admin-tenants', 'all'],
+    queryFn: () => adminApi.getTenants({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   });
 
   const create = useMutation({
@@ -42,7 +42,7 @@ export default function OrganizationsPage() {
 
   if (isLoading) return <Spinner />;
 
-  const pharmacyTenants = tenants.filter((t: any) => t.type === 'pharmacy');
+  const pharmacyTenants = (tenants as any[]).filter((t: any) => t.type === 'pharmacy');
 
   return (
     <div className="space-y-6">

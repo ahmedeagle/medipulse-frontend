@@ -89,6 +89,22 @@ export interface Agent {
   customised:    boolean
 }
 
+/** Full agent definition incl. prompt + schema (PRD §13). */
+export interface AgentDefinition extends Agent {
+  systemPromptAr:     string | null
+  triggerRules:       Record<string, any>
+  outputSubjectType:  string | null
+  outputSchema:       Record<string, any>
+  version:            number
+  isCustom:           boolean
+  tenantScope:        'global' | 'tenant'
+  tenantId:           string | null
+  createdByUserId:    string | null
+  parentDefinitionId: string | null
+  createdAt:          string
+  updatedAt:          string
+}
+
 export interface DashboardWidget {
   key:            string
   titleAr:        string
@@ -202,6 +218,16 @@ export const aiCenterApi = {
   updateAgent: (code: string, patch: { enabled?: boolean; minConfidence?: number | null }): Promise<unknown> =>
     client.patch(`/ai-center/agents/${code}`, patch).then(r => r.data),
 
+  // Agent definitions (PRD §13: prompt + schema view/edit)
+  getAgentDefinition: (code: string): Promise<AgentDefinition> =>
+    client.get(`/ai-center/agents/${code}/definition`).then(r => r.data),
+
+  updateAgentDefinition: (
+    code: string,
+    patch: { systemPromptAr?: string | null; outputSchema?: Record<string, any> },
+  ): Promise<AgentDefinition> =>
+    client.patch(`/ai-center/agents/${code}/definition`, patch).then(r => r.data),
+
   tokenUsageToday: (): Promise<TokenUsageToday> =>
     client.get('/ai-center/agents/token-usage/today').then(r => r.data),
 
@@ -213,8 +239,9 @@ export const aiCenterApi = {
   aiRunStats: (days = 7): Promise<AiRunStats> =>
     client.get('/ai-center/audit/ai-runs/stats', { params: { days } }).then(r => r.data),
 
-  aiRuns: (limit = 50): Promise<AiRunRow[]> =>
-    client.get('/ai-center/audit/ai-runs', { params: { limit } }).then(r => r.data),
+  aiRuns: (limit = 25, offset = 0):
+    Promise<{ data: AiRunRow[]; total: number; limit: number; offset: number }> =>
+    client.get('/ai-center/audit/ai-runs', { params: { limit, offset } }).then(r => r.data),
 
   // Maintenance
   syncNow: (): Promise<{

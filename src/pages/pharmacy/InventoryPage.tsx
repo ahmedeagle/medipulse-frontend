@@ -23,6 +23,8 @@ import { AIMatchingWizard } from '../../components/AIMatchingWizard'
 import { ImportProgressToast } from '../../components/ImportProgressToast'
 import { rememberActiveBatch, getRememberedBatch } from '../../hooks/useImportProgress'
 import type { InventoryItem, Product } from '../../types'
+import Pagination from '../../components/ui/Pagination'
+import { DEFAULT_PAGE_SIZE } from '../../types/pagination'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const INPUT  = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white'
@@ -365,7 +367,7 @@ function StockInModal({ item, onSave, onClose, isPending }: {
 }) {
   const { data: batchesResp, isLoading } = useQuery({
     queryKey: ['batches', item.id],
-    queryFn: () => inventoryApi.listBatches(item.id).then(r => r.data),
+    queryFn: () => inventoryApi.listBatches(item.id, { limit: 200 }).then(r => r.data?.data ?? r.data),
   })
   const batches: BatchRow[] = (batchesResp || []).filter((b: BatchRow) => b.status !== 'depleted')
   const sorted = [...batches].sort((a, b) => {
@@ -474,7 +476,7 @@ function StockOutModal({ item, onSave, onClose, isPending }: {
 }) {
   const { data: batchesResp, isLoading } = useQuery({
     queryKey: ['batches', item.id],
-    queryFn: () => inventoryApi.listBatches(item.id).then(r => r.data),
+    queryFn: () => inventoryApi.listBatches(item.id, { limit: 200 }).then(r => r.data?.data ?? r.data),
   })
   const batches: BatchRow[] = (batchesResp || []).filter((b: BatchRow) => b.status !== 'depleted' && b.quantity > 0)
   const sorted = [...batches].sort((a, b) => {
@@ -1055,7 +1057,7 @@ function BatchesSubRow({
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const { data, isLoading, error } = useQuery({
     queryKey: ['batches', inventoryId],
-    queryFn: () => inventoryApi.listBatches(inventoryId).then(r => r.data as BatchRow[]),
+    queryFn: () => inventoryApi.listBatches(inventoryId, { limit: 200 }).then(r => (r.data?.data ?? r.data) as BatchRow[]),
   })
 
   useEffect(() => {
@@ -1297,6 +1299,8 @@ export default function InventoryPage() {
   const [statFilter, setStatFilter]           = useState<StatFilter>('all')
   const [showFilters, setShowFilters]         = useState(false)
   const [filters, setFilters]                 = useState<Filters>(EMPTY_FILTERS)
+  const [page, setPage]                       = useState(1)
+  const [pageSize, setPageSize]               = useState(DEFAULT_PAGE_SIZE)
   const [showBulkUpload, setShowBulkUpload]   = useState(false)
   const [showAdd, setShowAdd]                 = useState(false)
   const [showExport, setShowExport]           = useState(false)
@@ -1371,7 +1375,14 @@ export default function InventoryPage() {
   }, [openMenu])
 
   // Data
-  const { data: inventoryData, isLoading } = useQuery({ queryKey: ['inventory'], queryFn: () => inventoryApi.getAll().then(r => r.data) })
+  // NOTE: backend now paginates /inventory. We request limit=200 here because
+  // this page performs client-side filtering/counting across tabs (all / low /
+  // expiring / expired / dead / review). Pharmacies above 200 items should
+  // migrate to server-side filters in a follow-up.
+  const { data: inventoryData, isLoading } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => inventoryApi.getAll({ limit: 200 }).then((r) => r.data?.data ?? r.data),
+  })
   const { data: productsData }             = useQuery({ queryKey: ['products'],   queryFn: () => inventoryApi.getProducts().then(r => r.data) })
 
   const inventory: InventoryItem[] = inventoryData || []
@@ -1591,6 +1602,21 @@ export default function InventoryPage() {
 
     return true
   })
+
+  // Client-side pagination of the filtered list. We keep filters/tabs
+  // client-side (mature behavior, no server filter contract yet) and only
+  // paginate the visible slice. Reset to page 1 whenever the underlying
+  // filtered set shrinks below the current offset.
+  const totalFiltered = filtered.length
+  const totalPages    = Math.max(1, Math.ceil(totalFiltered / pageSize))
+  useEffect(() => {
+    if (page > totalPages) setPage(1)
+  }, [page, totalPages])
+  useEffect(() => {
+    setPage(1)
+  }, [search, statFilter, filters, pageSize])
+  const pageStart = (page - 1) * pageSize
+  const pagedItems = filtered.slice(pageStart, pageStart + pageSize)
 
   // Categories: preset list + any user-defined values found in data
   const categories = useMemo(() => {
@@ -1827,7 +1853,8 @@ export default function InventoryPage() {
         )}
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[900px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
@@ -1838,12 +1865,12 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {pagedItems.length === 0 ? (
                 <tr><td colSpan={10} className="text-center py-16 text-gray-400">
                   <Package size={32} className="mx-auto mb-3 opacity-30" />
                   <p>لا توجد أصناف مطابقة للبحث أو الفلاتر المختارة</p>
                 </td></tr>
-              ) : filtered.map(item => {
+              ) : pagedItems.map(item => {
                 const exp = expiryLabel(item)
                 const isLow = item.quantity <= item.minThreshold
                 const isExpanded = expandedItemId === item.id
@@ -1976,6 +2003,15 @@ export default function InventoryPage() {
               })}
             </tbody>
           </table>
+          </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={totalFiltered}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       </div>
 

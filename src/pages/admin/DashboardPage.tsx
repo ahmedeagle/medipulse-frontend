@@ -9,13 +9,13 @@ import type { Tenant } from '../../types'
 
 export default function AdminDashboardPage() {
   const { data: tenantsData, isLoading: tenantsLoading } = useQuery({
-    queryKey: ['admin-tenants'],
-    queryFn: () => adminApi.getTenants().then((r) => r.data),
+    queryKey: ['admin-tenants', 'dashboard'],
+    queryFn: () => adminApi.getTenants({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => adminApi.getUsers().then((r) => r.data),
+    queryKey: ['admin-users', 'dashboard'],
+    queryFn: () => adminApi.getUsers({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
 
   const tenants: Tenant[] = tenantsData || []

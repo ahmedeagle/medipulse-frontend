@@ -17,11 +17,11 @@ export interface CreateProductPayload {
 }
 
 export const inventoryApi = {
-  getAll: () =>
-    client.get('/inventory'),
+  getAll: (params?: { limit?: number; offset?: number }) =>
+    client.get('/inventory', { params }),
 
-  getLowStock: () =>
-    client.get('/inventory/low-stock'),
+  getLowStock: (params?: { limit?: number; offset?: number }) =>
+    client.get('/inventory/low-stock', { params }),
 
   create: (data: {
     productId: string; quantity: number; minThreshold: number;
@@ -38,8 +38,8 @@ export const inventoryApi = {
     client.delete(`/inventory/${id}`),
 
   // ── Batches (per-lot tracking) ───────────────────────────────────────────
-  listBatches: (inventoryId: string) =>
-    client.get(`/inventory/${inventoryId}/batches`),
+  listBatches: (inventoryId: string, params?: { limit?: number; offset?: number }) =>
+    client.get(`/inventory/${inventoryId}/batches`, { params }),
 
   addBatch: (inventoryId: string, data: {
     batchNumber: string

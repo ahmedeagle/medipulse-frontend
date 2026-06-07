@@ -7,6 +7,8 @@ import { BarcodeInput } from '../../components/BarcodeInput'
 import { Modal } from '../../components/ui/Modal'
 import { Table } from '../../components/ui/Table'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import Pagination from '../../components/ui/Pagination'
+import { usePaginatedList } from '../../hooks/usePaginatedList'
 import type { SupplierCatalogItem, Product } from '../../types'
 
 interface AddForm {
@@ -33,9 +35,10 @@ export default function SupplierCatalogPage() {
   const [showNewProduct, setShowNewProduct] = useState(false)
   const [newProduct, setNewProduct] = useState({ name: '', genericName: '', category: '', unit: 'tablet' })
 
-  const { data: catalogData, isLoading } = useQuery({
+  const catalogList = usePaginatedList<SupplierCatalogItem>({
     queryKey: ['supplier-catalog'],
-    queryFn: () => supplierApi.getCatalog().then((r) => r.data),
+    fetchPage: ({ limit, offset }) =>
+      supplierApi.getCatalog({ limit, offset }).then((r) => r.data),
   })
 
   const { data: productsData } = useQuery({
@@ -85,7 +88,7 @@ export default function SupplierCatalogPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['supplier-catalog'] }),
   })
 
-  const catalog: SupplierCatalogItem[] = catalogData || []
+  const catalog: SupplierCatalogItem[] = catalogList.items
   const products: Product[] = (productsData as any)?.data ?? productsData ?? []
 
   const columns = [
@@ -157,14 +160,14 @@ export default function SupplierCatalogPage() {
     },
   ]
 
-  if (isLoading) return <FullPageSpinner />
+  if (catalogList.isLoading) return <FullPageSpinner />
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Catalog</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{catalog.length} products listed</p>
+          <p className="text-sm text-gray-500 mt-0.5">{catalogList.total} products listed</p>
         </div>
         <button
           onClick={() => { setShowAdd(true); setFormError(null) }}
@@ -177,6 +180,15 @@ export default function SupplierCatalogPage() {
 
       <div className="bg-white rounded-xl border border-gray-200">
         <Table columns={columns} data={catalog} emptyMessage="Your catalog is empty. Add your first product." />
+        <Pagination
+          page={catalogList.page}
+          pageSize={catalogList.pageSize}
+          total={catalogList.total}
+          totalPages={catalogList.totalPages}
+          onPageChange={catalogList.setPage}
+          onPageSizeChange={catalogList.setPageSize}
+          isLoading={catalogList.isFetching}
+        />
       </div>
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Product to Catalog">

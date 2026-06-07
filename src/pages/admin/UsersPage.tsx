@@ -1,8 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserX, CheckCircle, XCircle } from 'lucide-react'
 import { adminApi } from '../../api/admin.api'
 import { Table } from '../../components/ui/Table'
+import Pagination from '../../components/ui/Pagination'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import { usePaginatedList } from '../../hooks/usePaginatedList'
 import type { AdminUser } from '../../types'
 
 const roleLabels: Record<string, string> = {
@@ -20,9 +22,10 @@ const roleColors: Record<string, string> = {
 export default function UsersPage() {
   const qc = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const list = usePaginatedList<AdminUser>({
     queryKey: ['admin-users'],
-    queryFn: () => adminApi.getUsers().then((r) => r.data),
+    fetchPage: ({ limit, offset }) =>
+      adminApi.getUsers({ limit, offset }).then((r) => r.data),
   })
 
   const deactivateMutation = useMutation({
@@ -30,7 +33,7 @@ export default function UsersPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
   })
 
-  const users: AdminUser[] = data || []
+  const users: AdminUser[] = list.items
 
   const columns = [
     {
@@ -113,19 +116,28 @@ export default function UsersPage() {
     },
   ]
 
-  if (isLoading) return <FullPageSpinner />
+  if (list.isLoading) return <FullPageSpinner />
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Users</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          {users.length} registered user{users.length !== 1 ? 's' : ''}
+          {list.total} registered user{list.total !== 1 ? 's' : ''}
         </p>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200">
         <Table columns={columns} data={users} emptyMessage="No users found." />
+        <Pagination
+          page={list.page}
+          pageSize={list.pageSize}
+          total={list.total}
+          totalPages={list.totalPages}
+          onPageChange={list.setPage}
+          onPageSizeChange={list.setPageSize}
+          isLoading={list.isFetching}
+        />
       </div>
     </div>
   )

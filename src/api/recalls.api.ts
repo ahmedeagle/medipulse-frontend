@@ -1,7 +1,8 @@
 import client from './client';
 
 export const recallsApi = {
-  list:    () => client.get('/admin/recalls'),
+  list:    (params?: { limit?: number; offset?: number }) =>
+    client.get('/admin/recalls', { params }),
   create:  (data: {
     productId:             string;
     batchNumber?:          string;

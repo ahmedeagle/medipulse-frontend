@@ -1,4 +1,10 @@
 {
+  "pagination": {
+    "empty": "لا توجد عناصر للعرض.",
+    "showing": "عرض {{start}}–{{end}} من {{total}}",
+    "perPage": "لكل صفحة",
+    "pageOf": "صفحة {{page}} من {{total}}"
+  },
   "common": {
     "save": "حفظ",
     "cancel": "إلغاء",

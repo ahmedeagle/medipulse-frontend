@@ -10,13 +10,13 @@ import type { Order, SupplierCatalogItem } from '../../types'
 
 export default function SupplierDashboardPage() {
   const { data: catalogData, isLoading: catLoading } = useQuery({
-    queryKey: ['supplier-catalog'],
-    queryFn: () => supplierApi.getCatalog().then((r) => r.data),
+    queryKey: ['supplier-catalog', 'dashboard'],
+    queryFn: () => supplierApi.getCatalog({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
-    queryKey: ['orders'],
-    queryFn: () => ordersApi.getAll().then((r) => r.data),
+    queryKey: ['orders', 'dashboard'],
+    queryFn: () => ordersApi.getAll({ take: 200 }).then((r) => r.data),
   })
 
   const catalog: SupplierCatalogItem[] = catalogData || []

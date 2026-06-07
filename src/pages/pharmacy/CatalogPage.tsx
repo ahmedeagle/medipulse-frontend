@@ -1,21 +1,23 @@
 ﻿import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Search, CheckCircle, XCircle } from 'lucide-react'
 import { supplierApi } from '../../api/supplier.api'
 import { Table } from '../../components/ui/Table'
+import Pagination from '../../components/ui/Pagination'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import { usePaginatedList } from '../../hooks/usePaginatedList'
 import type { SupplierCatalogItem } from '../../types'
 
 export default function CatalogPage() {
   const [search, setSearch] = useState('')
 
-  const { data, isLoading, isError } = useQuery({
+  const list = usePaginatedList<SupplierCatalogItem>({
     queryKey: ['supplier-catalog-all'],
-    queryFn: () => supplierApi.getCatalog().then((r) => r.data),
+    fetchPage: ({ limit, offset }) =>
+      supplierApi.getCatalog({ limit, offset }).then((r) => r.data),
   })
 
-  const catalog: SupplierCatalogItem[] = data || []
-
+  const catalog = list.items
+  // Search filters only the current page (server returns 25 at a time).
   const filtered = catalog.filter((item) =>
     item.product?.name?.toLowerCase().includes(search.toLowerCase()) ||
     item.supplierTenant?.name?.toLowerCase().includes(search.toLowerCase())
@@ -76,7 +78,7 @@ export default function CatalogPage() {
     },
   ]
 
-  if (isLoading) return <FullPageSpinner />
+  if (list.isLoading) return <FullPageSpinner />
 
   return (
     <div className="space-y-5">
@@ -96,7 +98,7 @@ export default function CatalogPage() {
         />
       </div>
 
-      {isError ? (
+      {list.isError ? (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
           Failed to load supplier catalog. Please try again.
         </div>
@@ -107,12 +109,17 @@ export default function CatalogPage() {
             data={filtered}
             emptyMessage="No products found in the catalog."
           />
+          <Pagination
+            page={list.page}
+            pageSize={list.pageSize}
+            total={list.total}
+            totalPages={list.totalPages}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            isLoading={list.isFetching}
+          />
         </div>
       )}
-
-      <p className="text-xs text-gray-400">
-        Showing {filtered.length} of {catalog.length} catalog items. Go to Orders to place a new order.
-      </p>
     </div>
   )
 }

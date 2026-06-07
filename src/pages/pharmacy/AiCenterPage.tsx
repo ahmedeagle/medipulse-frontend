@@ -8,13 +8,15 @@ import {
   Archive, Link as LinkIcon, ShoppingCart, Package,
   AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft,
   AlertCircle, Info, Loader2, X, Edit3,
-  Store, Eye, RefreshCw, Activity, Ban, Zap,
+  Store, Eye, RefreshCw, Activity, Ban, Zap, Settings,
 } from 'lucide-react'
 import {
   aiCenterApi,
   type Approval, type ApprovalPriority, type DashboardWidget,
   type ConfidenceLabel, type ApprovalEvent, type Agent,
+  type AgentDefinition,
 } from '../../api/ai-center.api'
+import { useInfiniteList, InfiniteScrollSentinel } from '../../hooks/useInfiniteList'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -990,6 +992,7 @@ function AgentsTab() {
     queryFn:  aiCenterApi.tokenUsageToday,
     refetchInterval: 60_000,
   })
+  const [definitionCode, setDefinitionCode] = useState<string | null>(null)
 
   const toggle = useMutation({
     mutationFn: (a: Agent) => aiCenterApi.updateAgent(a.code, { enabled: !a.enabled }),
@@ -1051,11 +1054,21 @@ function AgentsTab() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="font-semibold text-gray-900 text-sm">{a.nameAr}</h3>
-                        <ToggleSwitch
-                          checked={a.enabled}
-                          disabled={dimmed || toggle.isPending}
-                          onChange={() => toggle.mutate(a)}
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setDefinitionCode(a.code)}
+                            title="عرض تعليمات المساعد"
+                            className="p-1 rounded-md text-gray-400 hover:text-violet-700 hover:bg-violet-50 transition"
+                          >
+                            <Settings size={14} />
+                          </button>
+                          <ToggleSwitch
+                            checked={a.enabled}
+                            disabled={dimmed || toggle.isPending}
+                            onChange={() => toggle.mutate(a)}
+                          />
+                        </div>
                       </div>
                       <p className="text-xs text-gray-600 mt-1 leading-relaxed">{a.descriptionAr}</p>
                       {a.skills.length > 0 && (
@@ -1078,6 +1091,13 @@ function AgentsTab() {
           </div>
         </div>
       ))}
+
+      {definitionCode && (
+        <AgentDefinitionDrawer
+          code={definitionCode}
+          onClose={() => setDefinitionCode(null)}
+        />
+      )}
     </div>
   )
 }
@@ -1102,6 +1122,179 @@ function skillLabelAr(code: string): string {
     listing_pricing:    'تسعير العرض',
   }
   return map[code] ?? code
+}
+
+// ── Agent definition drawer (PRD §13 Phase 4a-1) ──────────────────────────
+
+function AgentDefinitionDrawer({ code, onClose }: { code: string; onClose: () => void }) {
+  const qc = useQueryClient()
+  const { toast } = useActions()
+  const q = useQuery<AgentDefinition>({
+    queryKey: ['ai-center', 'agent-definition', code],
+    queryFn:  () => aiCenterApi.getAgentDefinition(code),
+  })
+
+  const [prompt, setPrompt] = useState<string>('')
+  const [schemaText, setSchemaText] = useState<string>('')
+  const [dirty, setDirty] = useState(false)
+
+  // Seed local state once data arrives
+  useMemo(() => {
+    if (q.data && !dirty) {
+      setPrompt(q.data.systemPromptAr ?? '')
+      setSchemaText(JSON.stringify(q.data.outputSchema ?? {}, null, 2))
+    }
+  }, [q.data, dirty])
+
+  const save = useMutation({
+    mutationFn: () => {
+      let outputSchema: Record<string, any>
+      try {
+        outputSchema = JSON.parse(schemaText || '{}')
+      } catch {
+        throw new Error('صيغة JSON غير صحيحة في مخطط الإخراج.')
+      }
+      return aiCenterApi.updateAgentDefinition(code, {
+        systemPromptAr: prompt.trim() === '' ? null : prompt,
+        outputSchema,
+      })
+    },
+    onSuccess: () => {
+      toast('success', 'تم حفظ تعليمات المساعد. تم رفع رقم الإصدار للسجل التدقيقي.')
+      setDirty(false)
+      qc.invalidateQueries({ queryKey: ['ai-center', 'agent-definition', code] })
+      qc.invalidateQueries({ queryKey: ['ai-center', 'agents'] })
+    },
+    onError: (e: any) => {
+      const msg = e?.response?.data?.message ?? e?.message ?? 'تعذّر الحفظ.'
+      toast('error', typeof msg === 'string' ? msg : 'تعذّر الحفظ.')
+    },
+  })
+
+  const def = q.data
+  const isBuiltIn = def?.tenantScope === 'global'
+
+  return (
+    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="relative ms-auto w-full max-w-2xl h-full bg-white shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-gray-900 truncate">
+              {def ? `تعليمات ${def.nameAr}` : 'تحميل…'}
+            </h2>
+            {def && (
+              <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-500">
+                <span className="font-mono">{def.code}</span>
+                <span>·</span>
+                <span>الإصدار {def.version}</span>
+                {isBuiltIn && (
+                  <>
+                    <span>·</span>
+                    <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">مدمج</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {q.isLoading && (
+          <div className="flex-1 flex items-center justify-center text-gray-400">
+            <Loader2 className="animate-spin" size={20} />
+          </div>
+        )}
+
+        {q.error && (
+          <div className="m-6 p-4 rounded-lg border border-red-200 bg-red-50 text-sm text-red-900">
+            تعذّر تحميل التعليمات — {q.error instanceof Error ? q.error.message : 'حاول لاحقاً.'}
+          </div>
+        )}
+
+        {def && (
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            {isBuiltIn && (
+              <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-900 leading-relaxed">
+                هذا مساعد مدمج. التعديل يتطلّب صلاحية مسؤول النظام.
+                للتخصيص المحلي لصيدليتك، أنشئ نسخة خاصة (متاح في الإصدار القادم).
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                تعليمات النظام (System Prompt — عربي)
+              </label>
+              <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                النص الذي يُرسل إلى نموذج الذكاء الاصطناعي في بداية كل محادثة. يُستخدم لتعريف شخصية المساعد وحدود عمله.
+                كل تعديل يرفع رقم الإصدار ويُختم على كل قرار في سجل التدقيق.
+              </p>
+              <textarea
+                value={prompt}
+                onChange={e => { setPrompt(e.target.value); setDirty(true) }}
+                rows={10}
+                dir="rtl"
+                placeholder="مثال: أنت خبير مخزون صيدليات. مهمتك اقتراح إعادة الطلب…"
+                className="w-full px-3 py-2 text-sm font-mono leading-relaxed border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              />
+              <div className="mt-1 text-[10px] text-gray-400 text-right">
+                {prompt.length} حرف
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                مخطط الإخراج (JSON Schema)
+              </label>
+              <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                يُستخدم للتحقق من مخرجات النموذج قبل إنشاء طلب موافقة. اتركه فارغاً <code>{'{}'}</code> لتعطيل التحقق.
+              </p>
+              <textarea
+                value={schemaText}
+                onChange={e => { setSchemaText(e.target.value); setDirty(true) }}
+                rows={8}
+                dir="ltr"
+                spellCheck={false}
+                className="w-full px-3 py-2 text-xs font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="text-[11px] text-gray-500 grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+              <div><span className="text-gray-400">نوع المخرج:</span> {def.outputSubjectType ?? '—'}</div>
+              <div><span className="text-gray-400">حد الثقة:</span> {Math.round(def.minConfidence * 100)}%</div>
+            </div>
+          </div>
+        )}
+
+        {def && (
+          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 text-sm rounded-md text-gray-700 hover:bg-gray-200"
+            >
+              إغلاق
+            </button>
+            <button
+              onClick={() => save.mutate()}
+              disabled={!dirty || save.isPending}
+              className="px-4 py-1.5 text-sm rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              {save.isPending && <Loader2 className="animate-spin" size={14} />}
+              حفظ ورفع الإصدار
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function TokenBudgetBanner({
@@ -1185,17 +1378,17 @@ function AuditTab() {
   const [view, setView] = useState<'decisions' | 'runs'>('decisions')
   const [days, setDays] = useState<7 | 30>(7)
 
-  const events = useQuery({
+  const events = useInfiniteList<ApprovalEvent>({
     queryKey: ['ai-center', 'audit', 'events'],
-    queryFn:  () => aiCenterApi.approvalEvents(200, 0),
+    fetchPage: ({ limit, offset }) => aiCenterApi.approvalEvents(limit, offset),
   })
   const stats = useQuery({
     queryKey: ['ai-center', 'audit', 'ai-stats', days],
     queryFn:  () => aiCenterApi.aiRunStats(days),
   })
-  const runs = useQuery({
+  const runs = useInfiniteList<any>({
     queryKey: ['ai-center', 'audit', 'ai-runs'],
-    queryFn:  () => aiCenterApi.aiRuns(50),
+    fetchPage: ({ limit, offset }) => aiCenterApi.aiRuns(limit, offset),
     enabled:  view === 'runs',
   })
 
@@ -1229,6 +1422,16 @@ function AuditTab() {
         {stats.isLoading ? (
           <div className="p-5"><SkeletonRows /></div>
         ) : stats.data ? (
+          stats.data.totalRuns === 0 ? (
+            <div className="p-8 text-center">
+              <Activity size={28} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-sm font-medium text-gray-700">لا توجد استدعاءات للذكاء الاصطناعي في هذه الفترة</p>
+              <p className="text-xs text-gray-500 mt-1">
+                المعدّاد صفر لأنه لم يتم تشغيل أي توصية خلال آخر {days} أيام — وليس بسبب خلل.
+                شغّل توصية من تبويب “التوصيات” لتظهر القياسات هنا.
+              </p>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 p-4">
             <StatCard label="إجمالي العمليات" value={fmtNum(stats.data.totalRuns)}        icon={Activity}     tone="violet" />
             <StatCard label="ناجحة"          value={fmtNum(stats.data.success)}          icon={CheckCircle2} tone="emerald" />
@@ -1240,6 +1443,7 @@ function AuditTab() {
             <StatCard label="رموز مُنتَجة"    value={fmtNum(stats.data.totalOutputTokens)} icon={Zap}          tone="fuchsia"
               hint={`المُدخَلة: ${fmtNum(stats.data.totalInputTokens)} — إجمالي رموز الإخراج هو ما يُحاسَب عليه عادةً.`} />
           </div>
+          )
         ) : null}
       </div>
 
@@ -1264,7 +1468,7 @@ function AuditTab() {
 
         {view === 'decisions' ? (
           events.isLoading ? <SkeletonRows /> :
-          (events.data?.data.length ?? 0) === 0 ? (
+          events.items.length === 0 ? (
             <EmptyState
               icon={ShieldCheck}
               iconCls="bg-violet-100 text-violet-700"
@@ -1273,7 +1477,7 @@ function AuditTab() {
             />
           ) : (
             <ul className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
-              {events.data!.data.map(ev => (
+              {events.items.map(ev => (
                 <li key={ev.id} className="px-5 py-3 text-sm flex items-start gap-3">
                   <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
                     ev.toStatus === 'approved'    ? 'bg-emerald-500' :
@@ -1328,12 +1532,19 @@ function AuditTab() {
                   </div>
                 </li>
               ))}
+              <li>
+                <InfiniteScrollSentinel
+                  hasNextPage={events.hasNextPage}
+                  isFetchingNextPage={events.isFetchingNextPage}
+                  onLoadMore={() => events.fetchNextPage()}
+                />
+              </li>
             </ul>
           )
         ) : (
           // RUNS view
           runs.isLoading ? <SkeletonRows /> :
-          (runs.data?.length ?? 0) === 0 ? (
+          runs.items.length === 0 ? (
             <EmptyState
               icon={Activity}
               iconCls="bg-violet-100 text-violet-700"
@@ -1355,7 +1566,7 @@ function AuditTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {runs.data!.map(r => (
+                  {runs.items.map(r => (
                     <tr key={r.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
                         {new Date(r.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
@@ -1383,6 +1594,11 @@ function AuditTab() {
                   ))}
                 </tbody>
               </table>
+              <InfiniteScrollSentinel
+                hasNextPage={runs.hasNextPage}
+                isFetchingNextPage={runs.isFetchingNextPage}
+                onLoadMore={() => runs.fetchNextPage()}
+              />
             </div>
           )
         )}
@@ -1418,7 +1634,7 @@ function StatCard({
       <div className="text-lg font-bold tabular-nums leading-tight truncate">{value}</div>
     </div>
   )
-  return hint ? <Tooltip text={hint}>{inner}</Tooltip> : inner
+  return hint ? <Tooltip text={hint} block>{inner}</Tooltip> : inner
 }
 
 function RunStatusBadge({ status }: { status: string }) {
@@ -1495,17 +1711,17 @@ function EmptyState({ icon: Icon, iconCls, title, body }: {
 // PRD §16: "ترجمة المصطلحات التقنية إلى لغة المالك".
 // ═════════════════════════════════════════════════════════════════════════════
 
-function Tooltip({ text, children }: { text?: string; children: React.ReactNode }) {
+function Tooltip({ text, children, block = false }: { text?: string; children: React.ReactNode; block?: boolean }) {
   if (!text) return <>{children}</>
-  // Tooltip is portal-free; uses pure CSS hover. To avoid being clipped by
-  // scroll containers we render two copies (top + bottom) and let CSS pick
-  // the side via `top:auto` fallback when there's no room below.
+  // `block=true` is for callers that wrap a full-width card (the StatCard
+  // grid). The default is inline-block so wrapping a small icon next to a
+  // heading does not push the heading to a new line.
   return (
-    <span className="relative inline-flex group align-middle">
+    <span className={`relative group ${block ? 'inline-block w-full' : 'inline-block align-middle'}`}>
       {children}
       <span
         role="tooltip"
-        className="pointer-events-none absolute z-50 bottom-[calc(100%+6px)] start-1/2 -translate-x-1/2 rtl:translate-x-1/2 px-2.5 py-1.5 rounded-lg bg-gray-900 text-white text-[10.5px] leading-snug w-max max-w-[240px] whitespace-normal text-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+        className="pointer-events-none absolute z-50 bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg bg-gray-900 text-white text-[10.5px] leading-snug w-max max-w-[220px] whitespace-normal text-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
       >
         {text}
       </span>

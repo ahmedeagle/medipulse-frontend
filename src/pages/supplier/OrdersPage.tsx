@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Eye, CheckCircle, XCircle, Truck, PackageCheck } from 'lucide-react'
 import { ordersApi } from '../../api/orders.api'
@@ -7,6 +7,8 @@ import { Modal } from '../../components/ui/Modal'
 import { Table } from '../../components/ui/Table'
 import { Badge } from '../../components/ui/Badge'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import Pagination from '../../components/ui/Pagination'
+import { usePaginatedList } from '../../hooks/usePaginatedList'
 import type { Order } from '../../types'
 
 export default function SupplierOrdersPage() {
@@ -14,9 +16,10 @@ export default function SupplierOrdersPage() {
   const navigate = useNavigate()
   const [viewOrder, setViewOrder] = useState<Order | null>(null)
 
-  const { data: ordersData, isLoading } = useQuery({
+  const ordersList = usePaginatedList<Order>({
     queryKey: ['orders'],
-    queryFn: () => ordersApi.getAll().then((r) => r.data),
+    fetchPage: ({ limit, offset }) =>
+      ordersApi.getAll({ take: limit, skip: offset } as any).then((r) => r.data),
   })
 
   const statusMutation = useMutation({
@@ -27,7 +30,7 @@ export default function SupplierOrdersPage() {
     },
   })
 
-  const orders: Order[] = (ordersData as any)?.data ?? ordersData ?? []
+  const orders: Order[] = ordersList.items
 
   const columns = [
     {
@@ -121,7 +124,7 @@ export default function SupplierOrdersPage() {
     },
   ]
 
-  if (isLoading) return <FullPageSpinner />
+  if (ordersList.isLoading) return <FullPageSpinner />
 
   return (
     <div className="space-y-5">
@@ -129,7 +132,7 @@ export default function SupplierOrdersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Incoming Orders</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {orders.filter((o) => o.status === 'pending').length} pending Â· {orders.length} total
+            {orders.filter((o) => o.status === 'pending').length} pending Â· {ordersList.total} total
           </p>
         </div>
       </div>
@@ -140,6 +143,15 @@ export default function SupplierOrdersPage() {
           data={orders}
           onRowClick={(row) => setViewOrder(row)}
           emptyMessage="No orders received yet."
+        />
+        <Pagination
+          page={ordersList.page}
+          pageSize={ordersList.pageSize}
+          total={ordersList.total}
+          totalPages={ordersList.totalPages}
+          onPageChange={ordersList.setPage}
+          onPageSizeChange={ordersList.setPageSize}
+          isLoading={ordersList.isFetching}
         />
       </div>
 

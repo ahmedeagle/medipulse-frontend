@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
 import { adminApi } from '../../api/admin.api'
 import { Modal } from '../../components/ui/Modal'
 import { Table } from '../../components/ui/Table'
+import Pagination from '../../components/ui/Pagination'
 import { Badge } from '../../components/ui/Badge'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import { usePaginatedList } from '../../hooks/usePaginatedList'
 import type { Tenant } from '../../types'
 
 interface TenantForm {
@@ -20,9 +22,10 @@ export default function TenantsPage() {
   const [form, setForm] = useState<TenantForm>({ name: '', slug: '', type: 'pharmacy' })
   const [formError, setFormError] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const list = usePaginatedList<Tenant>({
     queryKey: ['admin-tenants'],
-    queryFn: () => adminApi.getTenants().then((r) => r.data),
+    fetchPage: ({ limit, offset }) =>
+      adminApi.getTenants({ limit, offset }).then((r) => r.data),
   })
 
   const createMutation = useMutation({
@@ -38,7 +41,7 @@ export default function TenantsPage() {
     },
   })
 
-  const tenants: Tenant[] = data || []
+  const tenants: Tenant[] = list.items
 
   const autoSlug = (name: string) =>
     name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -81,7 +84,7 @@ export default function TenantsPage() {
     },
   ]
 
-  if (isLoading) return <FullPageSpinner />
+  if (list.isLoading) return <FullPageSpinner />
 
   return (
     <div className="space-y-5">
@@ -89,7 +92,7 @@ export default function TenantsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Tenants</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {tenants.length} tenant{tenants.length !== 1 ? 's' : ''} registered
+            {list.total} tenant{list.total !== 1 ? 's' : ''} registered
           </p>
         </div>
         <button
@@ -103,6 +106,15 @@ export default function TenantsPage() {
 
       <div className="bg-white rounded-xl border border-gray-200">
         <Table columns={columns} data={tenants} emptyMessage="No tenants found." />
+        <Pagination
+          page={list.page}
+          pageSize={list.pageSize}
+          total={list.total}
+          totalPages={list.totalPages}
+          onPageChange={list.setPage}
+          onPageSizeChange={list.setPageSize}
+          isLoading={list.isFetching}
+        />
       </div>
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add New Tenant">

@@ -1,4 +1,10 @@
 {
+  "pagination": {
+    "empty": "No items to display.",
+    "showing": "Showing {{start}}–{{end}} of {{total}}",
+    "perPage": "Per page",
+    "pageOf": "Page {{page}} of {{total}}"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

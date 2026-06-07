@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { recallsApi } from '../../api/recalls.api';
 import { Spinner } from '../../components/ui/Spinner';
 import { Badge } from '../../components/ui/Badge';
+import Pagination from '../../components/ui/Pagination';
+import { usePaginatedList } from '../../hooks/usePaginatedList';
 
 export default function RecallsPage() {
   const { t } = useTranslation();
@@ -21,10 +23,13 @@ export default function RecallsPage() {
     { value: 'market_withdrawal', label: `⚪ ${t('recall.recall_type.market_withdrawal')}` },
   ];
 
-  const { data: recalls = [], isLoading } = useQuery<any[]>({
+  const recallsList = usePaginatedList<any>({
     queryKey: ['recalls'],
-    queryFn: () => recallsApi.list().then((r) => r.data),
+    fetchPage: ({ limit, offset }) =>
+      recallsApi.list({ limit, offset }).then((r) => r.data),
   });
+  const recalls = recallsList.items;
+  const isLoading = recallsList.isLoading;
 
   const create = useMutation({
     mutationFn: () => recallsApi.create({
@@ -111,6 +116,15 @@ export default function RecallsPage() {
               )}
             </div>
           ))}
+          <Pagination
+            page={recallsList.page}
+            pageSize={recallsList.pageSize}
+            total={recallsList.total}
+            totalPages={recallsList.totalPages}
+            onPageChange={recallsList.setPage}
+            onPageSizeChange={recallsList.setPageSize}
+            isLoading={recallsList.isFetching}
+          />
         </div>
       )}
 

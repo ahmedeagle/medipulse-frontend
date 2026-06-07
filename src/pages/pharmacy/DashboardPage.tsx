@@ -15,16 +15,16 @@ export default function PharmacyDashboardPage() {
   const qc = useQueryClient()
 
   const { data: inventoryData, isLoading: invLoading } = useQuery({
-    queryKey: ['inventory'],
-    queryFn: () => inventoryApi.getAll().then((r) => r.data),
+    queryKey: ['inventory', 'dashboard'],
+    queryFn: () => inventoryApi.getAll({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
   const { data: lowStockData } = useQuery({
-    queryKey: ['inventory', 'low-stock'],
-    queryFn: () => inventoryApi.getLowStock().then((r) => r.data),
+    queryKey: ['inventory', 'low-stock', 'dashboard'],
+    queryFn: () => inventoryApi.getLowStock({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
-    queryKey: ['orders'],
-    queryFn: () => ordersApi.getAll().then((r) => r.data),
+    queryKey: ['orders', 'dashboard'],
+    queryFn: () => ordersApi.getAll({ take: 200 }).then((r) => r.data),
   })
   const { data: aiData } = useQuery({
     queryKey: ['ai-center', 'workforce-summary'],

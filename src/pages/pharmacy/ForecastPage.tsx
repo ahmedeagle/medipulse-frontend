@@ -88,7 +88,7 @@ export default function ForecastPage() {
 
   const { data: inventory = [], isLoading: loadingInventory } = useQuery({
     queryKey: ['inventory-items'],
-    queryFn: () => inventoryApi.getAll().then((r) => r.data),
+    queryFn: () => inventoryApi.getAll({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   });
 
   const { data: forecasts = [], isLoading: loadingForecasts } = useQuery({

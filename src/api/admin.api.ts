@@ -1,14 +1,14 @@
 import client from './client'
 
 export const adminApi = {
-  getTenants: () =>
-    client.get('/admin/tenants'),
+  getTenants: (params?: { limit?: number; offset?: number }) =>
+    client.get('/admin/tenants', { params }),
 
   createTenant: (data: { name: string; slug: string; type: 'pharmacy' | 'supplier' }) =>
     client.post('/admin/tenants', data),
 
-  getUsers: () =>
-    client.get('/admin/users'),
+  getUsers: (params?: { limit?: number; offset?: number }) =>
+    client.get('/admin/users', { params }),
 
   deactivateUser: (id: string) =>
     client.patch(`/admin/users/${id}/deactivate`),

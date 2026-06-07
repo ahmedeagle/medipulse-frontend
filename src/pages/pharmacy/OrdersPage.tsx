@@ -9,6 +9,8 @@ import { Modal } from '../../components/ui/Modal'
 import { Table } from '../../components/ui/Table'
 import { Badge } from '../../components/ui/Badge'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import Pagination from '../../components/ui/Pagination'
+import { usePaginatedList } from '../../hooks/usePaginatedList'
 import type { Order, SupplierCatalogItem } from '../../types'
 
 interface CartItem {
@@ -29,13 +31,15 @@ export default function PharmacyOrdersPage() {
   const [notes, setNotes] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
 
-  const { data: ordersData, isLoading } = useQuery({
+  const ordersList = usePaginatedList<Order>({
     queryKey: ['orders'],
-    queryFn: () => ordersApi.getAll().then((r) => r.data),
+    fetchPage: ({ limit, offset }) =>
+      // orders API uses legacy take/skip names
+      ordersApi.getAll({ take: limit, skip: offset } as any).then((r) => r.data),
   })
   const { data: catalogData } = useQuery({
     queryKey: ['supplier-catalog-all'],
-    queryFn: () => supplierApi.getCatalog().then((r) => r.data),
+    queryFn: () => supplierApi.getCatalog({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
 
   const createMutation = useMutation({
@@ -44,7 +48,7 @@ export default function PharmacyOrdersPage() {
     onError: (err: any) => setFormError(err?.response?.data?.message || t('errors.server_error')),
   })
 
-  const orders: Order[] = (ordersData as any)?.data ?? ordersData ?? []
+  const orders: Order[] = ordersList.items
   const catalog: SupplierCatalogItem[] = catalogData || []
 
   const supplierIds = [...new Set(catalog.map((c) => c.supplierTenantId))]
@@ -115,14 +119,14 @@ export default function PharmacyOrdersPage() {
     },
   ]
 
-  if (isLoading) return <FullPageSpinner />
+  if (ordersList.isLoading) return <FullPageSpinner />
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('order.title')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('order.total_count', { count: orders.length })}</p>
+          <p className="text-sm text-gray-500 mt-0.5">{t('order.total_count', { count: ordersList.total })}</p>
         </div>
         <button
           onClick={() => { setShowCreate(true); resetCreateForm() }}
@@ -135,6 +139,15 @@ export default function PharmacyOrdersPage() {
 
       <div className="bg-white rounded-xl border border-gray-200">
         <Table columns={columns} data={orders} onRowClick={(row) => setViewOrder(row)} emptyMessage={t('order.no_orders')} />
+        <Pagination
+          page={ordersList.page}
+          pageSize={ordersList.pageSize}
+          total={ordersList.total}
+          totalPages={ordersList.totalPages}
+          onPageChange={ordersList.setPage}
+          onPageSizeChange={ordersList.setPageSize}
+          isLoading={ordersList.isFetching}
+        />
       </div>
 
       {/* Create Order modal */}
