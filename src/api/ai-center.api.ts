@@ -26,6 +26,7 @@ export type ApprovalSubjectType =
   | 'expiry_liquidation'
   | 'low_stock'
   | 'dead_stock_clearance'
+  | 'lost_revenue'
 
 export interface Approval {
   id:               string

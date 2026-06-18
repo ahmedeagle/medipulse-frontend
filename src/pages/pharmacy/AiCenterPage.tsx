@@ -185,6 +185,14 @@ function approvalActionDescription(approval: Approval): string {
     const urgency     = (p as any)?.urgencyScore ?? ''
     return `سيتم إدراج ${qty} وحدة من "${productName}" في سوق التبادل كعرض تصفية بخصم ${discountPct}%.\n\nالمنتج لم يتحرك لفترة طويلة (مستوى الخطر: ${urgency}/100).\n\nملاحظة: إن كانت هناك صيدليات مسجّلة في نفس المدينة ولديها طلب سابق على هذا المنتج أو مخزون منخفض، ستصلها إشعارات تلقائية (حتى 20 صيدلية).`
   }
+  if (approval.subjectType === 'lost_revenue') {
+    const productName  = (p as any)?.productName ?? 'المنتج'
+    const dailyLoss    = Number((p as any)?.dailyLostEgp  ?? 0).toFixed(0)
+    const totalLoss    = Number((p as any)?.estimatedTotalLoss ?? 0).toFixed(0)
+    const daysAtZero   = (p as any)?.daysAtZero ?? 1
+    const suggestedQty = (p as any)?.suggestedQty ?? '؟'
+    return `"${productName}" نفد مخزونه منذ ${daysAtZero} ${daysAtZero === 1 ? 'يوم' : 'أيام'} — تخسر ~${dailyLoss} ج.م يومياً.\nإجمالي الخسارة المقدّرة حتى الآن: ~${totalLoss} ج.م\n\nعند الموافقة:\n١. يبحث النظام في البورصة الدوائية عن "${productName}" في مدينتك — إن وُجد تُفتح صفحة الشراء مباشرةً\n٢. إن لم يُوجد — يُنشئ طلب شراء طارئ (${suggestedQty} وحدة) من المورد تلقائياً\n\nكل ساعة إضافية بدون مخزون = خسارة إضافية.`
+  }
   if (approval.subjectType === 'pos_shift_action') {
     const cashier  = p.cashierName ?? 'الكاشير'
     if (p.scenario === 'cash_mismatch') {
@@ -223,6 +231,25 @@ function executionNav(approval: Approval, executionResult: any): ExecNav | null 
     message:   'تم نشر عرض تصفية المخزون الراكد في سوق التبادل ✓',
     linkLabel: 'شاهد عرضك في السوق',
     linkHref:  '/pharmacy/p2p?tab=sell',
+  }
+  if (approval.subjectType === 'lost_revenue') {
+    const productName = (approval.payload as any)?.productName ?? 'المنتج'
+    const lossStr     = Number((approval.payload as any)?.estimatedTotalLoss ?? 0).toFixed(0)
+    if (executionResult.action === 'p2p_available') return {
+      message:   `"${productName}" متاح في البورصة — اشترِ الآن لوقف خسارة ~${lossStr} ج.م ✓`,
+      linkLabel: 'اشترِ من البورصة الدوائية',
+      linkHref:  executionResult.deepLink ?? `/pharmacy/p2p?tab=marketplace&productId=${(approval.payload as any)?.productId ?? ''}`,
+    }
+    if (executionResult.action === 'procurement_draft') return {
+      message:   `تم إنشاء طلب شراء طارئ لـ "${productName}" ✓ — راجعه وأرسله للمورد فوراً`,
+      linkLabel: 'راجع طلب الشراء',
+      linkHref:  '/pharmacy/procurement',
+    }
+    if (executionResult.action === 'no_source') return {
+      message:   `"${productName}" غير متاح حالياً في البورصة أو كتالوج الموردين — أضفه لمورد ثم ستظهر مهمة جديدة`,
+      linkLabel: 'اذهب إلى كتالوج الموردين',
+      linkHref:  '/pharmacy/catalog',
+    }
   }
   if (approval.subjectType === 'low_stock') {
     if (executionResult.action === 'p2p_available') return {
@@ -2299,7 +2326,7 @@ function ModifyForm({
 // list of approvals.
 // ═════════════════════════════════════════════════════════════════════════════
 
-type TaskKind = 'purchase' | 'linking' | 'risk' | 'p2p' | 'p2p_monitor' | 'pos_integrity' | 'expiry_clearance' | 'low_stock' | 'dead_stock'
+type TaskKind = 'purchase' | 'linking' | 'risk' | 'p2p' | 'p2p_monitor' | 'pos_integrity' | 'expiry_clearance' | 'low_stock' | 'dead_stock' | 'lost_revenue'
 
 const TASK_DEFS: Array<{
   key:        TaskKind
@@ -2391,6 +2418,15 @@ const TASK_DEFS: Array<{
     tone:       'border-gray-200 bg-gray-50/60 hover:bg-gray-50',
     toneActive: 'border-gray-500 bg-gray-100',
   },
+  {
+    key: 'lost_revenue',
+    labelAr: 'خسائر مبيعات',
+    hintAr:  'منتجات نفد مخزونها وتخسر منها كل يوم — النظام يحسب الخسارة بالجنيه ويوجّهك للحل',
+    subjectType: 'lost_revenue',
+    icon: Banknote,
+    tone:       'border-rose-200 bg-rose-50/60 hover:bg-rose-50',
+    toneActive: 'border-rose-500 bg-rose-100',
+  },
 ]
 
 function TasksTab() {
@@ -2415,7 +2451,7 @@ function TasksTab() {
   })
 
   const counts: Record<TaskKind, number> = useMemo(() => {
-    const c: Record<TaskKind, number> = { purchase: 0, linking: 0, risk: 0, p2p: 0, p2p_monitor: 0, pos_integrity: 0, expiry_clearance: 0, low_stock: 0, dead_stock: 0 }
+    const c: Record<TaskKind, number> = { purchase: 0, linking: 0, risk: 0, p2p: 0, p2p_monitor: 0, pos_integrity: 0, expiry_clearance: 0, low_stock: 0, dead_stock: 0, lost_revenue: 0 }
     for (const a of allPending.data?.data ?? []) {
       const t = TASK_DEFS.find(d => d.subjectType === a.subjectType)?.key
       if (t) c[t]++
