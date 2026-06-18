@@ -291,7 +291,7 @@ function executionNav(approval: Approval, executionResult: any): ExecNav | null 
     }
   }
   if (executionResult.warning) return {
-    message:   `تنبيه: ${String(executionResult.warning)}\n\nأضف هذا المنتج إلى كتالوج المورد المناسب ثم أعد المحاولة. ستظهر بطاقة موافقة جديدة في المزامنة التالية.`,
+    message:   `تنبيه: ${String(executionResult.warning)}\n\nتم البحث في كتالوج الموردين والبورصة الدوائية ولم يُعثر على مصدر متاح. أضف هذا المنتج إلى كتالوج المورد المناسب ثم أعد المحاولة. ستظهر بطاقة موافقة جديدة في المزامنة التالية.`,
     linkLabel: 'اذهب إلى كتالوج الموردين',
     linkHref:  '/pharmacy/catalog',
   }
