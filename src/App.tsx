@@ -36,6 +36,7 @@ const ExpiryIntelligencePage      = lazy(() => import('./pages/pharmacy/reports/
 const FinancialIntelligencePage   = lazy(() => import('./pages/pharmacy/reports/domains/FinancialIntelligencePage'));
 const ComplianceIntelligencePage  = lazy(() => import('./pages/pharmacy/reports/domains/ComplianceIntelligencePage'));
 const OperationalIntelligencePage = lazy(() => import('./pages/pharmacy/reports/domains/OperationalIntelligencePage'));
+const MissedRevenueReport         = lazy(() => import('./pages/pharmacy/reports/domains/MissedRevenueReport'));
 
 // ── Supplier ──────────────────────────────────────────────────────────────────
 const SupplierDashboardPage  = lazy(() => import('./pages/supplier/DashboardPage'));
@@ -131,6 +132,7 @@ export default function App() {
             <Route path="reports/financial" element={<FinancialIntelligencePage />} />
             <Route path="reports/compliance" element={<ComplianceIntelligencePage />} />
             <Route path="reports/operational" element={<OperationalIntelligencePage />} />
+            <Route path="reports/missed-revenue" element={<MissedRevenueReport />} />
           </Route>
 
           {/* ── Supplier ─────────────────────────────────────────────────────── */}

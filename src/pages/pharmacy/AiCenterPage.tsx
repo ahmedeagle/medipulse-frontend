@@ -17,6 +17,7 @@ import {
   type ConfidenceLabel, type ApprovalEvent, type Agent,
   type AgentDefinition,
 } from '../../api/ai-center.api'
+import { posApi } from '../../api/pos.api'
 import { useInfiniteList, InfiniteScrollSentinel } from '../../hooks/useInfiniteList'
 import { TabBar } from '../../components/ui/TabBar'
 
@@ -533,6 +534,44 @@ export default function AiCenterPage() {
 // DASHBOARD TAB
 // ═════════════════════════════════════════════════════════════════════════════
 
+function MissedRevenueWidget() {
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['missed-demand-report', 7],
+    queryFn: () => posApi.getMissedDemandReport(7),
+    staleTime: 10 * 60_000,
+    retry: false,
+  })
+
+  if (!data || data.totalMissedEntries === 0) return null
+
+  const topProduct = data.topMissedProducts[0]
+
+  return (
+    <button
+      onClick={() => navigate('/pharmacy/reports/missed-revenue')}
+      className="w-full text-start p-4 rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-white hover:shadow-md hover:border-rose-300 transition-all group flex items-center gap-4"
+    >
+      <div className="w-11 h-11 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+        <TrendingDown size={20} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-rose-900">
+          إيراد ضائع هذا الأسبوع: {data.topMissedProducts.length > 0
+            ? data.totalEstimatedLoss.toLocaleString('ar-EG', { maximumFractionDigits: 0 }) + ' ج.م'
+            : `${data.totalMissedEntries} طلب لم يُلَبَّ`}
+        </p>
+        <p className="text-[11px] text-rose-700/80 mt-0.5">
+          {topProduct
+            ? `أكثر المطلوبات: "${topProduct.productName}" (${topProduct.missCount} مرة)`
+            : `${data.totalMissedEntries} طلب عميل لم تتمكن من تلبيته — شاهد التقرير`}
+        </p>
+      </div>
+      <ChevronLeft size={14} className="text-rose-300 group-hover:text-rose-500 rtl:rotate-180 shrink-0" />
+    </button>
+  )
+}
+
 function DashboardTab() {
   const navigate = useNavigate()
   const { data, isLoading, error, refetch, isFetching } = useQuery({
@@ -638,6 +677,9 @@ function DashboardTab() {
           )
         })}
       </div>
+
+      {/* Missed revenue insight widget */}
+      <MissedRevenueWidget />
 
       {/* Top pending approvals preview */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">

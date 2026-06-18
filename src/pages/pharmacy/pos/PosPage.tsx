@@ -6,6 +6,7 @@ import {
   Clock, Package, CheckCircle2, Keyboard, Zap, Receipt,
   TrendingUp, DollarSign, RotateCcw, Trash2, ScanLine,
   ShoppingCart, Shield, ShieldOff, Store, Boxes, ExternalLink,
+  TrendingDown, Info,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { posApi, type PosProduct, type PosCustomer, type PosShift } from '../../../api/pos.api'
@@ -776,6 +777,15 @@ export default function PosPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pos-shift'] }),
   })
 
+  const [missedLogged, setMissedLogged] = useState<string | null>(null)
+  const missedMut = useMutation({
+    mutationFn: posApi.logMissedSale,
+    onSuccess: (_, vars) => {
+      setMissedLogged(vars.productName)
+      setTimeout(() => setMissedLogged(null), 2500)
+    },
+  })
+
   // addToCart must be defined before the keyboard handler that references it
   const addToCart = useCallback((p: PosProduct) => {
     if (p.quantity <= 0 && !isReturn) return
@@ -1113,13 +1123,64 @@ export default function PosPage() {
                     const stock   = stockBadge(p.quantity, p.minThreshold)
                     const inCart  = cart.find(i => i.inventoryItemId === p.inventoryItemId)
                     const noStock = p.quantity <= 0 && !isReturn
+
+                    if (noStock) return (
+                      <div key={p.inventoryItemId} className="border-b border-gray-50 last:border-0">
+                        {/* Out-of-stock row */}
+                        <div className="flex items-center gap-3 px-4 py-3 opacity-50">
+                          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                            <Package size={16} className="text-gray-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-700 text-sm">{p.name}</p>
+                            <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-600">
+                              المخزون: 0 — غير متوفر
+                            </span>
+                          </div>
+                          <p className="font-black text-gray-500 tabular-nums text-sm shrink-0">
+                            {fmt(p.sellPrice ?? p.costPrice ?? 0)}
+                          </p>
+                        </div>
+
+                        {/* Notice + log button */}
+                        <div className="mx-3 mb-3 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2.5 flex items-start gap-2.5">
+                          <Info size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-rose-800 leading-relaxed">
+                              <span className="font-semibold">عميلك طلبه ولم تتمكن من البيع؟</span>
+                              {' '}سجّل الطلب — يُحسّن النظام توصيات الشراء لمنع تكرار الخسارة.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => missedMut.mutate({
+                              productId:   p.productId,
+                              productName: p.name,
+                              quantity:    1,
+                              sellingPrice: p.sellPrice ?? p.costPrice ?? undefined,
+                            })}
+                            disabled={missedMut.isPending}
+                            className={clsx(
+                              'shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all',
+                              missedLogged === p.name
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-rose-600 hover:bg-rose-700 text-white',
+                            )}
+                          >
+                            {missedLogged === p.name
+                              ? <><CheckCircle2 size={11} /> سُجّل ✓</>
+                              : <><TrendingDown size={11} /> سجّل الطلب</>
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    )
+
                     return (
                       <button
                         key={p.inventoryItemId}
-                        disabled={noStock}
                         onClick={() => addToCart(p)}
                         className={clsx(
-                          'w-full text-right flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 disabled:opacity-40',
+                          'w-full text-right flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0',
                           idx === 0 && 'bg-teal-50/40',
                         )}
                       >
@@ -1166,10 +1227,7 @@ export default function PosPage() {
                           <p className="font-black text-gray-900 tabular-nums text-sm">
                             {fmt(p.sellPrice ?? p.costPrice ?? 0)}
                           </p>
-                          <div className={clsx(
-                            'flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg',
-                            noStock ? 'bg-gray-100 text-gray-400' : 'bg-teal-100 text-teal-700',
-                          )}>
+                          <div className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg bg-teal-100 text-teal-700">
                             <Plus size={10} /> إضافة
                           </div>
                         </div>

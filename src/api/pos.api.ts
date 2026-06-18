@@ -225,4 +225,28 @@ export const posApi = {
   // Product search
   searchProducts: (q: string): Promise<PosProduct[]> =>
     client.get('/pos/products/search', { params: { q } }).then(r => r.data),
+
+  // Missed demand
+  logMissedSale: (dto: {
+    productId?:    string
+    productName:   string
+    quantity?:     number
+    sellingPrice?: number
+  }): Promise<void> =>
+    client.post('/pos/missed-sale', dto).then(r => r.data),
+
+  getMissedDemandReport: (days = 30): Promise<{
+    days:               number
+    totalMissedEntries: number
+    totalEstimatedLoss: number
+    topMissedProducts:  Array<{
+      productId:     string | null
+      productName:   string
+      missCount:     number
+      totalQty:      number
+      estimatedLoss: number
+    }>
+    dailyTrend: Array<{ date: string; missCount: number; estimatedLoss: number }>
+  }> =>
+    client.get('/pos/missed-demand/report', { params: { days } }).then(r => r.data),
 }

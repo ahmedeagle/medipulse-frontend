@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   TrendingUp, Package, Clock, DollarSign, ShieldCheck, BarChart2,
-  ChevronLeft, Sparkles, Zap, ArrowUpRight,
+  ChevronLeft, Sparkles, Zap, ArrowUpRight, TrendingDown,
 } from 'lucide-react'
 import { AiReportAssistant } from './components/AiReportAssistant'
 import { ReportHistory } from './components/ReportHistory'
@@ -44,6 +44,12 @@ const DOMAINS = [
     desc: 'المنتجات الراكدة وكفاءة الموردين ورأس المال المجمد',
     icon: BarChart2, color: 'text-orange-600', leftBorder: 'border-l-orange-400',
     route: '/pharmacy/reports/operational', tag: 'تشغيل',
+  },
+  {
+    key: 'missed-revenue', label: 'الإيراد الضائع',
+    desc: 'طلبات العملاء لمنتجات غير متوفرة — كم خسرت وما هي المنتجات الأكثر طلباً؟',
+    icon: TrendingDown, color: 'text-rose-600', leftBorder: 'border-l-rose-400',
+    route: '/pharmacy/reports/missed-revenue', tag: 'إيراد',
   },
 ]
 
