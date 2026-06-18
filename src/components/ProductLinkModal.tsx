@@ -183,8 +183,14 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
             <Link2 size={20} className="text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900">ربط المنتج بالكتالوج المركزي</h2>
-            <p className="text-xs text-gray-500 mt-0.5">مدعوم بالذكاء الاصطناعي · ترشيحات مبنية على عدة إشارات</p>
+            <h2 className="text-lg font-bold text-gray-900">
+              {item.linkStatus === 'linked' ? 'إدارة ربط المنتج بالكتالوج' : 'ربط المنتج بالكتالوج المركزي'}
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {item.linkStatus === 'linked'
+                ? 'مربوط بالكتالوج · يمكنك مراجعة الربط الحالي أو تغييره'
+                : 'مدعوم بالذكاء الاصطناعي · ترشيحات مبنية على عدة إشارات'}
+            </p>
           </div>
         </div>
         <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
@@ -261,6 +267,34 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
 
         {/* ── Right pane: candidates ──────────────────────────────────────── */}
         <section className="col-span-12 lg:col-span-8">
+          {/* Currently-linked product card — shown before alternatives so user always sees their link */}
+          {isLinked && item.product && (
+            <div className="mb-4 p-3.5 rounded-xl border-2 border-emerald-300 bg-emerald-50/60">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                <p className="text-xs font-bold text-emerald-800 flex-1">مربوط حالياً بالكتالوج المركزي</p>
+                <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
+                  ثقة {Math.round(item.matchScore || 0)}٪
+                </span>
+              </div>
+              <p className="font-semibold text-gray-900 text-sm">{item.product.name}</p>
+              {(item.product as any)?.nameAr && (
+                <p className="text-xs text-gray-600 mt-0.5">{(item.product as any).nameAr}</p>
+              )}
+              <div className="mt-2 flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+                {item.product.barcode && (
+                  <span dir="ltr" className="flex items-center gap-1"><Barcode size={10} />{item.product.barcode}</span>
+                )}
+                {(item.product as any)?.manufacturer && (
+                  <span className="flex items-center gap-1"><Building2 size={10} />{(item.product as any).manufacturer}</span>
+                )}
+                {(item.product as any)?.strength && (
+                  <span className="flex items-center gap-1"><FlaskConical size={10} />{(item.product as any).strength}</span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Human-in-the-loop banner */}
           {candidates.length > 0 && (
             <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-violet-50 via-blue-50 to-teal-50 border border-violet-200 flex items-start gap-3">
@@ -281,13 +315,22 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
               <Sparkles size={14} className="text-teal-600" />
-              ترشيحات الذكاء الاصطناعي
+              {isLinked ? 'بدائل متاحة في الكتالوج' : 'ترشيحات الذكاء الاصطناعي'}
               {isFetching && <Loader2 size={13} className="animate-spin text-gray-400" />}
             </h3>
             <span className="text-xs text-gray-400">{candidates.length} نتيجة</span>
           </div>
 
           {!isFetching && candidates.length === 0 ? (
+            isLinked ? (
+              <div className="text-center py-10 px-6 bg-gradient-to-b from-emerald-50 to-white border-2 border-dashed border-emerald-200 rounded-2xl">
+                <CheckCircle2 size={28} className="mx-auto mb-3 text-emerald-500" />
+                <p className="font-bold text-gray-900 mb-1">لا توجد بدائل أخرى في الكتالوج</p>
+                <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                  ربطك الحالي هو أفضل تطابق متاح. يمكنك تعديل بيانات البحث لإعادة المحاولة، أو إلغاء الربط إن كان غير صحيح.
+                </p>
+              </div>
+            ) : (
             <div className="text-center py-12 px-6 bg-gradient-to-b from-amber-50 to-white border-2 border-dashed border-amber-200 rounded-2xl">
               <Search size={28} className="mx-auto mb-3 text-amber-500" />
               <p className="font-bold text-gray-900 mb-1">لم نجد ترشيحات تلقائية</p>
@@ -300,6 +343,7 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
                 <Send size={12} /> إرسال طلب مراجعة
               </button>
             </div>
+            )
           ) : (
             <div className="space-y-2 max-h-[420px] overflow-y-auto pe-1">
               {candidates.map((c: MatchCandidate, idx: number) => {
@@ -415,7 +459,11 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
             disabled={!selected || linkMut.isPending}
             className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl shadow-sm transition-colors">
             {linkMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-            {selected ? `تأكيد الربط · ثقة ${Math.round(selected.score)}٪` : 'اختر منتجًا للربط'}
+            {selected
+              ? isLinked
+                ? `تغيير الربط · ثقة ${Math.round(selected.score)}٪`
+                : `تأكيد الربط · ثقة ${Math.round(selected.score)}٪`
+              : isLinked ? 'مربوط بالكتالوج ✓' : 'اختر منتجًا للربط'}
           </button>
         </div>
       </div>

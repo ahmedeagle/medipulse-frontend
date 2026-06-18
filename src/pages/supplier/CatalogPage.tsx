@@ -242,7 +242,7 @@ export default function SupplierCatalogPage() {
                 <input placeholder="Generic name (e.g. Amoxicillin)"
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={newProduct.genericName} onChange={(e) => setNewProduct((p) => ({ ...p, genericName: e.target.value }))} />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input placeholder="Category (e.g. antibiotic)"
                     className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={newProduct.category} onChange={(e) => setNewProduct((p) => ({ ...p, category: e.target.value }))} />
@@ -276,7 +276,7 @@ export default function SupplierCatalogPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
               <input
@@ -351,7 +351,7 @@ export default function SupplierCatalogPage() {
 
           <p className="text-sm font-medium text-gray-700">{editItem?.product?.name}</p>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
               <input

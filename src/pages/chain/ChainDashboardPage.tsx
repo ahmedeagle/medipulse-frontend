@@ -41,7 +41,7 @@ export default function ChainDashboardPage() {
       </div>
 
       {/* Network stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Branches"        value={branches.length}                      icon={Building2} />
         <StatCard title="Total Spend (90d)"    value={`SAR ${totalSpend.toLocaleString()}`}  icon={TrendingUp}   iconColor="text-green-600"  iconBg="bg-green-50" />
         <StatCard title="Total Orders (90d)"   value={totalOrders}                           icon={ShoppingCart} iconColor="text-purple-600" iconBg="bg-purple-50" />

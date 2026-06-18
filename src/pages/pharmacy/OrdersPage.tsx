@@ -262,7 +262,7 @@ export default function PharmacyOrdersPage() {
       <Modal isOpen={!!viewOrder} onClose={() => setViewOrder(null)} title={t('order.details_title')} size="lg">
         {viewOrder && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">{t('order.order_id')}</p>
                 <p className="font-mono font-medium">{viewOrder.id.slice(0, 8)}…</p>

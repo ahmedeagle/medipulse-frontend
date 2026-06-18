@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowUpRight, Tag, Trash2, Eye, DollarSign } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Tag, Trash2, Eye, DollarSign, BarChart2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { forecastingApi } from '../../api/forecasting.api';
 import { Spinner } from '../../components/ui/Spinner';
@@ -64,7 +65,7 @@ export default function DeadStockPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           title="Locked Capital"
           value={`SAR ${totalValue.toLocaleString()}`}
@@ -149,10 +150,19 @@ export default function DeadStockPage() {
         </div>
       )}
 
-      <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-        <strong>Dead stock criteria:</strong> Zero consumption for 8+ consecutive weekly snapshots with current quantity &gt; 0.
-        <strong className="ml-2">Value estimate:</strong> Based on most recent supplier price snapshot.
-        <strong className="ml-2">Urgency score:</strong> 0–100 combining expiry risk, weeks dormant, and locked capital.
+      <div className="flex items-center justify-between gap-3 flex-wrap text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
+        <div>
+          <strong>Dead stock criteria:</strong> Zero consumption for 8+ consecutive weekly snapshots with current quantity &gt; 0.
+          <strong className="ml-2">Value estimate:</strong> Based on most recent supplier price snapshot.
+          <strong className="ml-2">Urgency score:</strong> 0–100 combining expiry risk, weeks dormant, and locked capital.
+        </div>
+        <Link
+          to="/pharmacy/reports/operational?from=alert"
+          className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 hover:border-orange-300 hover:text-orange-700 transition-colors whitespace-nowrap"
+        >
+          <BarChart2 size={13} />
+          تقرير تشغيلي مفصّل
+        </Link>
       </div>
     </div>
   );

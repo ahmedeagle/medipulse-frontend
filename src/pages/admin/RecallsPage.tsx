@@ -131,7 +131,7 @@ export default function RecallsPage() {
       {/* Create modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div>
               <h3 className="font-semibold text-gray-900">Issue Product Recall</h3>
               <p className="text-sm text-gray-500 mt-0.5">
@@ -164,7 +164,7 @@ export default function RecallsPage() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Effective Date</label>
                 <input type="date"

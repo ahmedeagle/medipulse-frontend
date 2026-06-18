@@ -6,6 +6,7 @@ import {
   ChevronRight, Info, AlertCircle, History,
 } from 'lucide-react'
 import { catalogRequestsApi } from '../../api/catalog-requests.api'
+import { VoiceMicButton } from '../../components/ui/VoiceMicButton'
 import { FullPageSpinner } from '../../components/ui/Spinner'
 import type { CatalogRequest, CatalogRequestStatus } from '../../types'
 
@@ -56,7 +57,7 @@ function RequestDetailDrawer({ req, onClose }: { req: CatalogRequest; onClose: (
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-xl bg-white shadow-2xl h-full overflow-y-auto">
+      <div className="relative mx-4 w-full max-w-xl bg-white shadow-2xl h-full overflow-y-auto">
         <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 font-mono">{req.trackingNumber}</p>
@@ -81,7 +82,7 @@ function RequestDetailDrawer({ req, onClose }: { req: CatalogRequest; onClose: (
 
           <section>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">بيانات الطلب</h3>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
               {[
                 ['الاسم بالعربية', p.nameAr],
                 ['الاسم بالإنجليزية', p.name],
@@ -162,7 +163,7 @@ export default function CatalogRequestsPage() {
       </div>
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {([
           ['', 'الكل', counts.all],
           ['submitted', 'مُرسَل', counts.submitted],
@@ -191,8 +192,9 @@ export default function CatalogRequestsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="بحث برقم التتبّع أو اسم المنتج أو الباركود…"
-          className="w-full ps-10 pe-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+          className="w-full ps-10 pe-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
         />
+        {!search && <VoiceMicButton onResult={setSearch} className="absolute end-3 top-1/2 -translate-y-1/2" />}
       </div>
 
       {/* List */}

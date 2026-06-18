@@ -62,7 +62,7 @@ function HorizonCard({ forecast }: { forecast: any }) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-gray-100">
         <div className="text-center">
           <p className="text-sm font-semibold text-gray-900">{Number(forecast.estimatedDailyDemand).toFixed(1)}</p>
           <p className="text-xs text-gray-400">units/day</p>
@@ -181,7 +181,7 @@ export default function ForecastPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(forecasts as any[]).map((f) => (
                 <HorizonCard key={f.horizonDays} forecast={f} />
               ))}

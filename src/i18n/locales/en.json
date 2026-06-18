@@ -66,7 +66,8 @@
     "login": "Sign In",
     "signing_in": "Signing in…",
     "app": "MediPulse",
-    "logout": "Logout"
+    "logout": "Logout",
+    "reports": "Reports"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -384,6 +385,118 @@
     "total_orders": "Total Orders",
     "conversion_rate": "Recommendation Conversion",
     "this_week": "This Week"
+  },
+  "p2p": {
+    "title": "Pharmacy Exchange Network",
+    "subtitle": "Smart, safe medicine trading between pharmacies",
+    "tabs": {
+      "marketplace": "Marketplace",
+      "sell": "Sell",
+      "orders": "Orders",
+      "profile": "Seller Profile"
+    },
+    "marketplace": {
+      "search_ph": "Search medicine or supplement...",
+      "city_ph": "City",
+      "no_results": "No results found",
+      "no_results_hint": "Try a different search term",
+      "order_now": "Order Now",
+      "unit_price": "Unit Price",
+      "available": "Available",
+      "min_order": "Min Order",
+      "requested_qty": "Requested Quantity",
+      "notes_ph": "Any instructions for seller...",
+      "send_request": "Send Purchase Request",
+      "total": "Total",
+      "purchase_request": "Purchase Request",
+      "sar": "SAR",
+      "days": "d"
+    },
+    "listing": {
+      "new": "New Listing",
+      "my_listings": "My Listings",
+      "add_title": "New Listing",
+      "inventory_id": "Inventory Item ID",
+      "inventory_id_hint": "Copy the item ID from your Inventory page → ID column",
+      "price": "Price (SAR)",
+      "qty_sell": "Quantity to sell",
+      "min_qty": "Min order qty",
+      "expiry": "Expiry date",
+      "type": "Listing type",
+      "discount": "Discount %",
+      "auto_discount": "Auto-increase discount as expiry approaches",
+      "publish": "Publish Listing",
+      "no_listings": "No listings yet",
+      "no_listings_hint": "Create your first listing to sell to other pharmacies",
+      "type_normal": "Normal",
+      "type_clearance": "Clearance",
+      "type_emergency": "Emergency",
+      "all_types": "All types",
+      "pause": "Pause",
+      "resume": "Resume",
+      "status_active": "Active",
+      "status_paused": "Paused",
+      "status_sold_out": "Sold out",
+      "status_expired": "Expired"
+    },
+    "orders": {
+      "all": "All",
+      "buying": "Buying",
+      "selling": "Selling",
+      "no_orders": "No orders yet",
+      "accept": "Accept",
+      "reject": "Reject",
+      "cancel": "Cancel",
+      "confirm_receipt": "Confirm Receipt",
+      "rejection_reason_ph": "Rejection reason...",
+      "rejected_prefix": "Rejected: ",
+      "status_pending": "Pending",
+      "status_accepted": "Accepted",
+      "status_rejected": "Rejected",
+      "status_completed": "Completed",
+      "status_cancelled": "Cancelled"
+    },
+    "profile": {
+      "step_legal": "Legal Info",
+      "step_location": "Location & Delivery",
+      "step_settings": "Settings",
+      "legal_name": "Legal pharmacy name",
+      "city": "City",
+      "region": "Region",
+      "address": "Full address",
+      "gps": "GPS coordinates (lat, lng)",
+      "visible": "Show in marketplace",
+      "visible_hint": "Other pharmacies can see your listings",
+      "save": "Save Profile",
+      "saved": "Saved successfully",
+      "verified": "Your account is verified ✓",
+      "pending_review": "Pending admin review",
+      "rejected_prefix": "Rejected: "
+    },
+    "trust": {
+      "bronze": "Bronze",
+      "silver": "Silver",
+      "gold": "Gold",
+      "platinum": "Platinum"
+    },
+    "rules": {
+      "ready": "Product ready to publish — no issues",
+      "UNLINKED_PRODUCT": "Product not linked to catalog",
+      "EXPIRED": "Product is expired",
+      "ZERO_STOCK": "Out of stock",
+      "BELOW_MIN_QTY": "Qty below minimum order qty",
+      "NEAR_EXPIRY_30": "Expires within 30 days",
+      "NEAR_EXPIRY_60": "Expires within 60 days",
+      "NEAR_EXPIRY_90": "Expires within 90 days",
+      "PRICE_ANOMALY": "Price below cost price",
+      "DUPLICATE_LISTING": "Duplicate listing exists"
+    },
+    "legal": {
+      "title": "Legal & Regulatory Declaration",
+      "subtitle": "Required before listing on the exchange",
+      "confirm": "Confirm & Continue",
+      "renews_every_90": "This declaration renews every 90 days"
+    }
   },
   "errors": {
     "not_found": "Not found",

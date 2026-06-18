@@ -103,7 +103,7 @@ function ReceiveModal({ orderId, items, onClose, onDone }: {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
         <h3 className="font-semibold text-gray-900">Confirm Receipt — QC Inspection</h3>
         <p className="text-sm text-gray-500">Enter the quantity accepted and rejected per item after physical inspection.</p>
 
@@ -111,7 +111,7 @@ function ReceiveModal({ orderId, items, onClose, onDone }: {
           <div key={item.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
             <p className="font-medium text-gray-900">{item.product?.name ?? item.productId}</p>
             <p className="text-xs text-gray-400">Ordered: {item.quantity} units</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Accepted</label>
                 <input type="number" min={0} max={item.quantity}
@@ -313,7 +313,7 @@ export default function OrderDetailPage() {
       {/* Action reason modal */}
       {pendingAction && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl space-y-4">
             <h3 className="font-semibold text-gray-900">{actionLabel[pendingAction]?.label}</h3>
             <textarea
               rows={3} placeholder="Reason…"
@@ -341,9 +341,9 @@ export default function OrderDetailPage() {
         />
       )}
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: order details */}
-        <div className="col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-5">
 
           {/* Items */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

@@ -13,11 +13,17 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 30_000,
+      // 60s stale: aggressive enough for live inventory, conservative enough to avoid hammering
+      staleTime: 60_000,
+      // Keep unused cache for 10 min — cheap re-navigations don't refetch
+      gcTime: 10 * 60_000,
       refetchOnWindowFocus: false,
+      // Don't retry failed requests while offline
+      networkMode: 'offlineFirst',
     },
     mutations: {
       retry: 0,
+      networkMode: 'offlineFirst',
     },
   },
 });

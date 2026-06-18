@@ -119,7 +119,7 @@ export default function ProcurementQueuePage() {
         {/* Reject reason modal */}
         {rejectingId && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
               <h3 className="font-semibold text-gray-900 mb-3">Reject Draft</h3>
               <textarea
                 className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"

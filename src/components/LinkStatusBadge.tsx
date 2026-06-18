@@ -23,7 +23,7 @@ export function LinkStatusBadge({
       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg border ${s.cls}`}>
       <Icon size={11} />
       {s.label}
-      {score != null && status === 'linked' && Number(score) < 95 && (
+      {score != null && (status === 'suggested' || (status === 'linked' && Number(score) < 95)) && (
         <span className="text-[10px] opacity-70">· {Number(score).toFixed(0)}%</span>
       )}
     </span>

@@ -8,7 +8,8 @@ import {
   BookOpen, BarChart2, Building2, Users, Shield,
   Inbox, TrendingUp, AlertTriangle, Calendar, Star,
   Plug, GitBranch, Upload, ListChecks, Bell,
-  CheckCircle2, ShieldCheck,
+  CheckCircle2, ShieldCheck, Store, Receipt, Clock,
+  Menu, X,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProfileStore } from '../../store/auth.store';
@@ -22,23 +23,14 @@ interface NavGroup {
   items: { labelKey: string; to: string; icon: React.ElementType }[];
 }
 
+// Order: Inventory(0), Orders(1), Procurement(2), Analytics(3)
 const PHARMACY_NAV: NavGroup[] = [
-  {
-    labelKey: 'nav.procurement_queue',
-    icon: Inbox,
-    items: [
-      { labelKey: 'nav.procurement_queue',  to: '/pharmacy/queue',     icon: Inbox },
-      { labelKey: 'nav.forecast',           to: '/pharmacy/forecast',  icon: BarChart2 },
-      { labelKey: 'nav.order_schedule',     to: '/pharmacy/eoq',       icon: Calendar },
-      { labelKey: 'nav.dead_stock',         to: '/pharmacy/dead-stock',icon: AlertTriangle },
-    ],
-  },
   {
     labelKey: 'nav.inventory',
     icon: Package,
     items: [
-      { labelKey: 'nav.inventory',         to: '/pharmacy/inventory', icon: Package },
-      { labelKey: 'nav.supplier_catalog',  to: '/pharmacy/catalog',   icon: BookOpen },
+      { labelKey: 'nav.inventory',         to: '/pharmacy/inventory',        icon: Package },
+      { labelKey: 'nav.supplier_catalog',  to: '/pharmacy/catalog',          icon: BookOpen },
       { labelKey: 'nav.catalog_requests',  to: '/pharmacy/catalog-requests', icon: GitBranch },
     ],
   },
@@ -48,6 +40,16 @@ const PHARMACY_NAV: NavGroup[] = [
     items: [
       { labelKey: 'nav.orders',             to: '/pharmacy/orders',      icon: ShoppingCart },
       { labelKey: 'nav.preferred_suppliers',to: '/pharmacy/connections', icon: Star },
+    ],
+  },
+  {
+    labelKey: 'nav.procurement_queue',
+    icon: Inbox,
+    items: [
+      { labelKey: 'nav.procurement_queue',  to: '/pharmacy/queue',      icon: Inbox },
+      { labelKey: 'nav.forecast',           to: '/pharmacy/forecast',   icon: BarChart2 },
+      { labelKey: 'nav.order_schedule',     to: '/pharmacy/eoq',        icon: Calendar },
+      { labelKey: 'nav.dead_stock',         to: '/pharmacy/dead-stock', icon: AlertTriangle },
     ],
   },
   {
@@ -136,7 +138,6 @@ function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -153,57 +154,43 @@ function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean
       <Link
         to={group.items[0].to}
         className={clsx(
-          'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+          'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
           hasActive
-            ? 'bg-blue-50 text-blue-700'
+            ? 'bg-emerald-50 text-emerald-700'
             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
         )}
       >
-        <group.icon size={15} />
         {t(group.labelKey)}
       </Link>
     );
   }
 
   return (
-    <div ref={ref} className="relative">
-      {/* Label navigates to first item; chevron toggles dropdown */}
-      <div className={clsx(
-        'flex items-center rounded-lg transition-colors overflow-hidden',
-        hasActive ? 'bg-blue-50' : 'hover:bg-gray-50',
-      )}>
-        <button
-          onClick={() => navigate(group.items[0].to)}
-          className={clsx(
-            'flex items-center gap-1.5 pl-3 pr-2 py-2 text-sm font-medium',
-            hasActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900',
-          )}
-        >
-          <group.icon size={15} />
-          {t(group.labelKey)}
-        </button>
-        <button
-          onClick={() => setOpen(!open)}
-          className={clsx(
-            'pr-2 py-2 transition-colors',
-            hasActive ? 'text-blue-500' : 'text-gray-400 hover:text-gray-600',
-          )}
-        >
-          <ChevronDown size={13} className={clsx('transition-transform', open && 'rotate-180')} />
-        </button>
-      </div>
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={clsx(
+          'flex items-center gap-1.5 ps-3 pe-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+          hasActive
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+        )}
+      >
+        {t(group.labelKey)}
+        <ChevronDown size={13} className={clsx('transition-transform shrink-0', open && 'rotate-180')} />
+      </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+        <div className="absolute top-full start-0 mt-1 w-52 max-w-[calc(100vw-16px)] bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
           {group.items.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               onClick={() => setOpen(false)}
               className={clsx(
-                'flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors',
+                'flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors',
                 location.pathname.startsWith(item.to)
-                  ? 'bg-blue-50 text-blue-700 font-medium'
+                  ? 'bg-emerald-50 text-emerald-700'
                   : 'text-gray-700 hover:bg-gray-50',
               )}
             >
@@ -211,6 +198,136 @@ function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean
               {t(item.labelKey)}
             </Link>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── P2P Exchange link (only for pharmacy_admin) ────────────────────────────
+const P2P_SUBTABS = [
+  { tab: 'marketplace', labelAr: 'تصفح السوق',       labelEn: 'Marketplace',     icon: ShoppingCart },
+  { tab: 'sell',        labelAr: 'أعرض للبيع',       labelEn: 'Sell',            icon: Package },
+  { tab: 'orders',      labelAr: 'الطلبات',           labelEn: 'Orders',          icon: Inbox },
+  { tab: 'insights',    labelAr: 'ذكاء السوق',        labelEn: 'AI Insights',     icon: TrendingUp },
+] as const
+
+function P2PExchangeLink() {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const isActive = location.pathname.startsWith('/pharmacy/p2p');
+  const activeSub = new URLSearchParams(location.search).get('tab') ?? 'marketplace';
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={clsx(
+          'flex items-center gap-1.5 ps-3 pe-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+          isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+        )}
+      >
+        {isRTL ? 'البيع للصيدليات' : 'P2P Exchange'}
+        <ChevronDown size={13} className={clsx('transition-transform shrink-0', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className={clsx(
+          'absolute top-full mt-1 w-52 max-w-[calc(100vw-16px)] bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50',
+          isRTL ? 'right-0' : 'left-0',
+        )}>
+          {P2P_SUBTABS.map(({ tab, labelAr, labelEn, icon: Icon }) => {
+            const active = isActive && activeSub === tab;
+            return (
+              <Link
+                key={tab}
+                to={`/pharmacy/p2p?tab=${tab}`}
+                onClick={() => setOpen(false)}
+                className={clsx(
+                  'flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors',
+                  active ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-gray-50',
+                )}
+              >
+                <Icon size={14} className={active ? 'text-emerald-600' : 'text-gray-400'} />
+                {isRTL ? labelAr : labelEn}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── POS menu (only for pharmacy_admin) ────────────────────────────────────────
+const POS_SUBTABS = [
+  { to: '/pharmacy/pos',         labelAr: 'نقطة البيع',            labelEn: 'POS Terminal', icon: Receipt },
+  { to: '/pharmacy/pos/shifts',  labelAr: 'سجل الشفتات',           labelEn: 'Shift Log',    icon: Clock },
+  { to: '/pharmacy/pos/sales',   labelAr: 'المبيعات والمرتجعات',   labelEn: 'Sales Log',    icon: TrendingUp },
+] as const;
+
+function PosMenu() {
+  const { i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const isActive = location.pathname.startsWith('/pharmacy/pos');
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={clsx(
+          'flex items-center gap-1.5 ps-3 pe-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+          isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+        )}
+      >
+        {isRTL ? 'نقطة البيع' : 'POS'}
+        <ChevronDown size={13} className={clsx('transition-transform shrink-0', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className={clsx(
+          'absolute top-full mt-1 w-52 max-w-[calc(100vw-16px)] bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50',
+          isRTL ? 'right-0' : 'left-0',
+        )}>
+          {POS_SUBTABS.map(({ to, labelAr, labelEn, icon: Icon }) => {
+            const active = location.pathname === to;
+            return (
+              <Link
+                key={to}
+                to={to}
+                onClick={() => setOpen(false)}
+                className={clsx(
+                  'flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors',
+                  active ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-gray-50',
+                )}
+              >
+                <Icon size={14} className={active ? 'text-emerald-600' : 'text-gray-400'} />
+                {isRTL ? labelAr : labelEn}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
@@ -232,7 +349,6 @@ function AiCenterMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const navigate = useNavigate();
   const isActive = location.pathname.startsWith('/pharmacy/ai-center');
   const activeSub = new URLSearchParams(location.search).get('tab') ?? 'dashboard';
 
@@ -246,34 +362,27 @@ function AiCenterMenu() {
 
   return (
     <div ref={ref} className="relative shrink-0">
-      <div className={clsx(
-        'flex items-center rounded-lg overflow-hidden transition-all shadow-sm',
-        isActive
-          ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white'
-          : 'bg-gradient-to-r from-violet-50 to-fuchsia-50 text-violet-700 hover:from-violet-100 hover:to-fuchsia-100',
-      )}>
-        <button
-          onClick={() => navigate('/pharmacy/ai-center')}
-          className="flex items-center gap-1.5 ps-3 pe-2 py-2 text-sm font-semibold"
-        >
-          <Sparkles size={15} className={isActive ? 'text-white' : 'text-violet-600'} />
-          {t('nav.ai_center')}
-          <span className={clsx(
-            'ms-1 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider',
-            isActive ? 'bg-white/25 text-white' : 'bg-violet-200/60 text-violet-700',
-          )}>AI</span>
-        </button>
-        <button
-          onClick={() => setOpen(o => !o)}
-          className={clsx('pe-2 py-2', isActive ? 'text-white/80 hover:text-white' : 'text-violet-500 hover:text-violet-700')}
-        >
-          <ChevronDown size={13} className={clsx('transition-transform', open && 'rotate-180')} />
-        </button>
-      </div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={clsx(
+          'flex items-center gap-1.5 ps-3 pe-2.5 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm whitespace-nowrap',
+          isActive
+            ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white'
+            : 'bg-gradient-to-r from-violet-50 to-fuchsia-50 text-violet-700 hover:from-violet-100 hover:to-fuchsia-100',
+        )}
+      >
+        <Sparkles size={15} className={isActive ? 'text-white' : 'text-violet-600'} />
+        {t('nav.ai_center')}
+        <span className={clsx(
+          'ms-1 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider',
+          isActive ? 'bg-white/25 text-white' : 'bg-violet-200/60 text-violet-700',
+        )}>AI</span>
+        <ChevronDown size={13} className={clsx('transition-transform shrink-0', open && 'rotate-180')} />
+      </button>
 
       {open && (
         <div className={clsx(
-          'absolute top-full mt-1 w-64 bg-white rounded-xl shadow-xl border border-violet-100 py-1 z-50',
+          'absolute top-full mt-1 w-64 max-w-[calc(100vw-16px)] bg-white rounded-xl shadow-xl border border-violet-100 py-1 z-50',
           isRTL ? 'right-0' : 'left-0',
         )}>
           <div className="px-3 py-2 border-b border-gray-100 mb-1">
@@ -307,6 +416,154 @@ function AiCenterMenu() {
   );
 }
 
+// ── Mobile nav drawer ─────────────────────────────────────────────────────────
+function MobileNavDrawer({
+  open, onClose, role, navConfig,
+}: {
+  open: boolean
+  onClose: () => void
+  role: string
+  navConfig: { dashboard: string; groups: NavGroup[] } | undefined
+}) {
+  const { t, i18n } = useTranslation()
+  const isRTL = i18n.language === 'ar'
+  const location = useLocation()
+
+  useEffect(() => { if (open) document.body.style.overflow = 'hidden'; else document.body.style.overflow = ''; return () => { document.body.style.overflow = '' } }, [open])
+  useEffect(() => { onClose() }, [location.pathname, location.search])
+
+  if (!open) return null
+
+  const linkCls = (active: boolean) => clsx(
+    'flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors',
+    active ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-gray-50',
+  )
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className={clsx(
+        'fixed top-0 bottom-0 z-50 w-72 bg-white shadow-xl flex flex-col',
+        isRTL ? 'right-0' : 'left-0',
+      )}>
+        <div className="flex items-center justify-between px-4 h-14 border-b border-gray-100 shrink-0">
+          <span className="font-bold text-gray-900">القائمة</span>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
+          {/* Dashboard */}
+          <Link to={navConfig?.dashboard ?? '/'} className={linkCls(location.pathname === navConfig?.dashboard)}>
+            <LayoutDashboard size={16} />
+            {t('nav.dashboard')}
+          </Link>
+
+          {role === 'pharmacy_admin' && (
+            <>
+              {/* AI Center */}
+              <div className="pt-2">
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">AI</p>
+                {AI_CENTER_SUBTABS.map(({ tab, labelAr, labelEn, icon: Icon }) => {
+                  const active = location.pathname.startsWith('/pharmacy/ai-center') && (new URLSearchParams(location.search).get('tab') ?? 'dashboard') === tab
+                  return (
+                    <Link key={tab} to={`/pharmacy/ai-center?tab=${tab}`} className={linkCls(active)}>
+                      <Icon size={16} />{isRTL ? labelAr : labelEn}
+                    </Link>
+                  )
+                })}
+              </div>
+
+              {/* P2P */}
+              <div className="pt-2">
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">P2P</p>
+                {P2P_SUBTABS.map(({ tab, labelAr, labelEn, icon: Icon }) => {
+                  const active = location.pathname.startsWith('/pharmacy/p2p') && (new URLSearchParams(location.search).get('tab') ?? 'marketplace') === tab
+                  return (
+                    <Link key={tab} to={`/pharmacy/p2p?tab=${tab}`} className={linkCls(active)}>
+                      <Icon size={16} />{isRTL ? labelAr : labelEn}
+                    </Link>
+                  )
+                })}
+              </div>
+
+              {/* POS */}
+              <div className="pt-2">
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">POS</p>
+                {POS_SUBTABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
+                  <Link key={to} to={to} className={linkCls(location.pathname === to)}>
+                    <Icon size={16} />{isRTL ? labelAr : labelEn}
+                  </Link>
+                ))}
+              </div>
+
+              {/* Inventory */}
+              <div className="pt-2">
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'المخزون والكتالوج' : 'Inventory'}</p>
+                {PHARMACY_NAV[0].items.map(i => (
+                  <Link key={i.to} to={i.to} className={linkCls(location.pathname.startsWith(i.to))}>
+                    <i.icon size={16} />{t(i.labelKey)}
+                  </Link>
+                ))}
+              </div>
+
+              {/* Orders */}
+              <div className="pt-2">
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'الطلبات' : 'Orders'}</p>
+                {PHARMACY_NAV[1].items.map(i => (
+                  <Link key={i.to} to={i.to} className={linkCls(location.pathname.startsWith(i.to))}>
+                    <i.icon size={16} />{t(i.labelKey)}
+                  </Link>
+                ))}
+              </div>
+
+              {/* Procurement */}
+              <div className="pt-2">
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'المشتريات' : 'Procurement'}</p>
+                {PHARMACY_NAV[2].items.map(i => (
+                  <Link key={i.to} to={i.to} className={linkCls(location.pathname.startsWith(i.to))}>
+                    <i.icon size={16} />{t(i.labelKey)}
+                  </Link>
+                ))}
+              </div>
+
+              {/* Customers + Settings */}
+              <div className="pt-2">
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'أخرى' : 'More'}</p>
+                <Link to="/pharmacy/customers" className={linkCls(location.pathname.startsWith('/pharmacy/customers'))}>
+                  <Users size={16} />{isRTL ? 'العملاء' : 'Customers'}
+                </Link>
+                {PHARMACY_NAV[3].items.map(i => (
+                  <Link key={i.to} to={i.to} className={linkCls(location.pathname.startsWith(i.to))}>
+                    <i.icon size={16} />{t(i.labelKey)}
+                  </Link>
+                ))}
+                <Link to="/pharmacy/reports" className={linkCls(location.pathname.startsWith('/pharmacy/reports'))}>
+                  <BarChart2 size={16} />{t('nav.reports')}
+                </Link>
+                <Link to="/pharmacy/settings" className={linkCls(location.pathname.startsWith('/pharmacy/settings'))}>
+                  <Settings size={16} />{isRTL ? 'الإعدادات' : 'Settings'}
+                </Link>
+              </div>
+            </>
+          )}
+
+          {/* Other roles */}
+          {role !== 'pharmacy_admin' && navConfig?.groups.map(group => (
+            <div key={group.labelKey} className="pt-2">
+              {group.items.map(i => (
+                <Link key={i.to} to={i.to} className={linkCls(location.pathname.startsWith(i.to))}>
+                  <i.icon size={16} />{t(i.labelKey)}
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
 export function TopNav() {
   const { t, i18n } = useTranslation();
   const auth = useAuth();
@@ -314,10 +571,12 @@ export function TopNav() {
   const location = useLocation();
   const { profile, clearProfile } = useProfileStore();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const role = profile?.role ?? getRoleFromToken(auth.user) ?? '';
   const navConfig = NAV_MAP[role];
+  const isRTL = i18n.language === 'ar';
   const tenantName = profile?.tenant?.name ?? '';
   const displayName = profile ? `${profile.firstName} ${profile.lastName}` : (auth.user?.profile?.given_name ?? 'User');
 
@@ -335,90 +594,161 @@ export function TopNav() {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-      <div className="px-4 h-14 flex items-center gap-4">
-        {/* Logo */}
-        <Link
-          to={navConfig?.dashboard ?? '/'}
-          className="flex items-center gap-2 shrink-0 mr-2"
-        >
-          <span className="text-2xl">💊</span>
-          <span className="font-bold text-lg text-gray-900 tracking-tight">MediPulse</span>
-          {tenantName && (
-            <span className="hidden md:block text-xs text-gray-400 font-normal ml-1 max-w-[120px] truncate">
-              {tenantName}
-            </span>
-          )}
-        </Link>
+    <>
+      <MobileNavDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} role={role} navConfig={navConfig} />
 
-        {/* Navigation groups */}
-        <nav className="flex items-center gap-1 flex-1 min-w-0">
-          {/* Dashboard link */}
-          {navConfig && (
-            <Link
-              to={navConfig.dashboard}
-              className={clsx(
-                'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0',
-                location.pathname === navConfig.dashboard
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
-              )}
-            >
-              <LayoutDashboard size={15} />
-              {t('nav.dashboard')}
-            </Link>
-          )}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-4">
 
-          {role === 'pharmacy_admin' && <AiCenterMenu />}
+          {/* Hamburger — visible on < xl */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="xl:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 shrink-0"
+            aria-label="Open menu"
+          >
+            <Menu size={20} />
+          </button>
 
-          {navConfig?.groups.map((group) => (
-            <DropdownGroup
-              key={group.labelKey}
-              group={group}
-              isActive={group.items.some(i => location.pathname.startsWith(i.to))}
-            />
-          ))}
-        </nav>
-
-        {/* Right side */}
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <NotificationBell />
-          <LanguageSwitcher />
-
-          {/* User menu */}
-          <div ref={userMenuRef} className="relative">
-            <button
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-              <div className="hidden md:block text-left">
-                <p className="text-xs font-semibold text-gray-900 max-w-[100px] truncate">{displayName}</p>
-                <p className="text-xs text-gray-400 capitalize">{role?.replace(/_/g, ' ')}</p>
-              </div>
-              <ChevronDown size={13} className={clsx('text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
-            </button>
-
-            {userMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
-                <div className="px-4 py-2.5 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
-                  <p className="text-xs text-gray-400 truncate">{profile?.email}</p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut size={14} />
-                  {t('nav.logout')}
-                </button>
-              </div>
+          {/* Logo */}
+          <Link
+            to={navConfig?.dashboard ?? '/'}
+            className="flex items-center gap-2 shrink-0"
+          >
+            <span className="text-2xl">💊</span>
+            <span className="font-bold text-base sm:text-lg text-gray-900 tracking-tight">MediPulse</span>
+            {tenantName && (
+              <span
+                title={tenantName}
+                className="hidden md:flex items-center justify-center h-5 px-1.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold ml-1 shrink-0 cursor-default tracking-wide"
+              >
+                {tenantName.replace(/[^a-zA-Z؀-ۿ]/g, ' ').trim().split(/\s+/).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || tenantName.slice(0, 2).toUpperCase()}
+              </span>
             )}
+          </Link>
+
+          {/* Desktop navigation — hidden on < xl */}
+          <nav className="hidden xl:flex items-center gap-1 flex-1 min-w-0 overflow-visible">
+            {role === 'pharmacy_admin' && navConfig ? (
+              <>
+                <Link
+                  to={navConfig.dashboard}
+                  className={clsx(
+                    'px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
+                    location.pathname === navConfig.dashboard
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+                  )}
+                >
+                  {t('nav.dashboard')}
+                </Link>
+                <AiCenterMenu />
+                <P2PExchangeLink />
+                <DropdownGroup group={PHARMACY_NAV[0]} isActive={PHARMACY_NAV[0].items.some(i => location.pathname.startsWith(i.to))} />
+                <PosMenu />
+                <DropdownGroup group={PHARMACY_NAV[1]} isActive={PHARMACY_NAV[1].items.some(i => location.pathname.startsWith(i.to))} />
+                <DropdownGroup group={PHARMACY_NAV[2]} isActive={PHARMACY_NAV[2].items.some(i => location.pathname.startsWith(i.to))} />
+                <Link
+                  to="/pharmacy/customers"
+                  className={clsx(
+                    'px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
+                    location.pathname.startsWith('/pharmacy/customers')
+                      ? 'bg-sky-50 text-sky-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+                  )}
+                >
+                  {isRTL ? 'العملاء' : 'Customers'}
+                </Link>
+                <DropdownGroup group={PHARMACY_NAV[3]} isActive={PHARMACY_NAV[3].items.some(i => location.pathname.startsWith(i.to))} />
+                <Link
+                  to="/pharmacy/reports"
+                  className={clsx(
+                    'px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
+                    location.pathname.startsWith('/pharmacy/reports')
+                      ? 'bg-teal-50 text-teal-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+                  )}
+                >
+                  {t('nav.reports')}
+                </Link>
+                <Link
+                  to="/pharmacy/settings"
+                  className={clsx(
+                    'px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
+                    location.pathname.startsWith('/pharmacy/settings')
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+                  )}
+                >
+                  {isRTL ? 'الإعدادات' : 'Settings'}
+                </Link>
+              </>
+            ) : (
+              <>
+                {navConfig && (
+                  <Link
+                    to={navConfig.dashboard}
+                    className={clsx(
+                      'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
+                      location.pathname === navConfig.dashboard
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+                    )}
+                  >
+                    {t('nav.dashboard')}
+                  </Link>
+                )}
+                {navConfig?.groups.map((group) => (
+                  <DropdownGroup
+                    key={group.labelKey}
+                    group={group}
+                    isActive={group.items.some(i => location.pathname.startsWith(i.to))}
+                  />
+                ))}
+              </>
+            )}
+          </nav>
+
+          {/* Right side */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-auto">
+            <NotificationBell />
+            <LanguageSwitcher />
+
+            {/* User menu */}
+            <div ref={userMenuRef} className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+                <div className="hidden md:block text-left">
+                  <p className="text-xs font-semibold text-gray-900 max-w-[100px] truncate">{displayName}</p>
+                  <p className="text-xs text-gray-400 capitalize">{role?.replace(/_/g, ' ')}</p>
+                </div>
+                <ChevronDown size={13} className={clsx('text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute ltr:right-0 rtl:left-0 top-full mt-1 w-52 max-w-[calc(100vw-16px)] bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                  <div className="px-4 py-2.5 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
+                    <p className="text-xs text-gray-400 truncate">{profile?.email}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={14} />
+                    {t('nav.logout')}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

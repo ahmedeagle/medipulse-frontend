@@ -17,7 +17,7 @@ export interface CreateProductPayload {
 }
 
 export const inventoryApi = {
-  getAll: (params?: { limit?: number; offset?: number }) =>
+  getAll: (params?: { limit?: number; offset?: number; q?: string }) =>
     client.get('/inventory', { params }),
 
   getLowStock: (params?: { limit?: number; offset?: number }) =>

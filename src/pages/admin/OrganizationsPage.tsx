@@ -92,7 +92,7 @@ export default function OrganizationsPage() {
       {/* Create modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl space-y-4">
             <h3 className="font-semibold text-gray-900">New Organization</h3>
             {[
               { label: 'Name', key: 'name', placeholder: 'Al-Nahdi Pharmacy Chain' },
@@ -137,7 +137,7 @@ export default function OrganizationsPage() {
       {/* Add branch modal */}
       {addBranch && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl space-y-4">
             <h3 className="font-semibold text-gray-900">Add Branch</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Pharmacy tenant</label>

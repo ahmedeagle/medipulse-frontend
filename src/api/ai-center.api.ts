@@ -14,11 +14,24 @@ export type ApprovalPriority = 'low' | 'medium' | 'high' | 'critical'
 
 export type ConfidenceLabel = 'very_high' | 'high' | 'medium' | 'low'
 
+export type ApprovalSubjectType =
+  | 'smart_procurement'
+  | 'listing_suggestion'
+  | 'expired_quarantine'
+  | 'recommendation'
+  | 'procurement_draft'
+  | 'inventory_item'
+  | 'p2p_order_action'
+  | 'pos_shift_action'
+  | 'expiry_liquidation'
+  | 'low_stock'
+  | 'dead_stock_clearance'
+
 export interface Approval {
   id:               string
   tenantId:         string
   agentCode:        string
-  subjectType:      string
+  subjectType:      ApprovalSubjectType | string
   subjectId:        string
   title:            string
   summary:          string
@@ -117,8 +130,9 @@ export interface DashboardWidget {
 }
 
 export interface WorkforceSummary {
-  generatedAt: string
-  widgets:     DashboardWidget[]
+  generatedAt:    string
+  widgets:        DashboardWidget[]
+  expiryRiskEgp:  number
   pendingApprovals: {
     total:    number
     critical: number

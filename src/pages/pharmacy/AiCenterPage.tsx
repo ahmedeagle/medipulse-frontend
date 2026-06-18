@@ -1,4 +1,4 @@
-import { useState, useMemo, createContext, useContext } from 'react'
+import { useState, useMemo, useRef, createContext, useContext } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +9,7 @@ import {
   AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft,
   AlertCircle, Info, Loader2, X, Edit3,
   Store, Eye, RefreshCw, Activity, Ban, Zap, Settings,
+  ShieldAlert, Banknote, PartyPopper, ExternalLink,
 } from 'lucide-react'
 import {
   aiCenterApi,
@@ -17,6 +18,7 @@ import {
   type AgentDefinition,
 } from '../../api/ai-center.api'
 import { useInfiniteList, InfiniteScrollSentinel } from '../../hooks/useInfiniteList'
+import { TabBar } from '../../components/ui/TabBar'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,9 @@ const AGENT_ICON: Record<string, React.ElementType> = {
   'clock-alert':   Clock,
   'store':         Store,
   'sparkles':      Sparkles,
+  'shield-alert':  ShieldAlert,
+  'banknote':      Banknote,
+  'alert-circle':  AlertCircle,
 }
 
 const SEVERITY_BG: Record<DashboardWidget['severity'], string> = {
@@ -92,6 +97,219 @@ const formatRelative = (iso: string): string => {
   const d = Math.floor(h / 24)
   if (d < 30)      return `قبل ${d} يوم`
   return new Date(iso).toLocaleDateString('ar-EG')
+}
+
+function approvalActionDescription(approval: Approval): string {
+  const p = approval.payload ?? {}
+  if (approval.subjectType === 'smart_procurement') {
+    const price   = p.p2pPrice   ? `${Number(p.p2pPrice).toFixed(2)} جنيه/وحدة` : '؟'
+    const saving  = p.savingsPct > 0 ? ` (توفير ${p.savingsPct}%)` : ''
+    const seller  = p.sellerName ?? 'صيدلية محلية'
+    const city    = p.sellerCity ? ` في ${p.sellerCity}` : ''
+    return `سيتم تسجيل موافقتك على الشراء من ${seller}${city} بسعر ${price}${saving}.\n\nبعد الموافقة، انتقل إلى تبويب "فرص الشراء الذكي" لإتمام الطلب مباشرةً من البورصة الدوائية.`
+  }
+  if (approval.subjectType === 'recommendation') {
+    const recType = (p.recType as string | undefined) ?? ''
+    switch (recType) {
+      case 'reorder': {
+        const qty      = p.suggestedReorderQty ?? p.deficit ?? '؟'
+        const supplier = p.supplierName ?? 'أفضل مورد متاح'
+        return `سيتم إنشاء مسودة طلب شراء من ${supplier} بكمية ${qty} وحدة.\n\nستجدها في صفحة المشتريات بانتظار مراجعتك النهائية قبل الإرسال للمورد.`
+      }
+      case 'smart_procurement': {
+        const price = p.p2pPrice ? `${Number(p.p2pPrice).toFixed(2)} جنيه` : '؟'
+        const saving = p.savingsPct > 0 ? ` (توفير ${p.savingsPct}%)` : ''
+        return `سيتم توجيهك فوراً إلى سوق البورصة الدوائية لشراء هذا المنتج بسعر ${price}${saving}.\n\nالشراء عبر P2P أسرع وأوفر من الموردين التقليديين.`
+      }
+      case 'p2p_listing_suggestion':
+      case 'dead_stock_alert': {
+        const disc = p.discountPct ?? p.suggestedDiscountPct ?? 10
+        return `سيتم إدراج المنتج تلقائياً في البورصة الدوائية بخصم ${disc}%.\n\nستجده تحت "قوائم البيع" في صفحة P2P.`
+      }
+      case 'expired_quarantine':
+        return 'سيتم تصفير كمية هذا المنتج فوراً وعزله من المخزون النشط.\n\nتأكد أن هذا الإجراء صحيح — لا يمكن التراجع عنه.'
+      case 'price_comparison':
+        return 'سيتم تسجيل ملاحظة بمقارنة الأسعار بين الموردين.\n\nلا يوجد إجراء تلقائي — يمكنك فتح كتالوج الموردين لمقارنة الأسعار يدوياً.'
+      case 'alternative':
+        return 'سيتم تسجيل إشعار بتوافر بديل مناسب.\n\nلا يوجد إجراء تلقائي — يمكنك مراجعة بدائل المنتج في كتالوج الموردين.'
+      case 'consumption_spike':
+        return 'سيتم تسجيل إشعار بالارتفاع المفاجئ في الاستهلاك.\n\nراجع مستوى المخزون وفكر في تسريع أمر الشراء التالي.'
+      case 'forecast_alert':
+        return 'سيتم تسجيل تنبيه توقعات الطلب.\n\nلا يوجد إجراء تلقائي — راجع تحليلات التوقعات لمزيد من التفاصيل.'
+      case 'reorder_schedule':
+        return 'سيتم تسجيل تذكير بموعد إعادة الطلب المقرر.\n\nتوجّه إلى لوحة المشتريات لمتابعة الجدول الزمني.'
+      case 'insufficient_data':
+        return 'سيتم تسجيل إشعار بنقص البيانات التاريخية.\n\nمع تراكم بيانات المبيعات (28 يوماً+) ستصبح التوصيات أكثر دقة.'
+      default:
+        return 'سيقوم النظام بتسجيل ملاحظة بهذه التوصية.\n\nراجع لوحة التحليلات لمزيد من التفاصيل.'
+    }
+  }
+  if (approval.subjectType === 'procurement_draft') {
+    const qty      = p.quantity ?? '؟'
+    const supplier = p.supplierName ?? 'المورد'
+    const price    = p.unitPrice ? `بسعر ${Number(p.unitPrice).toFixed(2)} ${p.currency ?? 'EGP'} للوحدة` : ''
+    return `سيتم تأكيد طلب شراء ${qty} وحدة من ${supplier} ${price}.\n\nسيُرسل الطلب مباشرةً بعد موافقتك — ستجده في صفحة المشتريات.`
+  }
+  if (approval.subjectType === 'inventory_item') {
+    const name = p.suggestedProductName ?? 'المنتج المقترح'
+    return `سيتم ربط هذا الصنف بـ "${name}" في الكتالوج الموحد.\n\nستظهر بياناته في الفواتير والمخزون فوراً — يمكنك التحقق في صفحة إدارة المخزون.`
+  }
+  if (approval.subjectType === 'p2p_order_action') {
+    const productName = (p as any)?.orderSummary?.productName ?? 'الطلب'
+    const action      = (p as any)?.action as string
+    if (action === 'cancel')        return `سيتم إلغاء طلب "${productName}" تلقائياً نيابةً عنك.\n\nسيتم إخطار الطرف الآخر وإعادة الكمية للمخزون.`
+    if (action === 'complete')      return `سيتم تأكيد استلام طلب "${productName}" تلقائياً.\n\nستضاف الكميات لمخزونك فوراً.`
+    if (action === 'remind_seller') return `سيتم إرسال تذكير للبائع بشحن طلب "${productName}".\n\nسيظهر الإشعار فوراً في واجهة الصيدلية البائعة.`
+    return 'سيتم تنفيذ الإجراء المقترح على هذا الطلب.'
+  }
+  if (approval.subjectType === 'expiry_liquidation') {
+    const qty         = (p as any)?.quantity ?? ''
+    const productName = (p as any)?.productName ?? 'المنتج'
+    const discountPct = (p as any)?.discountPct ?? ''
+    const price       = Number((p as any)?.suggestedPrice)
+    const days        = (p as any)?.daysToExpiry ?? ''
+    const priceStr    = price > 0 ? `${price} ج.م` : 'سعر غير محدد — أدخله في حقل التعديل قبل الموافقة'
+    return `سيتم فوراً إدراج ${qty} وحدة من "${productName}" في سوق التبادل كعرض تصفية بخصم ${discountPct}%.\nالسعر: ${priceStr}\n\nالمنتج ينتهي في ${days} يوم — الإدراج الآن يسترد قيمته قبل الهلاك التام.\n\nملاحظة: إن كانت هناك صيدليات مسجّلة في نفس المدينة ولديها طلب سابق على هذا المنتج أو مخزون منخفض منه، ستصلها إشعارات تلقائية (حتى 20 صيدلية).`
+  }
+  if (approval.subjectType === 'low_stock') {
+    const productName = (p as any)?.productName ?? 'المنتج'
+    const qty         = (p as any)?.quantity ?? 0
+    const minThreshold = (p as any)?.minThreshold ?? 0
+    const deficit     = (p as any)?.deficit ?? (minThreshold - qty)
+    return `المخزون وصل للحد الأدنى: ${qty} وحدة متوفرة من أصل ${minThreshold} (عجز ${deficit} وحدة).\n\nعند الموافقة سيتحقق النظام من توفّر "${productName}" في البورصة الدوائية المحلية بسعر أفضل.\n\n• إن وُجد: ستُفتح لك صفحة السوق مباشرةً للشراء\n• إن لم يُوجد: ستُحوَّل لصفحة المشتريات لإنشاء طلب من المورد`
+  }
+  if (approval.subjectType === 'dead_stock_clearance') {
+    const qty         = (p as any)?.quantity ?? ''
+    const productName = (p as any)?.productName ?? 'المنتج'
+    const discountPct = (p as any)?.suggestedDiscountPct ?? ''
+    const urgency     = (p as any)?.urgencyScore ?? ''
+    return `سيتم إدراج ${qty} وحدة من "${productName}" في سوق التبادل كعرض تصفية بخصم ${discountPct}%.\n\nالمنتج لم يتحرك لفترة طويلة (مستوى الخطر: ${urgency}/100).\n\nملاحظة: إن كانت هناك صيدليات مسجّلة في نفس المدينة ولديها طلب سابق على هذا المنتج أو مخزون منخفض، ستصلها إشعارات تلقائية (حتى 20 صيدلية).`
+  }
+  if (approval.subjectType === 'pos_shift_action') {
+    const cashier  = p.cashierName ?? 'الكاشير'
+    if (p.scenario === 'cash_mismatch') {
+      const variance = Number(p.variance ?? 0).toFixed(2)
+      const declared = Number(p.declaredBalance ?? 0).toFixed(2)
+      const expected = Number(p.systemExpected ?? 0).toFixed(2)
+      return `الموافقة هنا تعني تسجيل اطلاعك على الفرق النقدي في شفت ${cashier}.\n\nالمُعلن: ${declared} | المتوقع: ${expected} | الفرق: ${variance}\n\nلا إجراء تلقائي — يُنصح بمراجعة الكاشير وطلب توضيح.`
+    }
+    if (p.scenario === 'high_refund_rate') {
+      const rate = Number(p.refundRate ?? 0).toFixed(1)
+      return `الموافقة هنا تعني تسجيل اطلاعك على نسبة مرتجعات ${rate}% في شفت ${cashier}.\n\nراجع قائمة المرتجعات في سجل المبيعات للتحقق من صحتها.`
+    }
+    return 'سيتم تسجيل اطلاعك على هذا التنبيه.\n\nراجع سجل الشفت في نقطة البيع لمزيد من التفاصيل.'
+  }
+  return 'سيبدأ النظام تنفيذ الإجراء فوراً. هل أنت متأكّد؟'
+}
+
+interface ExecNav { message: string; linkLabel: string; linkHref: string }
+
+function executionNav(approval: Approval, executionResult: any): ExecNav | null {
+  if (!executionResult) return null
+
+  if (executionResult.failed) return null
+
+  if (executionResult.draftId) return {
+    message:   'تم إنشاء مسودة طلب الشراء بنجاح ✓',
+    linkLabel: 'عرض في صفحة المشتريات',
+    linkHref:  '/pharmacy/procurement',
+  }
+  if (approval.subjectType === 'expiry_liquidation' && executionResult.listingId) return {
+    message:   'تم نشر عرض التصفية في سوق التبادل — صيدليات قريبة تلقّت إشعاراً ✓',
+    linkLabel: 'شاهد عرض التصفية',
+    linkHref:  '/pharmacy/p2p?tab=sell',
+  }
+  if (approval.subjectType === 'dead_stock_clearance' && executionResult.listingId) return {
+    message:   'تم نشر عرض تصفية المخزون الراكد في سوق التبادل ✓',
+    linkLabel: 'شاهد عرضك في السوق',
+    linkHref:  '/pharmacy/p2p?tab=sell',
+  }
+  if (approval.subjectType === 'low_stock') {
+    if (executionResult.action === 'p2p_available') return {
+      message:   `"${(approval.payload as any)?.productName ?? 'المنتج'}" متاح للشراء من صيدليات في مدينتك ✓`,
+      linkLabel: 'اشترِ من البورصة الدوائية',
+      linkHref:  executionResult.deepLink ?? `/pharmacy/p2p?tab=marketplace&productId=${(approval.payload as any)?.productId ?? ''}`,
+    }
+    if (executionResult.action === 'reorder') return {
+      message:   `"${(approval.payload as any)?.productName ?? 'المنتج'}" غير متوفر في البورصة حالياً — أنشئ طلب شراء`,
+      linkLabel: 'أنشئ طلب شراء',
+      linkHref:  '/pharmacy/procurement',
+    }
+  }
+  if (executionResult.listingId) return {
+    message:   'تم إدراج المنتج في سوق تبادل الأدوية بنجاح ✓',
+    linkLabel: 'عرض عروضك في السوق',
+    linkHref:  '/pharmacy/p2p?tab=sell',
+  }
+  if (executionResult.quarantinedItemId) return {
+    message:   'تم عزل المنتج وتصفير كميته من المخزون النشط ✓',
+    linkLabel: 'عرض في إدارة المخزون',
+    linkHref:  '/pharmacy/inventory',
+  }
+  if (executionResult.action === 'navigate_to_p2p_marketplace') return {
+    message:   'موافقتك مسجّلة — توجّه الآن لإتمام الشراء من سوق الأدوية',
+    linkLabel: 'اذهب لسوق الأدوية',
+    linkHref:  executionResult.deepLink ?? '/pharmacy/p2p?tab=buy',
+  }
+  if (executionResult.note === 'already_listed') return {
+    message:   'المنتج مدرج بالفعل في السوق — لا حاجة لإجراء إضافي ✓',
+    linkLabel: 'عرض عروضك في السوق',
+    linkHref:  '/pharmacy/p2p?tab=sell',
+  }
+  if (approval.subjectType === 'procurement_draft') return {
+    message:   'تم تأكيد طلب الشراء بنجاح ✓',
+    linkLabel: 'عرض في صفحة المشتريات',
+    linkHref:  '/pharmacy/procurement',
+  }
+  if (approval.subjectType === 'inventory_item') return {
+    message:   'تم ربط الصنف بالمنتج في الكتالوج الموحد ✓',
+    linkLabel: 'عرض في إدارة المخزون',
+    linkHref:  '/pharmacy/inventory',
+  }
+  if (approval.subjectType === 'p2p_order_action') {
+    const orderId = (approval.payload as any)?.orderId as string | undefined
+    const action  = (approval.payload as any)?.action as string
+    const msgs: Record<string, string> = {
+      cancel:        'تم إلغاء الطلب بنجاح ✓',
+      complete:      'تم تأكيد الاستلام وإضافة الكميات للمخزون ✓',
+      remind_seller: 'تم إرسال التذكير للبائع بنجاح ✓',
+    }
+    return {
+      message:   msgs[action] ?? 'تم تنفيذ الإجراء ✓',
+      linkLabel: 'عرض الطلب',
+      linkHref:  `/pharmacy/p2p?tab=orders&highlight=${orderId ?? ''}`,
+    }
+  }
+  if (approval.subjectType === 'pos_shift_action') {
+    const p = approval.payload as any
+    return {
+      message:   executionResult.acknowledged
+        ? `تم تسجيل اطلاعك على التنبيه ✓`
+        : 'تم تسجيل المراجعة ✓',
+      linkLabel: 'عرض سجل الشفتات',
+      linkHref:  '/pharmacy/pos/shifts',
+    }
+  }
+  if (executionResult.warning) return {
+    message:   `تنبيه: ${String(executionResult.warning)}\n\nأضف هذا المنتج إلى كتالوج المورد المناسب ثم أعد المحاولة. ستظهر بطاقة موافقة جديدة في المزامنة التالية.`,
+    linkLabel: 'اذهب إلى كتالوج الموردين',
+    linkHref:  '/pharmacy/catalog',
+  }
+  if (executionResult.note === 'acknowledged') {
+    const recType = (approval.payload?.recType as string | undefined) ?? ''
+    const isProc = recType === 'reorder_schedule' || recType === 'forecast_alert'
+    return {
+      message:   'تم تسجيل ملاحظتك ✓\n\nهذه التوصية ذات طابع استشاري — لا إجراء تلقائي مطلوب.',
+      linkLabel: isProc ? 'عرض لوحة المشتريات' : 'عرض التحليلات',
+      linkHref:  isProc ? '/pharmacy/procurement' : '/pharmacy/analytics',
+    }
+  }
+  if (executionResult.note === 'rec_not_found') return {
+    message:   'تعذّر تنفيذ الإجراء — لم يُعثر على التوصية المرتبطة.',
+    linkLabel: 'عودة إلى مركز الذكاء',
+    linkHref:  '/pharmacy/ai-center',
+  }
+  return null
 }
 
 // ── tabs ─────────────────────────────────────────────────────────────────────
@@ -171,7 +389,7 @@ function ConfirmDialog({ state, onClose }: { state: ConfirmState; onClose: () =>
   return (
     <div className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
          onClick={onClose}>
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-5"
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md mx-4 w-full p-5"
            onClick={e => e.stopPropagation()}>
         <div className="flex items-start gap-3 mb-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${toneIconBg}`}>
@@ -179,7 +397,7 @@ function ConfirmDialog({ state, onClose }: { state: ConfirmState; onClose: () =>
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-gray-900 text-base mb-1">{state.title}</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">{state.body}</p>
+            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{state.body}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 justify-end mt-4">
@@ -286,35 +504,19 @@ export default function AiCenterPage() {
       </div>
 
       {/* ── Tab strip ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-2xl p-1 overflow-x-auto">
-        {TABS.map(tab => {
-          const Icon = tab.icon
-          const active = activeTab === tab.key
-          const badge = tab.key === 'approvals' ? counts.data?.pending : undefined
-          return (
-            <Tooltip key={tab.key} text={tab.tip}>
-              <button
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition whitespace-nowrap ${
-                  active
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon size={16} />
-                {tab.labelAr}
-                {badge !== undefined && badge > 0 && (
-                  <span className={`ms-1 min-w-[20px] h-5 px-1.5 rounded-full text-[11px] flex items-center justify-center font-bold ${
-                    active ? 'bg-white text-violet-700' : 'bg-violet-100 text-violet-700'
-                  }`}>
-                    {badge}
-                  </span>
-                )}
-              </button>
-            </Tooltip>
-          )
-        })}
-      </div>
+      <TabBar
+        tabs={TABS.map(tab => ({
+          key: tab.key,
+          labelAr: tab.labelAr,
+          labelEn: tab.labelAr,
+          icon: tab.icon,
+          badge: tab.key === 'approvals' ? counts.data?.pending : undefined,
+        }))}
+        active={activeTab}
+        onChange={setActiveTab}
+        isRTL
+        color="emerald"
+      />
 
       {/* ── Body ───────────────────────────────────────────────────────── */}
       {activeTab === 'dashboard' && <DashboardTab />}
@@ -383,6 +585,29 @@ function DashboardTab() {
         </div>
       )}
 
+      {/* Expiry financial risk banner */}
+      {data.expiryRiskEgp > 0 && (
+        <div className="p-4 rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center shrink-0">
+            <AlertTriangle size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-900">
+              قد تخسر {data.expiryRiskEgp.toLocaleString('ar-EG')} جنيه من مخزون سينتهي قريباً
+            </p>
+            <p className="text-[11px] text-red-700 mt-0.5">
+              قيمة المخزون الذي سينتهي خلال 180 يوماً — عرضه في P2P أو بيعه بخصم يقلل الخسارة
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/pharmacy/p2p?tab=sell&preset=near_expiry')}
+            className="shrink-0 px-3 py-1.5 text-[11px] font-semibold text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors whitespace-nowrap"
+          >
+            أدرج للبيع ←
+          </button>
+        </div>
+      )}
+
       {/* KPI widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {data.widgets.map(w => {
@@ -391,24 +616,24 @@ function DashboardTab() {
             <button
               key={w.key}
               onClick={() => navigate(w.deepLink)}
-              className={`text-start p-4 rounded-2xl border bg-gradient-to-br ${SEVERITY_BG[w.severity]} hover:shadow-md transition group`}
+              className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:shadow-md hover:border-gray-300 transition-all group"
             >
-              <div className="flex items-start justify-between">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${SEVERITY_ICON_BG[w.severity]}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${SEVERITY_ICON_BG[w.severity]}`}>
                   <Icon size={18} />
                 </div>
-                <ChevronLeft size={16} className="text-gray-400 group-hover:text-gray-700 rtl:rotate-180" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-2xl font-bold text-gray-900 leading-tight tabular-nums">{w.count.toLocaleString('ar-EG')}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5 leading-tight">{w.titleAr}</div>
+                </div>
+                <ChevronLeft size={14} className="text-gray-300 group-hover:text-gray-500 rtl:rotate-180 shrink-0" />
               </div>
-              <div className="mt-3">
-                <div className="text-2xl font-bold text-gray-900">{w.count.toLocaleString('ar-EG')}</div>
-                <div className="text-sm text-gray-600 mt-0.5">{w.titleAr}</div>
-                {w.count === 0 && w.emptyMessageAr && (
-                  <div className="text-[11px] text-emerald-600 mt-1.5 flex items-center gap-1">
-                    <CheckCircle2 size={11} />
-                    {w.emptyMessageAr}
-                  </div>
-                )}
-              </div>
+              {w.count === 0 && w.emptyMessageAr && (
+                <div className="text-[10px] text-emerald-600 mt-2.5 flex items-center gap-1">
+                  <CheckCircle2 size={10} />
+                  {w.emptyMessageAr}
+                </div>
+              )}
             </button>
           )
         })}
@@ -518,8 +743,20 @@ function ApprovalsTab() {
     else setSelected(new Set(list.data.data.map(a => a.id)))
   }
 
-  const focused = list.data?.data.find(a => a.id === focusId)
-    ?? (focusId ? null : undefined)
+  // Fallback: if the focused approval moved to a different status (e.g. pending→modified
+  // after the user edits it), the filtered list won't contain it. Fetch individually so
+  // the detail panel stays open and the user can still approve/reject.
+  const focusedInList = list.data?.data.find(a => a.id === focusId)
+  const needsFallback = !!focusId && list.isSuccess && !focusedInList
+  const focusedFallback = useQuery({
+    enabled: needsFallback,
+    queryKey: ['ai-center', 'approval-single', focusId],
+    queryFn:  () => aiCenterApi.getApproval(focusId!),
+    staleTime: 5_000,
+  })
+  const focused = focusedInList
+    ?? focusedFallback.data
+    ?? (focusId ? (list.isLoading || focusedFallback.isLoading ? undefined : null) : undefined)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-5">
@@ -657,8 +894,11 @@ function ApprovalRow({
         {PRIORITY_LABEL_AR[approval.priority]}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+        <div className="font-medium text-gray-900 text-sm flex items-center gap-2 flex-wrap">
           <span className="truncate">{approval.title}</span>
+          {approval.subjectType === 'recommendation' && (
+            <RecommendationTypeBadge title={approval.title} />
+          )}
           {approval.status === 'executed' && approval.executionResult?.failed && (
             <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 text-[10px] font-semibold">
               <AlertOctagon size={10} />
@@ -688,9 +928,16 @@ function ApprovalRow({
 
 function ApprovalDetail({ approval, onClose }: { approval: Approval | null | undefined; onClose: () => void }) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const { toast, confirm } = useActions()
   const [note, setNote] = useState('')
   const [showModify, setShowModify] = useState(false)
+  const [execNav, setExecNav] = useState<ExecNav | null>(null)
+  const [showCelebration, setShowCelebration] = useState(false)
+  // Snapshot the last non-null approval so the celebration modal can still
+  // reference it after qc.invalidateQueries makes the approval go null.
+  const lastApprovalRef = useRef<Approval | null>(null)
+  if (approval) lastApprovalRef.current = approval
 
   const events = useQuery({
     enabled: !!approval,
@@ -701,30 +948,37 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
   const approve = useMutation({
     mutationFn: () => aiCenterApi.approve(approval!.id, note || undefined),
     onSuccess: () => {
-      const approvalId = approval!.id
-      toast('success', 'تمت الموافقة — جارٍ تنفيذ الإجراء.')
+      const approvalSnap = approval!
+      toast('info', 'جارٍ تنفيذ الإجراء…')
       setNote(''); setShowModify(false)
-      qc.invalidateQueries({ queryKey: ['ai-center'] })
 
-      // Domain executors run async via event listeners. Poll the approval
-      // for up to ~6 s; if it lands in executed-with-failure, surface the
-      // real reason so the pharmacist isn't left wondering "did anything
-      // happen?".
       let tries = 0
       const poll = async () => {
         tries++
         try {
-          const fresh = await aiCenterApi.getApproval(approvalId)
+          const fresh = await aiCenterApi.getApproval(approvalSnap.id)
           if (fresh.status === 'executed' && fresh.executionResult?.failed) {
             toast('error', `لم يتمكّن النظام من تنفيذ القرار: ${String(fresh.executionResult.error ?? 'سبب غير معروف')}`)
             qc.invalidateQueries({ queryKey: ['ai-center'] })
             return
           }
-          if (fresh.status === 'executed') return
+          if (fresh.status === 'executed') {
+            const nav = executionNav(approvalSnap, fresh.executionResult)
+            // Invalidate AFTER setting nav so the list query re-fetch doesn't
+            // clear the focused approval before the success panel can render.
+            if (nav) {
+              setExecNav(nav)
+              setShowCelebration(true)
+            } else {
+              toast('success', 'تم التنفيذ بنجاح ✓')
+            }
+            qc.invalidateQueries({ queryKey: ['ai-center'] })
+            return
+          }
         } catch { /* network blip — keep polling */ }
-        if (tries < 6) setTimeout(poll, 1_000)
+        if (tries < 8) setTimeout(poll, 1_000)
       }
-      setTimeout(poll, 1_000)
+      setTimeout(poll, 800)
     },
     onError: (e: any) => toast('error', e?.message ?? 'تعذّرت الموافقة.'),
   })
@@ -750,10 +1004,49 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
     onError: (e: any) => toast('error', e?.message ?? 'تعذّر حفظ التعديل.'),
   })
 
+  // Celebration modal must render BEFORE null guards: after qc.invalidateQueries
+  // the approval prop goes null, but lastApprovalRef still holds the snapshot.
+  if (showCelebration && execNav && lastApprovalRef.current) {
+    return (
+      <ExecutionCelebrationModal
+        nav={execNav}
+        approval={lastApprovalRef.current}
+        onClose={() => setShowCelebration(false)}
+      />
+    )
+  }
+
   if (approval === undefined) {
     return (
       <div className="hidden lg:flex items-center justify-center bg-white rounded-2xl border border-gray-200 border-dashed text-gray-400 text-sm">
         اختر قراراً من القائمة لعرض التفاصيل
+      </div>
+    )
+  }
+  if (approval === null && execNav) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="p-4 bg-emerald-50 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+            <p className="text-sm font-medium text-emerald-900 leading-relaxed whitespace-pre-line">{execNav.message}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setExecNav(null); navigate(execNav.linkHref) }}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 flex items-center justify-center gap-2"
+            >
+              <ChevronLeft size={15} />
+              {execNav.linkLabel}
+            </button>
+            <button
+              onClick={() => { setExecNav(null); onClose() }}
+              className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50"
+            >
+              إغلاق
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -770,6 +1063,7 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
   const canDecide = approval.status === 'pending' || approval.status === 'modified'
 
   return (
+    <>
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[calc(100vh-12rem)]">
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -877,7 +1171,31 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
         </div>
       </div>
 
-      {canDecide && (
+      {execNav && (
+        <div className="border-t border-emerald-100 p-4 bg-emerald-50 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+            <p className="text-sm font-medium text-emerald-900 leading-relaxed">{execNav.message}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setExecNav(null); navigate(execNav.linkHref) }}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 flex items-center justify-center gap-2"
+            >
+              <ChevronLeft size={15} />
+              {execNav.linkLabel}
+            </button>
+            <button
+              onClick={() => setExecNav(null)}
+              className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50"
+            >
+              إغلاق
+            </button>
+          </div>
+        </div>
+      )}
+
+      {canDecide && !execNav && (
         <div className="border-t border-gray-100 p-4 space-y-2.5 bg-gray-50/50">
           {showModify && isModifiable(approval) && (
             <ModifyForm
@@ -918,18 +1236,13 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
             )}
             <button
               onClick={() => {
-                const isCritical = approval.priority === 'critical' || approval.priority === 'high'
-                if (isCritical) {
-                  confirm({
-                    title: 'تأكيد الموافقة على قرار ' + (approval.priority === 'critical' ? 'حرج' : 'مرتفع الأولوية'),
-                    body:  'سيبدأ النظام تنفيذ الإجراء فوراً. هل أنت متأكّد؟',
-                    confirmLabel: 'موافقة وتنفيذ',
-                    tone: 'warning',
-                    onConfirm: () => approve.mutate(),
-                  })
-                } else {
-                  approve.mutate()
-                }
+                confirm({
+                  title: 'ماذا سيحدث عند الموافقة؟',
+                  body:  approvalActionDescription(approval),
+                  confirmLabel: 'تأكيد الموافقة وتنفيذ',
+                  tone: approval.priority === 'critical' ? 'warning' : 'primary',
+                  onConfirm: () => approve.mutate(),
+                })
               }}
               disabled={approve.isPending}
               className="flex-1 px-3 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
@@ -943,6 +1256,7 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
         </div>
       )}
     </div>
+    </>
   )
 }
 
@@ -959,11 +1273,14 @@ function transitionLabelAr(from: string | null, to: string, actor: string): stri
 
 function subjectTypeLabelAr(t: string): string {
   switch (t) {
-    case 'recommendation':     return 'توصية مخزون'
-    case 'procurement_draft':  return 'طلب شراء'
-    case 'inventory_item':     return 'ربط منتج'
-    case 'order':              return 'طلب'
-    default:                   return t
+    case 'recommendation':      return 'توصية مخزون'
+    case 'procurement_draft':   return 'طلب شراء'
+    case 'inventory_item':      return 'ربط منتج'
+    case 'smart_procurement':   return 'فرصة شراء ذكية P2P'
+    case 'listing_suggestion':  return 'اقتراح إدراج P2P'
+    case 'expired_quarantine':  return 'عزل منتهي صلاحية'
+    case 'order':               return 'طلب'
+    default:                    return t
   }
 }
 
@@ -1267,7 +1584,7 @@ function AgentDefinitionDrawer({ code, onClose }: { code: string; onClose: () =>
               />
             </div>
 
-            <div className="text-[11px] text-gray-500 grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+            <div className="text-[11px] text-gray-500 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
               <div><span className="text-gray-400">نوع المخرج:</span> {def.outputSubjectType ?? '—'}</div>
               <div><span className="text-gray-400">حد الثقة:</span> {Math.round(def.minConfidence * 100)}%</div>
             </div>
@@ -1432,7 +1749,7 @@ function AuditTab() {
               </p>
             </div>
           ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 p-4">
             <StatCard label="إجمالي العمليات" value={fmtNum(stats.data.totalRuns)}        icon={Activity}     tone="violet" />
             <StatCard label="ناجحة"          value={fmtNum(stats.data.success)}          icon={CheckCircle2} tone="emerald" />
             <StatCard label="فشلت"           value={fmtNum(stats.data.failed)}           icon={XCircle}      tone="red" />
@@ -1730,12 +2047,94 @@ function Tooltip({ text, children, block = false }: { text?: string; children: R
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// ─── Celebration modal shown after successful AI task execution ───────────────
+function ExecutionCelebrationModal({ nav, approval, onClose }: {
+  nav:      ExecNav
+  approval: Approval
+  onClose:  () => void
+}) {
+  const navigate = useNavigate()
+  const p = (approval.payload ?? {}) as any
+
+  // Build a human-friendly summary of what was accomplished
+  const lines: string[] = []
+  if (approval.subjectType === 'expiry_liquidation') {
+    if (p.quantity)    lines.push(`${p.quantity} وحدة تم إدراجها للبيع`)
+    if (p.discountPct) lines.push(`خصم ${p.discountPct}%`)
+    if (p.suggestedPrice > 0) lines.push(`بسعر ${p.suggestedPrice} ج.م`)
+  } else if (approval.subjectType === 'procurement_draft') {
+    if (p.quantity) lines.push(`طلب ${p.quantity} وحدة`)
+  } else if (approval.subjectType === 'listing_suggestion' || approval.subjectType === 'smart_procurement') {
+    lines.push('تم إرسال العرض لسوق التبادل')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center space-y-5"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Icon */}
+        <div className="flex items-center justify-center w-20 h-20 rounded-full bg-emerald-50 border-4 border-emerald-100 mx-auto">
+          <PartyPopper size={36} className="text-emerald-500" />
+        </div>
+
+        {/* Heading */}
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">تم التنفيذ بنجاح 🎉</h2>
+          <p className="text-sm text-gray-500 mt-1 leading-relaxed">{nav.message}</p>
+        </div>
+
+        {/* Stats pills */}
+        {lines.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {lines.map((l, i) => (
+              <span key={i} className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                {l}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* CTAs */}
+        <div className="flex flex-col gap-2 pt-1">
+          <button
+            onClick={() => { onClose(); navigate(nav.linkHref) }}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors"
+          >
+            <ExternalLink size={15} />
+            {nav.linkLabel}
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full px-5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-colors"
+          >
+            إغلاق
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Sub-type badge for "recommendation" approvals (risk tab) ─────────────────
+function RecommendationTypeBadge({ title }: { title: string }) {
+  if (title.startsWith('انتهاء قريب:'))
+    return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"><Clock size={9} />انتهاء قريب</span>
+  if (title.startsWith('مخزون راكد:'))
+    return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200"><Archive size={9} />مخزون راكد</span>
+  if (title.startsWith('خطر نفاد المخزون:'))
+    return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-600 border border-red-200"><TrendingDown size={9} />خطر نفاد</span>
+  return null
+}
+
 // MODIFY FORM — PRD §11 "تعديل قبل الموافقة": let the user override the AI's
 // numeric proposal (qty, unit price, reorder qty) before approving, so the
 // audit trail clearly distinguishes "AI suggestion" from "human-approved".
 // ═════════════════════════════════════════════════════════════════════════════
 
-const MODIFIABLE_SUBJECT_TYPES = new Set(['procurement_draft', 'recommendation'])
+const MODIFIABLE_SUBJECT_TYPES = new Set(['procurement_draft', 'recommendation', 'expiry_liquidation', 'dead_stock_clearance'])
 
 function isModifiable(a: Approval): boolean {
   return MODIFIABLE_SUBJECT_TYPES.has(a.subjectType)
@@ -1763,10 +2162,34 @@ function ModifyForm({
         suggestedReorderQty: String(p.suggestedReorderQty ?? ''),
       }
     }
+    if (approval.subjectType === 'expiry_liquidation') {
+      return {
+        quantity:       String(p.quantity       ?? ''),
+        discountPct:    String(p.discountPct    ?? ''),
+        suggestedPrice: String(p.suggestedPrice ?? ''),
+      }
+    }
+    if (approval.subjectType === 'dead_stock_clearance') {
+      return {
+        quantity:            String(p.quantity            ?? ''),
+        suggestedDiscountPct: String(p.suggestedDiscountPct ?? ''),
+      }
+    }
     return {}
   })
 
-  const set = (k: string, v: string) => setFields(f => ({ ...f, [k]: v }))
+  const set = (k: string, v: string) => {
+    setFields(f => {
+      const next = { ...f, [k]: v }
+      // Auto-recalc suggestedPrice when discountPct changes (if basePrice is known)
+      if (k === 'discountPct' && approval.subjectType === 'expiry_liquidation') {
+        const base = Number((approval.payload as any)?.basePrice) || 0
+        const disc = Number(v) || 0
+        if (base > 0) next.suggestedPrice = (base * (1 - disc / 100)).toFixed(2)
+      }
+      return next
+    })
+  }
 
   const submit = () => {
     const merged = { ...(approval.payload ?? {}) }
@@ -1789,6 +2212,22 @@ function ModifyForm({
             help: 'يمكنك خفض أو رفع الكمية بناءً على معرفتك بالموسم أو السوق.' },
           { key: 'unitPrice', labelAr: 'سعر الوحدة', suffix: approval.payload?.currency ?? 'ر.س',
             help: 'إذا حصلت على عرض أفضل من المورد، اضبط السعر هنا.' },
+        ]
+    : approval.subjectType === 'expiry_liquidation'
+      ? [
+          { key: 'quantity',       labelAr: 'الكمية المراد إدراجها', suffix: 'وحدة',
+            help: 'يمكنك إدراج كمية أقل من المخزون الكلي إذا أردت الاحتفاظ ببعضه.' },
+          { key: 'discountPct',    labelAr: 'نسبة الخصم',            suffix: '%',
+            help: 'خصم أعلى = بيع أسرع. تغيير هذا الحقل يعيد احتساب السعر تلقائياً.' },
+          { key: 'suggestedPrice', labelAr: 'سعر البيع للمشتري',     suffix: 'ج.م',
+            help: 'السعر الفعلي الذي سيظهر للمشترين. أدخله يدوياً إذا لم يكن مسجلاً في المخزون.' },
+        ]
+    : approval.subjectType === 'dead_stock_clearance'
+      ? [
+          { key: 'quantity',             labelAr: 'الكمية المراد إدراجها', suffix: 'وحدة',
+            help: 'يمكنك إدراج كمية أقل من المخزون الكلي إذا أردت الاحتفاظ ببعضه.' },
+          { key: 'suggestedDiscountPct', labelAr: 'نسبة الخصم',            suffix: '%',
+            help: 'خصم أعلى يزيد فرصة البيع. المخزون الراكد لا يملك موعداً للانتهاء، لذا الخصم المعقول يكفي.' },
         ]
       : [
           { key: 'suggestedReorderQty', labelAr: 'الكمية المقترحة للشراء', suffix: 'وحدة',
@@ -1860,7 +2299,7 @@ function ModifyForm({
 // list of approvals.
 // ═════════════════════════════════════════════════════════════════════════════
 
-type TaskKind = 'purchase' | 'linking' | 'risk'
+type TaskKind = 'purchase' | 'linking' | 'risk' | 'p2p' | 'p2p_monitor' | 'pos_integrity' | 'expiry_clearance' | 'low_stock' | 'dead_stock'
 
 const TASK_DEFS: Array<{
   key:        TaskKind
@@ -1881,6 +2320,15 @@ const TASK_DEFS: Array<{
     toneActive: 'border-sky-500 bg-sky-100',
   },
   {
+    key: 'p2p',
+    labelAr: 'فرص شراء ذكية',
+    hintAr:  'صيدليات قريبة منك تبيع بأسعار أقل من مورّدك — النظام يكتشفها لك',
+    subjectType: 'smart_procurement',
+    icon: Store,
+    tone:       'border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50',
+    toneActive: 'border-emerald-500 bg-emerald-100',
+  },
+  {
     key: 'linking',
     labelAr: 'مهام ربط منتجات',
     hintAr:  'أصناف يبدو أنها نفس المنتج وتحتاج تأكيدك',
@@ -1898,6 +2346,51 @@ const TASK_DEFS: Array<{
     tone:       'border-red-200 bg-red-50/60 hover:bg-red-50',
     toneActive: 'border-red-500 bg-red-100',
   },
+  {
+    key: 'p2p_monitor',
+    labelAr: 'طلبات تبادل الأدوية',
+    hintAr:  'طلب شراء من صيدلية أخرى تأخر أو لم يرد عليه — قرارك ينهي الأمر',
+    subjectType: 'p2p_order_action',
+    icon: AlertTriangle,
+    tone:       'border-orange-200 bg-orange-50/60 hover:bg-orange-50',
+    toneActive: 'border-orange-500 bg-orange-100',
+  },
+  {
+    key: 'pos_integrity',
+    labelAr: 'سلامة الكاشير',
+    hintAr:  'فوارق نقدية أو معدلات مرتجعات غير طبيعية تستوجب مراجعتك',
+    subjectType: 'pos_shift_action',
+    icon: ShieldCheck,
+    tone:       'border-rose-200 bg-rose-50/60 hover:bg-rose-50',
+    toneActive: 'border-rose-500 bg-rose-100',
+  },
+  {
+    key: 'expiry_clearance',
+    labelAr: 'تصفية قريبة الانتهاء',
+    hintAr:  'منتجات تنتهي قريباً — أدرجها للبيع بخصم ذكي واسترد قيمتها قبل الهلاك',
+    subjectType: 'expiry_liquidation',
+    icon: Package,
+    tone:       'border-amber-200 bg-amber-50/60 hover:bg-amber-50',
+    toneActive: 'border-amber-500 bg-amber-100',
+  },
+  {
+    key: 'low_stock',
+    labelAr: 'نقص مخزون',
+    hintAr:  'منتجات وصل مخزونها للحد الأدنى — قرّر: شراء من البورصة أو طلب من المورد',
+    subjectType: 'low_stock',
+    icon: AlertCircle,
+    tone:       'border-red-200 bg-red-50/60 hover:bg-red-50',
+    toneActive: 'border-red-500 bg-red-100',
+  },
+  {
+    key: 'dead_stock',
+    labelAr: 'مخزون راكد',
+    hintAr:  'منتجات لا تتحرك — أدرجها في السوق بخصم لتسييل رأس المال المجمّد',
+    subjectType: 'dead_stock_clearance',
+    icon: Archive,
+    tone:       'border-gray-200 bg-gray-50/60 hover:bg-gray-50',
+    toneActive: 'border-gray-500 bg-gray-100',
+  },
 ]
 
 function TasksTab() {
@@ -1908,15 +2401,21 @@ function TasksTab() {
 
   const def = TASK_DEFS.find(d => d.key === taskParam) ?? TASK_DEFS[0]
 
-  // Counts per task type — one cheap pending fetch.
+  // Counts per task type — fetch both pending + modified (both need user action).
   const allPending = useQuery({
-    queryKey: ['ai-center', 'approvals', 'pending', 'all'],
-    queryFn:  () => aiCenterApi.listApprovals({ status: 'pending', limit: 200 }),
+    queryKey: ['ai-center', 'approvals', 'pending+modified', 'all'],
+    queryFn:  async () => {
+      const [p, m] = await Promise.all([
+        aiCenterApi.listApprovals({ status: 'pending',  limit: 200 }),
+        aiCenterApi.listApprovals({ status: 'modified', limit: 200 }),
+      ])
+      return { ...p, data: [...p.data, ...m.data], total: p.total + m.total }
+    },
     refetchInterval: 30_000,
   })
 
   const counts: Record<TaskKind, number> = useMemo(() => {
-    const c: Record<TaskKind, number> = { purchase: 0, linking: 0, risk: 0 }
+    const c: Record<TaskKind, number> = { purchase: 0, linking: 0, risk: 0, p2p: 0, p2p_monitor: 0, pos_integrity: 0, expiry_clearance: 0, low_stock: 0, dead_stock: 0 }
     for (const a of allPending.data?.data ?? []) {
       const t = TASK_DEFS.find(d => d.subjectType === a.subjectType)?.key
       if (t) c[t]++
@@ -1925,18 +2424,24 @@ function TasksTab() {
   }, [allPending.data])
 
   const list = useQuery({
-    queryKey: ['ai-center', 'approvals', 'pending', def.subjectType],
-    queryFn:  () => aiCenterApi.listApprovals({ status: 'pending', subjectType: def.subjectType }),
+    queryKey: ['ai-center', 'approvals', 'pending+modified', def.subjectType],
+    queryFn:  async () => {
+      const [p, m] = await Promise.all([
+        aiCenterApi.listApprovals({ status: 'pending',  subjectType: def.subjectType }),
+        aiCenterApi.listApprovals({ status: 'modified', subjectType: def.subjectType }),
+      ])
+      return { ...p, data: [...p.data, ...m.data], total: p.total + m.total }
+    },
     refetchInterval: 30_000,
   })
 
   const focused = list.data?.data.find(a => a.id === focusId)
-    ?? (focusId ? null : undefined)
+    ?? (focusId ? (list.isLoading ? undefined : null) : undefined)
 
   return (
     <div className="space-y-5">
       {/* Task selector cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {TASK_DEFS.map(d => {
           const Icon = d.icon
           const active = d.key === taskParam
@@ -1975,17 +2480,103 @@ function TasksTab() {
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 text-xs text-gray-600">
             <def.icon size={14} className="text-gray-500" />
-            <span>{def.labelAr} — بانتظار قرارك</span>
+            <span>
+              {def.labelAr}
+              {def.key === 'p2p'
+                ? ' — قرارات الشراء الذكي'
+                : ' — بانتظار قرارك'}
+            </span>
           </div>
           {list.isLoading ? (
             <SkeletonRows />
           ) : (list.data?.data.length ?? 0) === 0 ? (
-            <EmptyState
-              icon={CheckCircle2}
-              iconCls="bg-emerald-100 text-emerald-700"
-              title="لا توجد مهام في هذه الفئة"
-              body="هذا يعني أن مساعدك أنجز ما يخص هذا النوع — أو أنه لم يجد ما يستدعي قراراً منك بعد."
-            />
+            def.key === 'p2p' ? (
+              <div className="py-12 px-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                  <Store size={22} className="text-emerald-600" />
+                </div>
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد فرص شراء تنتظر قرارك الآن</p>
+                <p className="text-xs text-gray-500 mb-4 max-w-[300px] mx-auto leading-relaxed">
+                  يُحلل النظام مخزونك يومياً ويُنشئ قرارات عندما يجد فرصاً في البورصة أوفر بنسبة معينة من مورّديك.
+                  يمكنك تصفح جميع الفرص المتاحة الآن مباشرةً في صفحة البورصة.
+                </p>
+                <a
+                  href="/pharmacy/p2p?tab=insights"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors"
+                >
+                  <Store size={13} /> تصفح فرص الشراء الذكي
+                </a>
+              </div>
+            ) : def.key === 'purchase' ? (
+              <div className="py-12 px-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto mb-3">
+                  <ShoppingCart size={22} className="text-sky-600" />
+                </div>
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد مهام شراء بانتظارك الآن</p>
+                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
+                  يراقب النظام مخزونك باستمرار ويُنشئ توصيات شراء تلقائياً عند قرب نفاد أي صنف أو اقتراب انتهاء صلاحيته.
+                  التوصيات تصل هنا مع تفاصيل السعر والمورّد الأنسب — جاهزة لموافقتك بضغطة واحدة.
+                </p>
+                <a
+                  href="/pharmacy/inventory"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors"
+                >
+                  <ShoppingCart size={13} /> استعرض المخزون الحالي
+                </a>
+              </div>
+            ) : def.key === 'linking' ? (
+              <div className="py-12 px-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-3">
+                  <LinkIcon size={22} className="text-violet-600" />
+                </div>
+                <p className="font-semibold text-gray-900 text-sm mb-1">جميع منتجاتك مُربوطة بالكتالوج الموحّد</p>
+                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
+                  عند إضافة أصناف جديدة للمخزون، يحاول النظام ربطها تلقائياً بكتالوج الأدوية.
+                  إن وجد أصنافاً متشابهة تحتاج تأكيدك — للدمج أو الإبقاء منفصلة — ستظهر هنا لتقرر بنفسك.
+                </p>
+              </div>
+            ) : def.key === 'risk' ? (
+              <div className="py-12 px-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
+                  <AlertOctagon size={22} className="text-red-600" />
+                </div>
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد تنبيهات مخزون الآن</p>
+                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
+                  يراقب النظام مستويات مخزونك يومياً. حين يصل صنف لحد التنبيه أو يقترب موعد انتهاء صلاحيته،
+                  يُرسل تنبيهاً هنا في الوقت المناسب حتى لا يفاجئك نفاد أو خسارة.
+                </p>
+                <a
+                  href="/pharmacy/inventory"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors"
+                >
+                  <AlertOctagon size={13} /> تفقّد حدود التنبيه في المخزون
+                </a>
+              </div>
+            ) : def.key === 'p2p_monitor' ? (
+              <div className="py-12 px-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle size={22} className="text-orange-600" />
+                </div>
+                <p className="font-semibold text-gray-900 text-sm mb-1">جميع طلبات التبادل تسير بانتظام</p>
+                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
+                  يراقب النظام طلبات الشراء بين الصيدليات تلقائياً كل 15 دقيقة.
+                  إن تأخّر رد أو توقّف طلب دون مبرر، تصلك إشعار هنا مع خيار الإلغاء أو المتابعة — لا يمر شيء دون علمك.
+                </p>
+                <a
+                  href="/pharmacy/p2p?tab=orders"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition-colors"
+                >
+                  <AlertTriangle size={13} /> تصفح طلبات التبادل
+                </a>
+              </div>
+            ) : (
+              <EmptyState
+                icon={CheckCircle2}
+                iconCls="bg-emerald-100 text-emerald-700"
+                title="لا توجد مهام في هذه الفئة"
+                body="هذا يعني أن مساعدك أنجز ما يخص هذا النوع — أو أنه لم يجد ما يستدعي قراراً منك بعد."
+              />
+            )
           ) : (
             <ul className="divide-y divide-gray-100 max-h-[calc(100vh-26rem)] overflow-y-auto">
               {list.data!.data.map(a => (

@@ -7,6 +7,7 @@ import {
   Building2, Users, ListChecks, Inbox, BarChart2, Star,
   User, Upload, TrendingUp, Shield, Plug, GitBranch,
   Calendar, AlertTriangle, CheckCircle2, ShieldCheck, ChevronDown,
+  Store,
 } from 'lucide-react';
 import { useAuth } from 'react-oidc-context';
 import { useProfileStore } from '../../store/auth.store';
@@ -171,6 +172,37 @@ export function Sidebar() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── P2P Exchange group — pharmacy only ──────────────────── */}
+        {showAiGroup && (
+          <div className="mt-2 mb-2">
+            <NavLink
+              to="/pharmacy/p2p"
+              className={({ isActive }) =>
+                clsx(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all',
+                  isRTL && 'flex-row-reverse text-right',
+                  isActive
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
+                    : 'bg-slate-700/40 text-slate-100 hover:bg-slate-700',
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Store size={18} className={isActive ? 'text-white' : 'text-emerald-400'} />
+                  <span className="flex-1">{isRTL ? 'تبادل الصيدليات' : 'P2P Exchange'}</span>
+                  <span className={clsx(
+                    'px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider',
+                    isActive ? 'bg-white/20 text-white' : 'bg-emerald-500/20 text-emerald-300',
+                  )}>
+                    NEW
+                  </span>
+                </>
+              )}
+            </NavLink>
           </div>
         )}
 

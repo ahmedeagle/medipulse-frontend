@@ -57,7 +57,7 @@ export default function EoqPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
           <p className="text-3xl font-bold text-red-600">{critical.length}</p>
           <p className="text-xs text-red-500 mt-1">Order within 7 days</p>

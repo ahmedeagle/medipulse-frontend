@@ -2,15 +2,16 @@ import { useState, useRef, useCallback, useEffect, useMemo, Fragment } from 'rea
 import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import {
   Plus, Search, Pencil, Trash2, AlertCircle, Upload, CheckCircle,
   Download, Package, Sparkles, FileSpreadsheet, ArrowRight,
   Building2, FlaskConical, ScanLine, Clock, ScanBarcode, Info,
-  Filter, X, ChevronDown, ChevronUp, MoreHorizontal, ArrowUp, ArrowDown,
-  Eye, History, Printer, ShoppingCart, Layers,
+  Filter, X, ChevronDown, ChevronUp, MoreHorizontal, ArrowUp, ArrowDown, Minus,
+  Eye, History, Printer, ShoppingCart, Layers, Store,
 } from 'lucide-react'
 import { inventoryApi } from '../../api/inventory.api'
+import { p2pMarketplaceApi, p2pListingApi } from '../../api/p2p.api'
 import { catalogRequestsApi } from '../../api/catalog-requests.api'
 import { importsApi } from '../../api/imports.api'
 import client from '../../api/client'
@@ -25,6 +26,8 @@ import { rememberActiveBatch, getRememberedBatch } from '../../hooks/useImportPr
 import type { InventoryItem, Product } from '../../types'
 import Pagination from '../../components/ui/Pagination'
 import { DEFAULT_PAGE_SIZE } from '../../types/pagination'
+import { VoiceMicButton } from '../../components/ui/VoiceMicButton'
+import { PriceTrendPanel } from '../../components/ui/PriceTrendPanel'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const INPUT  = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white'
@@ -172,7 +175,7 @@ function UploadToast({ stats, onDismiss }: { stats: any; onDismiss: () => void }
                 {stats.imported} منتج جديد · {stats.updated} محدَّث · {stats.skipped} تم تجاهله
               </p>
               {(stats.autoLinked > 0 || stats.suggested > 0 || stats.unlinked > 0) && (
-                <div className="grid grid-cols-3 gap-1.5 mt-2 text-[11px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 mt-2 text-[11px]">
                   <div className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
                     <span className="font-bold">{stats.autoLinked || 0}</span>
                     <span className="block opacity-80">ربط تلقائي</span>
@@ -232,7 +235,7 @@ function AddBatchModal({ item, onSave, onClose, isPending, error }: {
           <p className="text-xs text-gray-400">الكود: {(item.product as any)?.sku || item.id.slice(0, 8)}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={LABEL}>رقم الدفعة *</label>
           <input value={form.batchNumber} onChange={f('batchNumber')} required placeholder="مثال: LOT-2024-001" className={INPUT} dir="ltr" />
@@ -308,7 +311,7 @@ function EditBatchModal({ batch, onSave, onClose, isPending, error }: {
         <Info size={12} className="inline me-1" />
         لتعديل الكمية، استخدم أزرار «إدخال/إخراج مخزون» (±) في صف الدفعة. هذا النموذج لتعديل البيانات الوصفية فقط.
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={LABEL}>رقم الدفعة</label>
           <input value={form.batchNumber} onChange={f('batchNumber')} placeholder="مثال: LOT-2024-001" className={INPUT} dir="ltr" />
@@ -359,11 +362,12 @@ function EditBatchModal({ batch, onSave, onClose, isPending, error }: {
 }
 
 // ── Stock In Modal (إدخال مخزون ↓) ────────────────────────────────────────────
-function StockInModal({ item, onSave, onClose, isPending }: {
+function StockInModal({ item, onSave, onClose, isPending, onAddBatch }: {
   item: InventoryItem
   onSave: (args: { batchId: string; qty: number; notes: string }) => void
   onClose: () => void
   isPending: boolean
+  onAddBatch?: () => void
 }) {
   const { data: batchesResp, isLoading } = useQuery({
     queryKey: ['batches', item.id],
@@ -396,11 +400,17 @@ function StockInModal({ item, onSave, onClose, isPending }: {
       {isLoading ? (
         <div className="text-center py-6 text-sm text-gray-400">جاري تحميل الدفعات…</div>
       ) : sorted.length === 0 ? (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex gap-2 text-sm text-amber-700">
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex gap-3 text-sm text-amber-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          <div>
+          <div className="flex-1">
             <p className="font-semibold">لا توجد دفعات لهذا المنتج.</p>
-            <p className="text-xs mt-1">أضف دفعة جديدة أولًا قبل إدخال مخزون.</p>
+            <p className="text-xs mt-1 mb-3">أضف دفعة جديدة أولًا قبل إدخال مخزون.</p>
+            {onAddBatch && (
+              <button onClick={onAddBatch}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition-colors">
+                <Plus size={13} /> إضافة دفعة جديدة
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -420,7 +430,7 @@ function StockInModal({ item, onSave, onClose, isPending }: {
           </div>
 
           {selected && (
-            <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
               <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
                 <p className="text-gray-400">الكمية الحالية بالدفعة</p>
                 <p className="text-gray-900 font-semibold mt-0.5">{selected.quantity}</p>
@@ -530,7 +540,7 @@ function StockOutModal({ item, onSave, onClose, isPending }: {
           </div>
 
           {selected && (
-            <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
               <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
                 <p className="text-gray-400">المتاح بالدفعة</p>
                 <p className="text-gray-900 font-semibold mt-0.5">{selected.quantity}</p>
@@ -604,37 +614,239 @@ function ExportConfirm({ count, onConfirm, onCancel }: { count: number; onConfir
 }
 
 // ── Row Actions Menu ────────────────────────────────────────────────────────────
-function RowMenu({ item, anchor, onClose }: { item: InventoryItem; anchor: DOMRect; onClose: () => void }) {
-  // Render via portal with fixed positioning so the menu floats above any
-  // table overflow:auto wrapper. Position below the trigger; flip up if it
-  // would overflow the viewport.
-  const MENU_W = 192
-  const MENU_H = 196
-  const top  = anchor.bottom + 4 + window.scrollY
-  const left = Math.max(8, anchor.right - MENU_W) + window.scrollX
+function RowMenu({ item, anchor, onClose, onView }: {
+  item: InventoryItem
+  anchor: DOMRect
+  onClose: () => void
+  onView: () => void
+}) {
+  // fixed positioning uses viewport-relative coords (getBoundingClientRect).
+  // Do NOT add window.scrollY/scrollX — fixed is already viewport-relative.
+  const MENU_W = 220
+  const MENU_H = 168
+  const left = Math.max(8, Math.min(anchor.right - MENU_W, window.innerWidth - MENU_W - 8))
   const flipUp = anchor.bottom + MENU_H > window.innerHeight - 8
-  const finalTop = flipUp ? anchor.top - MENU_H - 4 + window.scrollY : top
+  const finalTop = flipUp ? anchor.top - MENU_H - 4 : anchor.bottom + 4
+
+  // Close on outside click
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      onClose()
+    }
+    // Use capture so clicks on other rows also close this menu
+    document.addEventListener('mousedown', handle, true)
+    return () => document.removeEventListener('mousedown', handle, true)
+  }, [onClose])
 
   return createPortal(
     <div
       role="menu"
-      onClick={e => e.stopPropagation()}
-      className="fixed w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-[1000]"
-      style={{ top: finalTop, left }}
+      onMouseDown={e => e.stopPropagation()}
+      className="fixed bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-[1000]"
+      style={{ top: finalTop, left, width: MENU_W }}
     >
-      {[
-        { icon: Eye,          label: 'عرض المنتج',           action: () => {} },
-        { icon: History,      label: 'سجل تاريخ المنتج',     action: () => {} },
-        { icon: Printer,      label: 'طباعة الباركود',       action: () => {} },
-        { icon: ShoppingCart, label: 'بيع عبر الإنترنت (P2P)', action: () => {}, disabled: true },
-      ].map(({ icon: Icon, label, action, disabled }) => (
-        <button key={label} onClick={() => { action(); onClose() }}
-          disabled={disabled}
-          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-start transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 text-gray-700">
-          <Icon size={14} className="text-gray-400" />{label}
-        </button>
-      ))}
+      <button onClick={() => { onView(); onClose() }}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-start hover:bg-gray-50 text-gray-700">
+        <Eye size={14} className="text-gray-400" />تفاصيل المنتج
+      </button>
+      <button onClick={() => onClose()}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-start hover:bg-gray-50 text-gray-700 opacity-40 cursor-not-allowed" disabled>
+        <History size={14} className="text-gray-400" />سجل الحركات
+      </button>
+      <button onClick={() => onClose()}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-start hover:bg-gray-50 text-gray-700 opacity-40 cursor-not-allowed" disabled>
+        <Printer size={14} className="text-gray-400" />طباعة الباركود
+      </button>
+      <div className="my-1 border-t border-gray-100" />
+      <button onClick={() => onClose()}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-start hover:bg-gray-50 text-gray-700 opacity-40 cursor-not-allowed" disabled>
+        <ShoppingCart size={14} className="text-gray-400" />بيع عبر P2P
+      </button>
     </div>,
+    document.body
+  )
+}
+
+// ── Product Detail Drawer ────────────────────────────────────────────────────────
+function ProductDetailDrawer({ item, onClose }: { item: InventoryItem; onClose: () => void }) {
+  const p = item.product as any
+  const isLinked = item.linkStatus === 'linked'
+  const days = item.expiryDate
+    ? Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / 86400000)
+    : null
+
+  // Close on Escape
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handle)
+    return () => window.removeEventListener('keydown', handle)
+  }, [onClose])
+
+  const Field = ({ label, value, mono = false }: { label: string; value?: string | number | null; mono?: boolean }) => {
+    if (!value && value !== 0) return null
+    return (
+      <div>
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+        <p className={`text-sm text-gray-800 ${mono ? 'font-mono' : 'font-medium'}`}>{value}</p>
+      </div>
+    )
+  }
+
+  return createPortal(
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-[200] bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
+
+      {/* Drawer */}
+      <div className="fixed inset-y-0 end-0 z-[201] w-full max-w-md bg-white shadow-2xl flex flex-col" dir="rtl">
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                isLinked ? 'bg-emerald-100 text-emerald-700' :
+                item.linkStatus === 'suggested' ? 'bg-violet-100 text-violet-700' :
+                'bg-gray-100 text-gray-500'
+              }`}>
+                {isLinked ? '✓ مربوط بالكتالوج' : item.linkStatus === 'suggested' ? '⚡ اقتراح AI' : 'غير مربوط'}
+              </span>
+              {p?.category && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">{p.category}</span>
+              )}
+            </div>
+            <h2 className="text-base font-bold text-gray-900 mt-1.5 leading-tight">
+              {p?.nameAr || p?.name || 'منتج غير مُعرَّف'}
+            </h2>
+            {p?.nameAr && p?.name && (
+              <p className="text-xs text-gray-500 mt-0.5">{p.name}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="ms-3 mt-0.5 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors shrink-0">
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+
+          {/* Identity */}
+          <section>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <ScanBarcode size={13} />الهوية والترميز
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="الكود (SKU)" value={p?.sku} mono />
+              <Field label="الباركود" value={p?.barcode} mono />
+              <Field label="الاسم العلمي" value={p?.genericName} />
+              <Field label="كود ATC" value={p?.atcCode} mono />
+              <Field label="رقم SFDA" value={p?.sfdaRegistration} mono />
+            </div>
+          </section>
+
+          {/* Drug profile */}
+          <section>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <FlaskConical size={13} />التركيبة والشكل الدوائي
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="التركيز" value={p?.strength} />
+              <Field label="الشكل الدوائي" value={p?.dosageForm} />
+              <Field label="الوحدة" value={p?.unit} />
+              <Field label="الشركة المصنّعة" value={p?.manufacturer} />
+            </div>
+            {p?.description && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-xl">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">الوصف</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{p.description}</p>
+              </div>
+            )}
+          </section>
+
+          {/* Stock */}
+          <section>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Package size={13} />بيانات المخزون
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">الكمية الحالية</p>
+                <p className={`text-lg font-bold tabular-nums ${item.quantity <= item.minThreshold ? 'text-red-600' : 'text-gray-900'}`}>
+                  {item.quantity}
+                  {item.quantity <= item.minThreshold && (
+                    <span className="text-xs font-normal text-red-400 ms-1">منخفض</span>
+                  )}
+                </p>
+              </div>
+              <Field label="الحد الأدنى" value={item.minThreshold} />
+              <Field label="متوسط التكلفة" value={item.costPrice ? `${Number(item.costPrice).toFixed(2)} ج.م` : null} />
+              <Field label="سعر البيع" value={item.sellingPrice ? `${Number(item.sellingPrice).toFixed(2)} ج.م` : null} />
+              <Field label="الموقع" value={item.location} />
+              <Field label="رقم الدفعة" value={item.batchNumber} mono />
+            </div>
+
+            {/* Expiry */}
+            {item.expiryDate && (
+              <div className={`mt-3 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm ${
+                days !== null && days < 0 ? 'bg-red-50 border border-red-200 text-red-700' :
+                days !== null && days <= 30 ? 'bg-orange-50 border border-orange-200 text-orange-700' :
+                days !== null && days <= 90 ? 'bg-amber-50 border border-amber-200 text-amber-700' :
+                'bg-gray-50 border border-gray-200 text-gray-700'
+              }`}>
+                <Clock size={14} className="shrink-0" />
+                <div>
+                  <p className="font-semibold text-xs">
+                    {days !== null && days < 0 ? 'منتهي الصلاحية' :
+                     days !== null && days <= 90 ? `ينتهي خلال ${days} يوم` :
+                     'تاريخ الانتهاء'}
+                  </p>
+                  <p className="text-xs opacity-75">
+                    {new Date(item.expiryDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Catalog link */}
+          {isLinked && item.lastLinkedAt && (
+            <section>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Sparkles size={13} />ربط الكتالوج المركزي
+              </h3>
+              <div className="flex items-center gap-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <CheckCircle size={16} className="text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-emerald-800">مربوط بالكتالوج الموحّد</p>
+                  <p className="text-[10px] text-emerald-600 mt-0.5">
+                    آخر ربط: {new Date(item.lastLinkedAt).toLocaleDateString('ar-EG')}
+                    {item.matchScore ? ` · دقة ${Math.round(item.matchScore)}%` : ''}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Price history */}
+          {item.productId && (
+            <section>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <ArrowUp size={13} />تاريخ سعر الموردين
+              </h3>
+              <PriceTrendPanel productId={item.productId} />
+            </section>
+          )}
+
+          {/* Timestamps */}
+          <section className="border-t border-gray-100 pt-4">
+            <div className="flex justify-between text-[11px] text-gray-400">
+              <span>أُضيف: {new Date(item.createdAt).toLocaleDateString('ar-EG')}</span>
+              <span>آخر تحديث: {new Date(item.updatedAt).toLocaleDateString('ar-EG')}</span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </>,
     document.body
   )
 }
@@ -710,7 +922,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
 
   return (
     <div className="flex flex-col" style={{ maxHeight: '85vh' }}>
-      <div className="grid grid-cols-2 gap-2 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
         {(['browse','create'] as const).map(m => (
           <button key={m} type="button" onClick={() => { setMode(m); setSelectedProductId(''); setSearch('') }}
             className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-start transition-all ${mode===m ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -731,7 +943,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
           <div className="relative"><Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input placeholder={t('inventory.add.search_ph')} value={search} onChange={e => setSearch(e.target.value)} autoFocus className="w-full border border-gray-200 rounded-xl ps-9 pe-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" />
           </div>
-          <div className="border border-gray-200 rounded-xl overflow-y-auto" style={{ maxHeight:'220px' }}>
+          <div className="border border-gray-200 rounded-xl overflow-y-auto" style={{ maxHeight:'min(220px, 40vh)' }}>
             {filtered.length === 0 ? <div className="flex flex-col items-center justify-center py-10 text-gray-400"><Package size={28} className="mb-2 opacity-40" /><p className="text-sm">{t('inventory.add.no_products')}</p></div>
               : filtered.slice(0,80).map(p => (
                 <button key={p.id} type="button" onClick={() => setSelectedProductId(p.id)}
@@ -745,7 +957,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
               ))}
           </div>
           {selectedProduct && <div className="flex items-center gap-2 px-3 py-2 bg-teal-50 border border-teal-200 rounded-xl text-sm text-teal-700"><CheckCircle size={14} /><span className="font-medium truncate">{selectedProduct.name}</span></div>}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div><label className={LABEL}>{t('inventory.add.qty_label')}</label><input type="number" min={0} required value={browseQty} onChange={e => setBrowseQty(e.target.value)} placeholder="200" className={INPUT} /></div>
             <div><label className={LABEL}>{t('inventory.add.threshold_label')}</label><input type="number" min={0} value={browseThreshold} onChange={e => setBrowseThreshold(e.target.value)} className={INPUT} /></div>
             <div><label className={LABEL}>{t('inventory.add.expiry_label')}</label><input type="date" value={browseExpiry} onChange={e => setBrowseExpiry(e.target.value)} className={INPUT} /></div>
@@ -811,7 +1023,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
           )}
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t('inventory.add.section_product')}</p>
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
               <div><label className={LABEL}>{t('inventory.add.field_sku')}</label><input value={form.sku} onChange={f('sku')} placeholder={t('inventory.add.field_sku_ph')} className={INPUT} /></div>
               <div>
                 <label className={LABEL}>{t('inventory.add.field_barcode')}</label>
@@ -830,7 +1042,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
               </div>
               <div><label className={LABEL}>{t('inventory.add.field_name_en')}</label><input required value={form.name} onChange={f('name')} placeholder={t('inventory.add.field_name_en_ph')} className={INPUT} dir="ltr" /></div>
             </div>
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
               <div><label className={LABEL}>{t('inventory.add.field_name_ar')}</label><input value={form.nameAr} onChange={f('nameAr')} placeholder={t('inventory.add.field_name_ar_ph')} className={INPUT} dir="rtl" /></div>
               <div><label className={LABEL}>{t('inventory.add.field_category')}</label>
                 <select required value={form.category} onChange={f('category')} className={SELECT}>
@@ -843,7 +1055,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
                   {DOSAGE_FORMS.map(d => <option key={d} value={d}>{t(`inventory.add.dosage_forms.${d}`)}</option>)}
                 </select></div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div><label className={LABEL}>{t('inventory.add.field_strength')}</label><input value={form.strength} onChange={f('strength')} placeholder="500mg" className={INPUT} dir="ltr" /></div>
               <div><label className={LABEL}>{t('inventory.add.field_unit')}</label>
                 <select required value={form.unit} onChange={f('unit')} className={SELECT}>
@@ -855,7 +1067,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
           </div>
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t('inventory.add.section_inventory')}</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div><label className={LABEL}>{t('inventory.add.qty_label')}</label><input type="number" min={0} required value={createQty} onChange={e => setCreateQty(e.target.value)} placeholder="200" className={INPUT} /></div>
               <div><label className={LABEL}>{t('inventory.add.threshold_label')}</label><input type="number" min={0} value={createThreshold} onChange={e => setCreateThreshold(e.target.value)} className={INPUT} /></div>
               <div><label className={LABEL}>{t('inventory.add.expiry_label')}</label><input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} className={INPUT} /></div>
@@ -974,7 +1186,7 @@ function CatalogRequestModal({ item, onSubmit, onClose, isPending, error }: {
         <Info size={12} className="inline me-1" />
         سيُنشئ النظام رقم تتبّع رسمي (REQ-XXXXXX) ويُحدّث حالة المنتج إلى «قيد المراجعة» حتى يُعتمد من فريق الكتالوج.
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={LABEL}>الاسم بالعربية</label>
           <input value={form.nameAr} onChange={f('nameAr')} placeholder="مثال: باراسيتامول 500 مجم" className={INPUT} />
@@ -1042,6 +1254,67 @@ interface BatchRow {
 
 const fmtDate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+
+// ── OOS Alternatives Banner ──────────────────────────────────────────────────
+function OOSAlternativesRow({ item, colSpan }: { item: InventoryItem; colSpan: number }) {
+  const productName = (item.product as any)?.name || ''
+  const { data, isLoading } = useQuery({
+    queryKey: ['p2p-oos-alternatives', item.id, productName],
+    queryFn: () => p2pMarketplaceApi.search({ q: productName, limit: 5 }),
+    enabled: item.quantity === 0 && !!productName,
+    staleTime: 120_000,
+  })
+  const results = data?.data ?? []
+
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 pt-0 pb-2">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-wrap items-start gap-3">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <AlertCircle size={14} className="text-amber-600" />
+            <p className="text-xs font-semibold text-amber-800">
+              {isLoading
+                ? 'جاري البحث عن بدائل…'
+                : results.length > 0
+                  ? `${results.length} بديل متاح في P2P:`
+                  : 'هذا المنتج نافد — لا يوجد عرض P2P حالياً'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 flex-1">
+            {results.slice(0, 3).map(r => {
+              const name = r.listing.productNameAr || r.listing.productName || productName
+              const price = r.listing.price
+              return (
+                <Link
+                  key={r.listing.id}
+                  to={`/pharmacy/p2p?tab=market&q=${encodeURIComponent(productName)}`}
+                  onClick={e => e.stopPropagation()}
+                  className="text-[11px] px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-amber-900 hover:bg-amber-100 font-medium transition-colors"
+                >
+                  {name} — {Number(price).toFixed(2)} ج.م
+                </Link>
+              )
+            })}
+            <Link
+              to={`/pharmacy/p2p?tab=market&q=${encodeURIComponent(productName)}`}
+              onClick={e => e.stopPropagation()}
+              className="text-[11px] px-2.5 py-1 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors"
+            >
+              {results.length > 3 ? `+${results.length - 3} في P2P →` : 'بحث في P2P →'}
+            </Link>
+            <Link
+              to="/pharmacy/ai-center?tab=approvals"
+              onClick={e => e.stopPropagation()}
+              className="text-[11px] px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-amber-700 hover:bg-amber-100 font-medium transition-colors"
+            >
+              توصيات AI →
+            </Link>
+          </div>
+        </div>
+      </td>
+    </tr>
+  )
+}
 
 function BatchesSubRow({
   inventoryId, currency, colSpan, onAdjust, onEdit, onDelete,
@@ -1200,7 +1473,7 @@ function BatchesSubRow({
 }
 
 // ── MAIN PAGE ──────────────────────────────────────────────────────────────────
-type StatFilter = 'all' | 'low' | 'expiring' | 'expired' | 'dead' | 'review'
+type StatFilter = 'all' | 'low' | 'expiring' | 'expired' | 'dead' | 'review' | 'suggested'
 interface Filters {
   category: string
   stockRange: '' | '0-10' | '10-50' | '50-100' | '100-500' | '500+'
@@ -1296,7 +1569,12 @@ export default function InventoryPage() {
 
   // UI state
   const [search, setSearch]                   = useState('')
-  const [statFilter, setStatFilter]           = useState<StatFilter>('all')
+  const [statFilter, setStatFilter]           = useState<StatFilter>(() => {
+    const ls = searchParams.get('linkStatus')
+    if (ls === 'suggested') return 'suggested'
+    if (ls === 'unlinked')  return 'review'
+    return 'all'
+  })
   const [showFilters, setShowFilters]         = useState(false)
   const [filters, setFilters]                 = useState<Filters>(EMPTY_FILTERS)
   const [page, setPage]                       = useState(1)
@@ -1306,6 +1584,7 @@ export default function InventoryPage() {
   const [showExport, setShowExport]           = useState(false)
   const [uploadToast, setUploadToast]         = useState<any | null>(null)
   const [openMenu, setOpenMenu]               = useState<{ id: string; rect: DOMRect } | null>(null)
+  const [viewItem, setViewItem]               = useState<InventoryItem | null>(null)
   const [stockInItem, setStockInItem]         = useState<InventoryItem | null>(null)
   const [stockOutItem, setStockOutItem]       = useState<InventoryItem | null>(null)
   const [addBatchItem, setAddBatchItem]       = useState<InventoryItem | null>(null)
@@ -1342,20 +1621,34 @@ export default function InventoryPage() {
       .catch(() => rememberActiveBatch(null))
   }, [])
 
-  // React to deep-links from notifications / toast CTA, e.g.
+  // React to deep-links from notifications / toast CTA / AI chat actions, e.g.
   //   /pharmacy/inventory?linkStatus=suggested&batchId=...
+  //   /pharmacy/inventory?filter=expiry
+  //   /pharmacy/inventory?filter=low_stock
   // Sets the appropriate stat filter so the user lands directly on the rows
   // that need their attention. Runs on every URL change.
   useEffect(() => {
     const linkStatus = searchParams.get('linkStatus')
-    const batchId = searchParams.get('batchId')
-    if (linkStatus === 'suggested' || linkStatus === 'unlinked') {
+    const batchId    = searchParams.get('batchId')
+    const filter     = searchParams.get('filter')
+
+    if (linkStatus === 'suggested') {
+      setStatFilter('suggested')
+    } else if (linkStatus === 'unlinked') {
       setStatFilter('review')
     } else if (linkStatus === 'linked' || linkStatus === 'all') {
       setStatFilter('all')
     }
+
+    if (filter === 'expiry') {
+      setFilters(p => ({ ...p, expiryStatus: '90' }))
+      setShowFilters(true)
+    } else if (filter === 'low_stock') {
+      setFilters(p => ({ ...p, status: 'low_stock' }))
+      setShowFilters(true)
+    }
+
     if (batchId) {
-      // resume showing the toast for this batch (in case worker is still running)
       setActiveBatchId(prev => prev ?? batchId)
     }
     // We intentionally only run on searchParams changes — not on filter state
@@ -1383,10 +1676,19 @@ export default function InventoryPage() {
     queryKey: ['inventory'],
     queryFn: () => inventoryApi.getAll({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
-  const { data: productsData }             = useQuery({ queryKey: ['products'],   queryFn: () => inventoryApi.getProducts().then(r => r.data) })
+  const { data: productsData } = useQuery({ queryKey: ['products'], queryFn: () => inventoryApi.getProducts().then(r => r.data) })
+  const { data: listingsData } = useQuery({
+    queryKey: ['p2p-listings-ids'],
+    queryFn: () => p2pListingApi.list({ limit: 500 }).then(r => r.data ?? r),
+    staleTime: 60_000,
+  })
 
   const inventory: InventoryItem[] = inventoryData || []
   const products: Product[]        = (productsData as any)?.data ?? productsData ?? []
+  const listedItemIds = useMemo(() => {
+    const rows: any[] = (listingsData as any)?.data ?? listingsData ?? []
+    return new Set(rows.filter((l: any) => l.status === 'active' && l.inventoryItemId).map((l: any) => l.inventoryItemId as string))
+  }, [listingsData])
 
   // Mutations
   const addMutation = useMutation({
@@ -1517,6 +1819,13 @@ export default function InventoryPage() {
     },
   })
 
+  // Quick-confirm: accept AI suggestion without opening the full modal
+  const quickConfirmMutation = useMutation({
+    mutationFn: ({ itemId, productId, score, signals }: { itemId: string; productId: string; score?: number | null; signals?: string[] }) =>
+      inventoryApi.linkToProduct(itemId, { productId, score: score ?? undefined, signals }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
+  })
+
   // Computed stats
   const now = Date.now()
   const stats = {
@@ -1528,8 +1837,10 @@ export default function InventoryPage() {
     // Already past expiry — regulatory/patient-safety priority. Drugs in this
     // bucket must be quarantined and removed from any dispense workflow.
     expired:  inventory.filter(i => i.expiryDate && daysUntilExpiry(i.expiryDate)! < 0).length,
-    dead:     inventory.filter(i => i.quantity > 0 && i.updatedAt && (now - new Date(i.updatedAt).getTime()) > 60 * 86400000).length,
-    review:   inventory.filter(i => i.linkStatus === 'suggested' || i.linkStatus === 'unlinked').length,
+    dead:      inventory.filter(i => i.quantity > 0 && i.updatedAt && (now - new Date(i.updatedAt).getTime()) > 60 * 86400000).length,
+    review:    inventory.filter(i => i.linkStatus === 'suggested' || i.linkStatus === 'unlinked').length,
+    suggested: inventory.filter(i => i.linkStatus === 'suggested').length,
+    unlinked:  inventory.filter(i => i.linkStatus === 'unlinked').length,
   }
 
   // Filtered data
@@ -1547,7 +1858,8 @@ export default function InventoryPage() {
     if (statFilter === 'expiring' && !(item.expiryDate && daysUntilExpiry(item.expiryDate)! <= 30 && daysUntilExpiry(item.expiryDate)! >= 0)) return false
     if (statFilter === 'expired'  && !(item.expiryDate && daysUntilExpiry(item.expiryDate)! < 0)) return false
     if (statFilter === 'dead'     && !((now - new Date(item.updatedAt).getTime()) > 60 * 86400000)) return false
-    if (statFilter === 'review'   && !(item.linkStatus === 'suggested' || item.linkStatus === 'unlinked')) return false
+    if (statFilter === 'review'     && !(item.linkStatus === 'suggested' || item.linkStatus === 'unlinked')) return false
+    if (statFilter === 'suggested'  && item.linkStatus !== 'suggested') return false
 
     // Category
     if (filters.category && item.product?.category !== filters.category) return false
@@ -1662,7 +1974,9 @@ export default function InventoryPage() {
   }
 
   // ── Empty state ──────────────────────────────────────────────────────────────
-  if (inventory.length === 0) {
+  // Only show setup landing when we KNOW inventory is empty (query finished, not just loading).
+  // If we bail out while isLoading=true the URL-driven statFilter is lost and the table never renders.
+  if (!isLoading && inventory.length === 0) {
     return (
       <>
         {uploadToast && <UploadToast stats={uploadToast} onDismiss={() => setUploadToast(null)} />}
@@ -1692,7 +2006,7 @@ export default function InventoryPage() {
 
   const colorMap = {
     teal:    { card: statFilter==='all'      ? 'border-teal-400 bg-teal-50'   : 'border-gray-200 hover:border-teal-300', count: 'text-teal-700',   icon: 'bg-teal-100 text-teal-600' },
-    violet:  { card: statFilter==='review'   ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-violet-300', count: 'text-violet-700', icon: 'bg-violet-100 text-violet-500' },
+    violet:  { card: (statFilter==='review' || statFilter==='suggested') ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-violet-300', count: 'text-violet-700', icon: 'bg-violet-100 text-violet-500' },
     gray:    { card: statFilter==='dead'     ? 'border-gray-400 bg-gray-50'   : 'border-gray-200 hover:border-gray-300', count: 'text-gray-700',   icon: 'bg-gray-100 text-gray-500' },
     orange:  { card: statFilter==='expiring' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300', count: 'text-orange-600', icon: 'bg-orange-100 text-orange-500' },
     red:     { card: statFilter==='low'      ? 'border-red-400 bg-red-50'     : 'border-gray-200 hover:border-red-300', count: 'text-red-600',    icon: 'bg-red-100 text-red-500' },
@@ -1740,7 +2054,7 @@ export default function InventoryPage() {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {STAT_CARDS.map(card => {
             const c = colorMap[card.color]
             return (
@@ -1754,101 +2068,155 @@ export default function InventoryPage() {
           })}
         </div>
 
-        {/* Search + filter bar */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="ابحث بالاسم، المعرف، الباركود، الدفعة..." value={search} onChange={e => setSearch(e.target.value)}
-              className="ps-9 pe-4 py-2.5 w-full text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            {search && <button onClick={() => setSearch('')} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={14} /></button>}
+        {/* ── Search & Filter card ────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+
+          {/* Search row */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="ابحث بالاسم، المعرف، الباركود، الدفعة..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full ps-11 pe-11 py-2.5 text-sm bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:border-teal-400 transition-all"
+              />
+              {search
+                ? <button onClick={() => setSearch('')} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={15} /></button>
+                : <VoiceMicButton onResult={setSearch} className="absolute end-3 top-1/2 -translate-y-1/2" />
+              }
+            </div>
           </div>
-          <button onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border transition-colors ${showFilters || hasActiveFilters ? 'border-teal-400 bg-teal-50 text-teal-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-            <Filter size={15} />الفلاتر
-            {activeFiltersCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-teal-600 text-white text-[11px] font-bold">{activeFiltersCount}</span>
-            )}
-            <ChevronDown size={13} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </button>
-          {hasActiveFilters && (
-            <button onClick={() => setFilters(EMPTY_FILTERS)} className="flex items-center gap-1.5 px-3 py-2 text-xs text-red-600 border border-red-200 rounded-xl hover:bg-red-50">
-              <X size={12} />إعادة تعيين
+
+          {/* Toolbar row */}
+          <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap">
+            <button onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg border transition-colors ${showFilters || hasActiveFilters ? 'border-teal-400 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              <Filter size={14} />الفلاتر
+              {activeFiltersCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[10px] font-bold">{activeFiltersCount}</span>
+              )}
+              <ChevronDown size={13} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </button>
+            {hasActiveFilters && (
+              <button onClick={() => setFilters(EMPTY_FILTERS)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                <X size={12} />إعادة تعيين
+              </button>
+            )}
+            <p className="text-sm text-gray-400 ms-auto">
+              {filtered.length !== inventory.length
+                ? <><span className="font-semibold text-gray-700">{filtered.length}</span> من {inventory.length}</>
+                : <>{inventory.length} صنف</>
+              }
+            </p>
+          </div>
+
+          {/* Filters panel — inside the card, separated by a divider */}
+          {showFilters && (
+            <div className="border-t border-gray-100 px-4 py-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 bg-gray-50/60">
+              {/* Category */}
+              <div>
+                <label className={LABEL}>الفئة</label>
+                <select value={filters.category} onChange={e => setFilters(p => ({ ...p, category: e.target.value }))} className={SELECT}>
+                  <option value="">الكل</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              {/* Stock range */}
+              <div>
+                <label className={LABEL}>المخزون</label>
+                <select value={filters.stockRange} onChange={e => setFilters(p => ({ ...p, stockRange: e.target.value as Filters['stockRange'] }))} className={SELECT}>
+                  <option value="">الكل</option>
+                  {STOCK_RANGE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              {/* Stock status */}
+              <div>
+                <label className={LABEL}>حالة المخزون</label>
+                <select value={filters.stockStatus} onChange={e => setFilters(p => ({ ...p, stockStatus: e.target.value as Filters['stockStatus'] }))} className={SELECT}>
+                  <option value="">الكل</option>
+                  {STOCK_STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              {/* Expiry status */}
+              <div>
+                <label className={LABEL}>حالة انتهاء الصلاحية</label>
+                <select value={filters.expiryStatus} onChange={e => setFilters(p => ({ ...p, expiryStatus: e.target.value as Filters['expiryStatus'] }))} className={SELECT}>
+                  <option value="">الكل</option>
+                  {EXPIRY_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              {/* Movement */}
+              <div>
+                <label className={LABEL}>منذ آخر بيع</label>
+                <select value={filters.movement} onChange={e => setFilters(p => ({ ...p, movement: e.target.value as Filters['movement'] }))} className={SELECT}>
+                  <option value="">الكل</option>
+                  {MOVEMENT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              {/* Composite status */}
+              <div>
+                <label className={LABEL}>الحالة</label>
+                <select value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value as Filters['status'] }))} className={SELECT}>
+                  <option value="">جميع الحالات</option>
+                  {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className={LABEL}>الموقع</label>
+                <select value={filters.location} onChange={e => setFilters(p => ({ ...p, location: e.target.value }))} className={SELECT}>
+                  <option value="">الكل</option>
+                  <option value="Main Warehouse">المستودع الرئيسي</option>
+                  <option value="Cold Storage">التخزين البارد</option>
+                </select>
+              </div>
+
+              {/* Reset */}
+              <div className="flex items-end">
+                <button onClick={() => setFilters(EMPTY_FILTERS)} className="w-full px-4 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-colors">إعادة تعيين الفلاتر</button>
+              </div>
+            </div>
           )}
-          <p className="text-sm text-gray-400 ms-auto">عرض {filtered.length} من {inventory.length}</p>
         </div>
 
-        {/* Filters panel */}
-        {showFilters && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {/* Category */}
-            <div>
-              <label className={LABEL}>الفئة</label>
-              <select value={filters.category} onChange={e => setFilters(p => ({ ...p, category: e.target.value }))} className={SELECT}>
-                <option value="">الكل</option>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+        {/* AI suggestions banner — shown when filtering to review or suggested items */}
+        {(statFilter === 'review' || statFilter === 'suggested') && stats.suggested > 0 && (
+          <div className="p-4 rounded-2xl bg-violet-50 border border-violet-200 flex items-start gap-3">
+            <div className="p-2 bg-violet-100 rounded-xl shrink-0">
+              <Sparkles size={16} className="text-violet-600" />
             </div>
-
-            {/* Stock range */}
-            <div>
-              <label className={LABEL}>المخزون</label>
-              <select value={filters.stockRange} onChange={e => setFilters(p => ({ ...p, stockRange: e.target.value as Filters['stockRange'] }))} className={SELECT}>
-                <option value="">الكل</option>
-                {STOCK_RANGE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900">
+                الذكاء الاصطناعي تعرّف على {stats.suggested} {stats.suggested === 1 ? 'منتج' : 'منتجات'} من مخزونك — أكّد في ثانية
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                لما تأكّد هوية المنتج، النظام يحذّرك قبل انتهاء الصلاحية، يقترح أسعار البيع، وتقدر تبيعه لصيدليات أخرى.
+                اضغط <span className="inline-flex items-center gap-0.5 font-semibold text-violet-700"><CheckCircle size={11} /> تأكيد</span> بجوار المنتج للموافقة خلال ثانية.
+                {stats.unlinked > 0 && <span className="ms-1 text-gray-400">· {stats.unlinked} {stats.unlinked === 1 ? 'منتج' : 'منتجات'} لم يُتعرَّف عليها بعد — افتح التفاصيل للمساعدة.</span>}
+              </p>
             </div>
-
-            {/* Stock status */}
-            <div>
-              <label className={LABEL}>حالة المخزون</label>
-              <select value={filters.stockStatus} onChange={e => setFilters(p => ({ ...p, stockStatus: e.target.value as Filters['stockStatus'] }))} className={SELECT}>
-                <option value="">الكل</option>
-                {STOCK_STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-
-            {/* Expiry status */}
-            <div>
-              <label className={LABEL}>حالة انتهاء الصلاحية</label>
-              <select value={filters.expiryStatus} onChange={e => setFilters(p => ({ ...p, expiryStatus: e.target.value as Filters['expiryStatus'] }))} className={SELECT}>
-                <option value="">الكل</option>
-                {EXPIRY_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-
-            {/* Movement */}
-            <div>
-              <label className={LABEL}>منذ آخر بيع</label>
-              <select value={filters.movement} onChange={e => setFilters(p => ({ ...p, movement: e.target.value as Filters['movement'] }))} className={SELECT}>
-                <option value="">الكل</option>
-                {MOVEMENT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-
-            {/* Composite status */}
-            <div>
-              <label className={LABEL}>الحالة</label>
-              <select value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value as Filters['status'] }))} className={SELECT}>
-                <option value="">جميع الحالات</option>
-                {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-
-            {/* Location */}
-            <div>
-              <label className={LABEL}>الموقع</label>
-              <select value={filters.location} onChange={e => setFilters(p => ({ ...p, location: e.target.value }))} className={SELECT}>
-                <option value="">الكل</option>
-                <option value="Main Warehouse">المستودع الرئيسي</option>
-                <option value="Cold Storage">التخزين البارد</option>
-              </select>
-            </div>
-
-            {/* Reset */}
-            <div className="flex items-end">
-              <button onClick={() => setFilters(EMPTY_FILTERS)} className="w-full px-4 py-2.5 text-sm text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50">إعادة تعيين الفلاتر</button>
-            </div>
+            {statFilter === 'review' && (
+              <button
+                onClick={() => setStatFilter('suggested')}
+                className="shrink-0 px-3 py-1.5 text-xs font-semibold text-violet-700 border border-violet-300 bg-white rounded-lg hover:bg-violet-100 transition-colors whitespace-nowrap">
+                الاقتراحات فقط
+              </button>
+            )}
+            {statFilter === 'suggested' && (
+              <button
+                onClick={() => setStatFilter('review')}
+                className="shrink-0 px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 bg-white rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap">
+                عرض الكل
+              </button>
+            )}
           </div>
         )}
 
@@ -1877,7 +2245,7 @@ export default function InventoryPage() {
                 return (
                   <Fragment key={item.id}>
                   <tr
-                    onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
+                    onClick={() => setViewItem(item)}
                     className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer ${isExpanded ? 'bg-teal-50/30' : ''}`}>
                     {/* Expand chevron */}
                     <td className="px-2 py-3 w-10 text-center">
@@ -1930,6 +2298,19 @@ export default function InventoryPage() {
                           <span className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">جيد</span>
                         )}
 
+                        {/* P2P active listing badge */}
+                        {listedItemIds.has(item.id) && (
+                          <Link
+                            to="/pharmacy/p2p?tab=sell"
+                            onClick={e => e.stopPropagation()}
+                            title="هذا المنتج مُدرج حالياً في سوق التبادل"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-semibold hover:bg-teal-100 transition-colors"
+                          >
+                            <Store size={9} />
+                            في السوق
+                          </Link>
+                        )}
+
                         {/* Catalog link status — clickable to open AI matching modal */}
                         <button
                           onClick={(e) => { e.stopPropagation(); setLinkItem(item) }}
@@ -1960,8 +2341,23 @@ export default function InventoryPage() {
                             className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
                             <MoreHorizontal size={15} />
                           </button>
-                          {openMenu?.id === item.id && <RowMenu item={item} anchor={openMenu.rect} onClose={() => setOpenMenu(null)} />}
+                          {openMenu?.id === item.id && <RowMenu item={item} anchor={openMenu.rect} onClose={() => setOpenMenu(null)} onView={() => { setViewItem(item); setOpenMenu(null) }} />}
                         </div>
+                        {/* Quick-confirm AI suggestion — only for suggested items that have a suggestedProductId stored */}
+                        {item.linkStatus === 'suggested' && item.matchExplanation?.suggestedProductId && (
+                          <button
+                            onClick={() => quickConfirmMutation.mutate({
+                              itemId: item.id,
+                              productId: item.matchExplanation!.suggestedProductId,
+                              score: item.matchScore,
+                              signals: item.matchExplanation?.signals,
+                            })}
+                            disabled={quickConfirmMutation.isPending}
+                            title={`الذكاء الاصطناعي تعرّف على هذا المنتج (دقة ${Math.round(item.matchScore || 0)}%) — اضغط للتأكيد وتفعيل الميزات الذكية`}
+                            className="p-1.5 text-violet-600 hover:text-white hover:bg-violet-600 rounded-lg transition-colors disabled:opacity-40">
+                            <CheckCircle size={15} />
+                          </button>
+                        )}
                         {/* Add batch */}
                         <button onClick={() => setAddBatchItem(item)} title="إضافة دفعة جديدة"
                           className="p-1.5 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors">
@@ -1973,19 +2369,22 @@ export default function InventoryPage() {
                           className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
                           <Pencil size={15} />
                         </button>
-                        {/* Stock In ↓ (green = increase) */}
+                        {/* Stock In + (green = increase) */}
                         <button onClick={() => setStockInItem(item)} title="إدخال مخزون"
                           className="p-1.5 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-lg transition-colors">
-                          <ArrowDown size={15} />
+                          <Plus size={15} />
                         </button>
-                        {/* Stock Out ↑ (red = decrease) */}
+                        {/* Stock Out - (red = decrease) */}
                         <button onClick={() => setStockOutItem(item)} title="إخراج مخزون"
                           className="p-1.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-colors">
-                          <ArrowUp size={15} />
+                          <Minus size={15} />
                         </button>
                       </div>
                     </td>
                   </tr>
+                  {isExpanded && item.quantity === 0 && (
+                    <OOSAlternativesRow item={item} colSpan={10} />
+                  )}
                   {isExpanded && (
                     <BatchesSubRow
                       inventoryId={item.id}
@@ -2092,6 +2491,7 @@ export default function InventoryPage() {
         {stockInItem && (
           <StockInModal item={stockInItem} isPending={adjustBatchMutation.isPending}
             onClose={() => setStockInItem(null)}
+            onAddBatch={() => { setStockInItem(null); setAddBatchItem(stockInItem) }}
             onSave={({ batchId, qty, notes }) =>
               adjustBatchMutation.mutate({ batchId, delta: qty, reason: notes || 'إدخال مخزون' })}
           />
@@ -2113,7 +2513,7 @@ export default function InventoryPage() {
           <form onSubmit={e => { e.preventDefault(); updateMutation.mutate({ id: editItem.id, data: { quantity:Number(editForm.quantity), minThreshold:Number(editForm.minThreshold), expiryDate:editForm.expiryDate||undefined } }) }} className="space-y-4">
             {formError && <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex gap-2 text-sm text-red-700"><AlertCircle size={14} className="mt-0.5 shrink-0" />{formError}</div>}
             <p className="text-sm font-semibold text-gray-800">{editItem.product?.name}</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label className={LABEL}>{t('inventory.quantity')}</label><input type="number" min={0} required value={editForm.quantity} onChange={e => setEditForm({...editForm, quantity:e.target.value})} className={INPUT} /></div>
               <div><label className={LABEL}>{t('inventory.threshold')}</label><input type="number" min={0} required value={editForm.minThreshold} onChange={e => setEditForm({...editForm, minThreshold:e.target.value})} className={INPUT} /></div>
             </div>
@@ -2135,6 +2535,10 @@ export default function InventoryPage() {
           onClose={() => setLinkItem(null)}
           onSuccess={(message) => setUploadToast({ message })}
         />
+      )}
+
+      {viewItem && (
+        <ProductDetailDrawer item={viewItem} onClose={() => setViewItem(null)} />
       )}
 
       <AIMatchingWizard

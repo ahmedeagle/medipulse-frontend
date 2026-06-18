@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react'
 import { Search, CheckCircle, XCircle } from 'lucide-react'
+import { VoiceMicButton } from '../../components/ui/VoiceMicButton'
 import { supplierApi } from '../../api/supplier.api'
 import { Table } from '../../components/ui/Table'
 import Pagination from '../../components/ui/Pagination'
@@ -87,15 +88,16 @@ export default function CatalogPage() {
         <p className="text-sm text-gray-500 mt-0.5">Browse products available from all suppliers</p>
       </div>
 
-      <div className="relative">
+      <div className="relative max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
-          placeholder="Search by product or supplierâ€¦"
+          placeholder="Search by product or supplier…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 pr-4 py-2 w-full max-w-sm text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="pl-9 pr-9 py-2 w-full text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        {!search && <VoiceMicButton onResult={setSearch} className="absolute right-3 top-1/2 -translate-y-1/2" />}
       </div>
 
       {list.isError ? (
