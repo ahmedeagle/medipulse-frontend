@@ -1,4 +1,4 @@
-import { LucideIcon } from 'lucide-react'
+﻿import { LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
 
 export interface KpiCard {
@@ -16,12 +16,12 @@ interface Props { cards: KpiCard[] }
 
 function deriveBorder(iconColor = '', isRisk?: boolean): string {
   if (isRisk === true) return 'border-l-red-400'
-  if (iconColor.includes('teal'))    return 'border-l-teal-400'
+  if (iconColor.includes('teal'))    return 'border-l-violet-400'
   if (iconColor.includes('emerald')) return 'border-l-emerald-400'
   if (iconColor.includes('amber'))   return 'border-l-amber-400'
   if (iconColor.includes('red'))     return 'border-l-red-400'
   if (iconColor.includes('blue'))    return 'border-l-blue-400'
-  if (iconColor.includes('violet'))  return 'border-l-teal-400'
+  if (iconColor.includes('violet'))  return 'border-l-violet-400'
   if (iconColor.includes('slate'))   return 'border-l-slate-400'
   if (iconColor.includes('orange'))  return 'border-l-orange-400'
   return 'border-l-gray-300'
@@ -34,7 +34,7 @@ export function SummaryView({ cards }: Props) {
         const Icon      = card.icon
         const isRisk    = card.trendUp === false
         const borderCls = deriveBorder(card.iconColor, isRisk)
-        const iconCls   = isRisk ? 'text-red-500' : (card.iconColor ?? 'text-teal-600')
+        const iconCls   = isRisk ? 'text-red-500' : (card.iconColor ?? 'text-violet-600')
 
         return (
           <div key={i} className={clsx(
@@ -65,3 +65,4 @@ export function SummaryView({ cards }: Props) {
     </div>
   )
 }
+

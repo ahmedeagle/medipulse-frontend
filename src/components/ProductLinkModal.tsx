@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, Search, CheckCircle2, Link2, Link2Off, Loader2,
@@ -179,7 +179,7 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
       {/* Custom header (replaces default Modal title for richer layout) */}
       <div className="flex items-start justify-between -mt-2 mb-4 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md">
+          <div className="p-2.5 bg-gradient-to-br from-violet-500 to-emerald-600 rounded-xl shadow-md">
             <Link2 size={20} className="text-white" />
           </div>
           <div>
@@ -244,13 +244,13 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
           <div className="p-4 rounded-2xl bg-white border border-gray-200">
             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">حسّن البحث</p>
             <div className="space-y-2.5">
-              <input value={profile.name}    onChange={F('name')}    placeholder="الاسم بالإنجليزية" dir="ltr" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-              <input value={profile.nameAr}  onChange={F('nameAr')}  placeholder="الاسم بالعربية"   className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-              <input value={profile.barcode} onChange={F('barcode')} placeholder="الباركود"        dir="ltr" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-              <input value={profile.manufacturer} onChange={F('manufacturer')} placeholder="المُصنّع" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              <input value={profile.name}    onChange={F('name')}    placeholder="الاسم بالإنجليزية" dir="ltr" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              <input value={profile.nameAr}  onChange={F('nameAr')}  placeholder="الاسم بالعربية"   className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              <input value={profile.barcode} onChange={F('barcode')} placeholder="الباركود"        dir="ltr" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              <input value={profile.manufacturer} onChange={F('manufacturer')} placeholder="المُصنّع" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500" />
               <div className="grid grid-cols-2 gap-2">
-                <input value={profile.strength}   onChange={F('strength')}   placeholder="التركيز" dir="ltr" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                <input value={profile.dosageForm} onChange={F('dosageForm')} placeholder="الشكل" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                <input value={profile.strength}   onChange={F('strength')}   placeholder="التركيز" dir="ltr" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={profile.dosageForm} onChange={F('dosageForm')} placeholder="الشكل" className="w-full text-xs px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500" />
               </div>
             </div>
           </div>
@@ -297,7 +297,7 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
 
           {/* Human-in-the-loop banner */}
           {candidates.length > 0 && (
-            <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-violet-50 via-blue-50 to-teal-50 border border-violet-200 flex items-start gap-3">
+            <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-violet-50 via-blue-50 to-violet-50 border border-violet-200 flex items-start gap-3">
               <div className="p-1.5 bg-white rounded-lg shadow-sm shrink-0">
                 <Sparkles size={14} className="text-violet-600" />
               </div>
@@ -305,7 +305,7 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
                 <p className="text-xs font-bold text-gray-900">مراجعة بشرية مطلوبة</p>
                 <p className="text-[11px] text-gray-600 leading-relaxed mt-0.5">
                   حلل الذكاء الاصطناعي بيانات المنتج ورتّب أقوى المطابقات بناءً على الباركود والاسم والمصنّع والتركيز.
-                  أعلى نتيجة محددة تلقائيًا — راجعها واضغط <span className="font-bold text-teal-700">تأكيد الربط</span>،
+                  أعلى نتيجة محددة تلقائيًا — راجعها واضغط <span className="font-bold text-violet-700">تأكيد الربط</span>،
                   أو اختر بديلاً، أو أرسل طلب مراجعة.
                 </p>
               </div>
@@ -314,7 +314,7 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
 
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles size={14} className="text-teal-600" />
+              <Sparkles size={14} className="text-violet-600" />
               {isLinked ? 'بدائل متاحة في الكتالوج' : 'ترشيحات الذكاء الاصطناعي'}
               {isFetching && <Loader2 size={13} className="animate-spin text-gray-400" />}
             </h3>
@@ -355,13 +355,13 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
                     onClick={() => setSelected(c)}
                     className={`w-full text-start p-3.5 rounded-xl border-2 transition-all hover:shadow-md ${
                       isSelected
-                        ? 'border-teal-500 bg-teal-50/50 shadow-sm ring-2 ring-teal-200'
-                        : 'border-gray-200 bg-white hover:border-teal-300'
+                        ? 'border-violet-500 bg-violet-50/50 shadow-sm ring-2 ring-violet-200'
+                        : 'border-gray-200 bg-white hover:border-violet-300'
                     }`}>
                     <div className="flex items-start gap-3">
                       {/* Radio indicator */}
                       <div className={`mt-1.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
-                        isSelected ? 'border-teal-600 bg-teal-600' : 'border-gray-300 bg-white'
+                        isSelected ? 'border-violet-600 bg-violet-600' : 'border-gray-300 bg-white'
                       }`}>
                         {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                       </div>
@@ -381,7 +381,7 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
                               <p className="text-xs text-gray-600 truncate">{(c.product as any).nameAr}</p>
                             )}
                           </div>
-                          <ChevronRight size={14} className={`shrink-0 mt-1 ${isSelected ? 'text-teal-600' : 'text-gray-300'}`} />
+                          <ChevronRight size={14} className={`shrink-0 mt-1 ${isSelected ? 'text-violet-600' : 'text-gray-300'}`} />
                         </div>
 
                         <div className="mt-2 flex flex-wrap gap-1">
@@ -457,7 +457,7 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
           <button
             onClick={() => selected && linkMut.mutate(selected)}
             disabled={!selected || linkMut.isPending}
-            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl shadow-sm transition-colors">
+            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl shadow-sm transition-colors">
             {linkMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             {selected
               ? isLinked
@@ -470,3 +470,4 @@ export function ProductLinkModal({ item, isOpen, onClose, onSuccess }: ProductLi
     </Modal>
   )
 }
+

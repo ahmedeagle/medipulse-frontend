@@ -1,4 +1,4 @@
-import {
+﻿import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts'
@@ -69,7 +69,7 @@ export function TrendView({ data, series, yLabel }: Props) {
         </div>
         <div className="px-5 py-3 text-center">
           <p className="text-[10px] text-gray-400 font-medium mb-0.5">أعلى يوم</p>
-          <p className="text-base font-bold text-teal-700">{fmtNum(peak)}</p>
+          <p className="text-base font-bold text-violet-700">{fmtNum(peak)}</p>
           <p className="text-[10px] text-gray-400">{peakLabel}</p>
         </div>
       </div>
@@ -152,3 +152,4 @@ export function TrendView({ data, series, yLabel }: Props) {
     </div>
   )
 }
+

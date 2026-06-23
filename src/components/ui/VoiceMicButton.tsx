@@ -1,4 +1,4 @@
-import { Mic, MicOff } from 'lucide-react'
+﻿import { Mic, MicOff } from 'lucide-react'
 import { useVoiceSearch } from '../../hooks/useVoiceSearch'
 
 interface Props {
@@ -16,9 +16,10 @@ export function VoiceMicButton({ onResult, className = '' }: Props) {
       type="button"
       onClick={start}
       title={listening ? 'جاري الاستماع…' : 'بحث صوتي'}
-      className={`transition-colors ${listening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-teal-600'} ${className}`}
+      className={`transition-colors ${listening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-violet-600'} ${className}`}
     >
       {listening ? <MicOff size={14} /> : <Mic size={14} />}
     </button>
   )
 }
+

@@ -1,9 +1,9 @@
-import { Link2, Link2Off, Sparkles, Clock } from 'lucide-react';
+﻿import { Link2, Link2Off, Sparkles, Clock } from 'lucide-react';
 
 type LinkStatus = 'linked' | 'unlinked' | 'suggested' | 'pending' | undefined | null;
 
 const STYLES: Record<Exclude<LinkStatus, undefined | null>, { label: string; cls: string; icon: any }> = {
-  linked:    { label: 'مربوط',         cls: 'bg-teal-50 text-teal-700 border-teal-200',     icon: Link2 },
+  linked:    { label: 'مربوط',         cls: 'bg-violet-50 text-violet-700 border-violet-200',     icon: Link2 },
   unlinked:  { label: 'غير مربوط',     cls: 'bg-gray-50 text-gray-600 border-gray-200',     icon: Link2Off },
   suggested: { label: 'مقترح للمراجعة', cls: 'bg-amber-50 text-amber-700 border-amber-200',  icon: Sparkles },
   pending:   { label: 'قيد المراجعة',  cls: 'bg-blue-50 text-blue-700 border-blue-200',     icon: Clock },
@@ -29,3 +29,4 @@ export function LinkStatusBadge({
     </span>
   );
 }
+

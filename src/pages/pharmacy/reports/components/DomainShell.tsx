@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+﻿import { type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, type LucideIcon } from 'lucide-react'
 
@@ -19,7 +19,7 @@ export function DomainShell({ icon: Icon, iconColor, iconBg, title, subtitle, hi
       <div className="flex items-center gap-3">
         <Link
           to="/pharmacy/reports"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-teal-600 hover:border-teal-200 transition-all shadow-sm"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-violet-600 hover:border-violet-200 transition-all shadow-sm"
         >
           <ArrowRight size={15} className="rtl:rotate-0 ltr:rotate-180" />
           رجوع للتقارير
@@ -51,3 +51,4 @@ export function DomainShell({ icon: Icon, iconColor, iconBg, title, subtitle, hi
     </div>
   )
 }
+

@@ -1,4 +1,4 @@
-import type { PosShift } from '../api/pos.api'
+﻿import type { PosShift } from '../api/pos.api'
 
 interface ShiftPrintOpts {
   currency?: string
@@ -85,7 +85,7 @@ body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-wid
 .over .val{color:#d97706;font-weight:700}
 .notes-box{border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;min-height:36px;font-size:11px;color:#444;line-height:1.5}
 .footer{text-align:center;margin-top:22px;padding-top:14px;border-top:2px dashed #ccc;color:#777;font-size:10px;line-height:1.9}
-.footer strong{color:#0d9488;font-size:11px}
+.footer strong{color:#6D28D9;font-size:11px}
 @media print{body{padding:20px}}
 </style>
 </head>
@@ -161,3 +161,4 @@ body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-wid
   win.focus()
   setTimeout(() => { win.print(); win.close() }, 400)
 }
+

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+﻿import { useState, type ReactNode } from 'react'
 import { BarChart2, TrendingUp, Table2, Star, Bookmark, Check, Lightbulb } from 'lucide-react'
 import clsx from 'clsx'
 import { useSearchParams } from 'react-router-dom'
@@ -69,7 +69,7 @@ export function ReportShell({ domain, domainLabel, children, exportRows = [], ex
               onClick={() => setView(key)}
               className={clsx(
                 'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all',
-                view === key ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                view === key ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700',
               )}
             >
               <Icon size={13} />
@@ -86,13 +86,13 @@ export function ReportShell({ domain, domainLabel, children, exportRows = [], ex
               className={clsx(
                 'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-colors',
                 showInsight
-                  ? 'bg-teal-600 border-teal-600 text-white'
-                  : 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100',
+                  ? 'bg-violet-600 border-violet-600 text-white'
+                  : 'bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100',
               )}
             >
               <Lightbulb size={14} />
               ملاحظات
-              <span className={clsx('text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center', showInsight ? 'bg-white text-teal-700' : 'bg-teal-600 text-white')}>
+              <span className={clsx('text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center', showInsight ? 'bg-white text-violet-700' : 'bg-violet-600 text-white')}>
                 {insights.length}
               </span>
             </button>
@@ -129,3 +129,4 @@ export function ReportShell({ domain, domainLabel, children, exportRows = [], ex
     </div>
   )
 }
+

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Package, AlertTriangle, ShoppingCart, Sparkles, Loader2 } from 'lucide-react'
 import { inventoryApi } from '../../api/inventory.api'
@@ -93,7 +93,7 @@ export default function PharmacyDashboardPage() {
         <button
           onClick={() => generateMutation.mutate()}
           disabled={generateMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white text-sm font-medium rounded-xl transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 text-white text-sm font-medium rounded-xl transition-colors"
         >
           {generateMutation.isPending ? (
             <Loader2 size={16} className="animate-spin" />
@@ -105,7 +105,7 @@ export default function PharmacyDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title={t('dashboard.total_products')}   value={inventory.length} icon={Package}      iconColor="text-teal-600"   iconBg="bg-teal-50"   />
+        <StatCard title={t('dashboard.total_products')}   value={inventory.length} icon={Package}      iconColor="text-violet-600"   iconBg="bg-violet-50"   />
         <StatCard title={t('dashboard.low_stock_alerts')} value={lowStock.length}  icon={AlertTriangle} iconColor="text-amber-600"  iconBg="bg-amber-50"  />
         <StatCard title={t('dashboard.pending_orders')}   value={pendingOrders.length} icon={ShoppingCart} iconColor="text-purple-600" iconBg="bg-purple-50" />
         <StatCard title={t('dashboard.ai_count')}         value={activeRecs.length} icon={Sparkles}    iconColor="text-indigo-600" iconBg="bg-indigo-50" />
@@ -122,7 +122,7 @@ export default function PharmacyDashboardPage() {
 
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <ShoppingCart size={16} className="text-teal-500" />
+            <ShoppingCart size={16} className="text-violet-500" />
             {t('dashboard.recent_orders_section')}
           </h2>
           <Table columns={orderCols} data={orders.slice(0, 5)} emptyMessage={t('dashboard.no_orders')} />
@@ -131,3 +131,4 @@ export default function PharmacyDashboardPage() {
     </div>
   )
 }
+

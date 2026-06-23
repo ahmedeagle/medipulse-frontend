@@ -1,4 +1,4 @@
-import clsx from 'clsx'
+﻿import clsx from 'clsx'
 
 type BadgeVariant = string
 
@@ -25,7 +25,7 @@ const variantMap: Record<string, string> = {
   failed_delivery:     'bg-red-100 text-red-700 border border-red-200',
   on_hold:             'bg-slate-100 text-slate-700 border border-slate-200',
   received_pending_qc: 'bg-sky-100 text-sky-800 border border-sky-200',
-  partially_delivered: 'bg-teal-100 text-teal-800 border border-teal-200',
+  partially_delivered: 'bg-violet-100 text-violet-800 border border-violet-200',
   disputed:            'bg-rose-100 text-rose-800 border border-rose-200',
   return_requested:    'bg-pink-100 text-pink-800 border border-pink-200',
   return_approved:     'bg-violet-100 text-violet-800 border border-violet-200',
@@ -97,3 +97,4 @@ export function Badge({ status, label, className }: BadgeProps) {
     </span>
   )
 }
+

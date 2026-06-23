@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { Download, FileSpreadsheet, FileText, Printer, ChevronDown } from 'lucide-react'
 import { useReportExport } from '../hooks/useReportExport'
 
@@ -29,7 +29,7 @@ export function ExportButton({ rows, filename, disabled }: Props) {
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors"
       >
         <Download size={14} />
-        تصدير
+        ØªØµØ¯ÙŠØ±
         <ChevronDown size={13} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
       </button>
 
@@ -54,7 +54,7 @@ export function ExportButton({ rows, filename, disabled }: Props) {
             className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
           >
             <Printer size={14} className="text-gray-600" />
-            طباعة / PDF
+            Ø·Ø¨Ø§Ø¹Ø© / PDF
           </button>
         </div>
       )}

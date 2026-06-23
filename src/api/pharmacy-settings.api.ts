@@ -32,6 +32,17 @@ export interface InventorySettings {
   reorderRecommendationType?: 'to_safety_stock' | 'to_max' | 'fixed_qty';
 }
 
+export interface NotificationSettings {
+  enableLowStockAlerts:          boolean
+  enableExpiryAlerts:            boolean
+  enableDeadStockAlerts:         boolean
+  enableP2POrderAlerts:          boolean
+  enableSmartProcurementAlerts:  boolean
+  enableClearanceAlerts:         boolean
+  enablePosIntegrityAlerts:      boolean
+  enableMorningBriefing:         boolean
+}
+
 export interface PharmacySettingsData {
   id: string;
   pharmacyTenantId: string;
@@ -56,6 +67,7 @@ export interface PharmacySettingsData {
   receiptSettings: ReceiptSettings;
   labelSettings: LabelSettings;
   inventorySettings: InventorySettings;
+  notificationSettings?: NotificationSettings;
   updatedAt: string;
 }
 

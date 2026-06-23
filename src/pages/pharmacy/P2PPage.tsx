@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -62,7 +62,7 @@ type Tab = typeof TABS[number]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const INPUT = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white'
+const INPUT = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white'
 
 function daysLeft(date?: string | null): number | null {
   if (!date) return null
@@ -565,7 +565,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
           <div className="shrink-0 flex flex-col items-center gap-0.5">
             <button
               onClick={() => setShowEmergencySheet(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
             >
               <Zap size={14} />
               {isRTL ? 'أحتاج الآن' : 'Need Now'}
@@ -584,7 +584,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
                 value={q}
                 onChange={e => { setQ(e.target.value); setPage(0) }}
                 placeholder={isRTL ? 'ابحث عن أي دواء في الشبكة...' : 'Search any medicine...'}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pe-8 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pe-8 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
               />
             </div>
             <span className="text-[9px] text-gray-400 ps-1">تصفح السوق واقارن العروض</span>
@@ -615,7 +615,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
                 value={city}
                 onChange={e => { setCity(e.target.value); setPage(0) }}
                 placeholder="القاهرة، الرياض..."
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-gray-50"
               />
             </div>
 
@@ -1289,7 +1289,7 @@ function SellTab({
                 value={listingSearch}
                 onChange={e => setListingSearch(e.target.value)}
                 placeholder={isRTL ? 'بحث بالاسم أو الباركود...' : 'Search name or barcode...'}
-                className="w-full ps-8 pe-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+                className="w-full ps-8 pe-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
                 dir={isRTL ? 'rtl' : 'ltr'}
               />
             </div>
@@ -1297,7 +1297,7 @@ function SellTab({
               <select
                 value={listingStatusFilter}
                 onChange={e => setListingStatusFilter(e.target.value as any)}
-                className="appearance-none ps-3 pe-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-gray-700"
+                className="appearance-none ps-3 pe-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white text-gray-700"
                 dir={isRTL ? 'rtl' : 'ltr'}
               >
                 <option value="">الحالة: الكل</option>
@@ -1312,7 +1312,7 @@ function SellTab({
               <select
                 value={listingTypeFilter}
                 onChange={e => setListingTypeFilter(e.target.value as any)}
-                className="appearance-none ps-3 pe-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-gray-700"
+                className="appearance-none ps-3 pe-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white text-gray-700"
                 dir={isRTL ? 'rtl' : 'ltr'}
               >
                 <option value="">النوع: الكل</option>
@@ -1484,7 +1484,7 @@ function LinkProductModal({ item, isRTL, qc, onClose, onLinked }: {
             <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input value={q} onChange={e => setQ(e.target.value)}
               placeholder={isRTL ? 'ابحث في الكتالوج...' : 'Search catalog...'}
-              className="w-full ps-8 pe-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-300"
+              className="w-full ps-8 pe-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-violet-300"
               autoFocus />
           </div>
         </div>
@@ -1839,7 +1839,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
           onChange={e => { setQuery(e.target.value); openDropdown() }}
           onFocus={openDropdown}
           placeholder={isRTL ? 'ابحث بالاسم، الباركود، الرمز، رقم الدفعة...' : 'Search by name, barcode, SKU, batch...'}
-          className="w-full ps-9 pe-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 outline-none bg-gray-50"
+          className="w-full ps-9 pe-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-300 focus:border-violet-400 outline-none bg-gray-50"
           autoComplete="off"
         />
         {(isLoading || isFetching) && (
@@ -2028,7 +2028,7 @@ function OfferBuilder({ isRTL, offerMode, onOfferMode, discountPct, onDiscountPc
               <div className="relative">
                 <input type="number" min="1" max="99" value={discountPct}
                   onChange={e => onDiscountPct(e.target.value)}
-                  className="w-full border border-emerald-300 rounded-xl px-3 pe-7 py-2.5 text-sm bg-white focus:ring-2 focus:ring-emerald-400 outline-none font-bold text-xl text-center"
+                  className="w-full border border-emerald-300 rounded-xl px-3 pe-7 py-2.5 text-sm bg-white focus:ring-2 focus:ring-violet-400 outline-none font-bold text-xl text-center"
                   placeholder="0" />
                 <span className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
               </div>
@@ -2166,7 +2166,7 @@ function ListingSuccessModal({ isRTL, item, price, quantity, listingType, offerM
         mounted ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95',
       )}>
         {/* Gradient header */}
-        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-t-2xl px-6 pt-6 pb-8 text-center relative overflow-hidden">
+        <div className="bg-gradient-to-br from-emerald-500 to-violet-600 rounded-t-2xl px-6 pt-6 pb-8 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 pointer-events-none"
             style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
           <div className={clsx(
@@ -2808,7 +2808,7 @@ function EditListingModal({ listing, isRTL, qc, onClose }: {
     },
   })
 
-  const inputCls = 'w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white'
+  const inputCls = 'w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white'
   const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
   return createPortal(
@@ -2888,7 +2888,7 @@ function EditListingModal({ listing, isRTL, qc, onClose }: {
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input type="checkbox" checked={form.autoUpdateDiscount}
                   onChange={e => setForm(f => ({ ...f, autoUpdateDiscount: e.target.checked }))}
-                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500" />
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-violet-500" />
                 <span className="text-sm text-gray-700">{isRTL ? 'تحديث الخصم تلقائياً قرب تاريخ الانتهاء' : 'Auto-update discount near expiry'}</span>
               </label>
             </div>
@@ -2918,7 +2918,7 @@ function EditListingModal({ listing, isRTL, qc, onClose }: {
           <button type="button"
             onClick={() => updateMutation.mutate()}
             disabled={updateMutation.isPending}
-            className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+            className="flex-1 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-800 text-white font-semibold text-sm transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
             {updateMutation.isPending
               ? <><Loader2 size={15} className="animate-spin" />{isRTL ? 'جاري الحفظ...' : 'Saving...'}</>
               : <>{isRTL ? 'حفظ التعديلات' : 'Save Changes'}</>
@@ -3013,7 +3013,7 @@ function MyListingRow({ listing, idx, isRTL, qc, statusCfg }: {
       {/* Product */}
       <td className="px-4 py-3.5 min-w-[180px]">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-gray-100 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-50 to-violet-50 border border-gray-100 flex items-center justify-center shrink-0">
             <Package size={15} className="text-emerald-500" />
           </div>
           <div className="min-w-0">
@@ -3318,7 +3318,7 @@ function OrdersTab({ isRTL }: { isRTL: boolean }) {
                 value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
                 placeholder={isRTL ? 'بحث بالمنتج أو رقم الطلب...' : 'Search product or order ID...'}
-                className="w-full ps-8 pe-8 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-gray-50"
+                className="w-full ps-8 pe-8 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 bg-gray-50"
                 dir={isRTL ? 'rtl' : 'ltr'}
               />
               {!searchQ && <VoiceMicButton onResult={setSearchQ} className="absolute end-3 top-1/2 -translate-y-1/2" />}
@@ -3327,7 +3327,7 @@ function OrdersTab({ isRTL }: { isRTL: boolean }) {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="appearance-none ps-3 pe-7 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-gray-50 text-gray-700"
+                className="appearance-none ps-3 pe-7 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 bg-gray-50 text-gray-700"
                 dir={isRTL ? 'rtl' : 'ltr'}
               >
                 {STATUS_OPTIONS.map(o => (
@@ -3629,7 +3629,7 @@ function OrderRow({
                       type="date"
                       value={acceptDeliveryDate}
                       onChange={e => setAcceptDeliveryDate(e.target.value)}
-                      className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-violet-400"
                     />
                     <button
                       onClick={() => acceptM.mutate()}
@@ -3970,7 +3970,7 @@ function QuickStartGuide({
   const isVerified    = sellerProfile?.verificationStatus === 'verified'
 
   const steps = [
-    { done: true,                      icon: User,         labelAr: 'تسجيل الحساب',                          time: '',             ctaAr: '',               tab: '',        legal: false, accent: 'from-emerald-500 to-teal-500' },
+    { done: true,                      icon: User,         labelAr: 'تسجيل الحساب',                          time: '',             ctaAr: '',               tab: '',        legal: false, accent: 'from-emerald-500 to-violet-500' },
     { done: hasLegal,                  icon: Shield,       labelAr: 'الإقرار القانوني (كل 90 يوم)',           time: '٢ دقيقة',      ctaAr: 'أتمّ الإقرار',   tab: 'sell',   legal: true,  accent: 'from-blue-500 to-indigo-500'  },
     { done: hasProfile && hasLocation, icon: MapPin,       labelAr: 'ملف البائع — الاسم والموقع',             time: '٣ دقائق',      ctaAr: 'أكمل ملفك',      tab: 'profile',legal: false, accent: 'from-violet-500 to-purple-500' },
     { done: hasRequiredDocs,           icon: FileText,     labelAr: 'المستندات الرسمية',                      time: '٢ دقيقة',      ctaAr: 'ارفع المستندات', tab: 'profile',legal: false, accent: 'from-amber-500 to-orange-500'  },
@@ -4004,10 +4004,10 @@ function QuickStartGuide({
         {view === 'welcome' && (
           <>
             {/* Hero gradient */}
-            <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-6 pt-6 pb-8 shrink-0 overflow-hidden">
+            <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-violet-800 px-6 pt-6 pb-8 shrink-0 overflow-hidden">
               {/* Decorative blobs */}
               <div className="absolute -top-8 -end-8 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
-              <div className="absolute -bottom-12 -start-12 w-48 h-48 rounded-full bg-teal-900/30 pointer-events-none" />
+              <div className="absolute -bottom-12 -start-12 w-48 h-48 rounded-full bg-violet-900/30 pointer-events-none" />
 
               <div className="relative flex items-start justify-between mb-5">
                 <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors shrink-0">
@@ -4019,7 +4019,7 @@ function QuickStartGuide({
                   <div className="flex items-center gap-0.5 mt-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
                     <ArrowRight size={8} className="text-white/60" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-teal-300" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-300" />
                   </div>
                 </div>
               </div>
@@ -4068,7 +4068,7 @@ function QuickStartGuide({
                     const Icon = b.icon
                     return (
                       <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/40 transition-all">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-violet-600 flex items-center justify-center mb-2">
                           <Icon size={14} className="text-white" />
                         </div>
                         <p className="text-[12px] font-bold text-gray-800 leading-snug">{b.titleAr}</p>
@@ -4106,7 +4106,7 @@ function QuickStartGuide({
             <div className="px-4 pb-4 pt-3 shrink-0 space-y-2 border-t border-gray-100">
               <button
                 onClick={() => setView('setup')}
-                className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:from-emerald-700 hover:to-teal-700 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-600 to-violet-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:from-emerald-700 hover:to-violet-700 transition-all"
               >
                 <Plus size={16} />
                 ابدأ البيع الآن — نزّل منتجاتك
@@ -4126,7 +4126,7 @@ function QuickStartGuide({
         {view === 'setup' && (
           <>
             {/* Header */}
-            <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-5 pt-5 pb-6 shrink-0 overflow-hidden">
+            <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-violet-800 px-5 pt-5 pb-6 shrink-0 overflow-hidden">
               <div className="absolute -top-6 -end-6 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
 
               <div className="relative flex items-center gap-3 mb-4">
@@ -4173,7 +4173,7 @@ function QuickStartGuide({
                         <div className={clsx(
                           'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all',
                           step.done
-                            ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-sm shadow-emerald-200'
+                            ? 'bg-gradient-to-br from-emerald-500 to-violet-600 shadow-sm shadow-emerald-200'
                             : isNext
                             ? `bg-gradient-to-br ${step.accent} shadow-md animate-pulse`
                             : 'bg-gray-100',
@@ -4214,7 +4214,7 @@ function QuickStartGuide({
                             className={clsx(
                               'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors',
                               isNext
-                                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+                                ? 'bg-violet-700 text-white hover:bg-violet-800 shadow-sm'
                                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
                             )}
                           >
@@ -4240,7 +4240,7 @@ function QuickStartGuide({
               {pct === 100 && (
                 <button
                   onClick={() => { onClose(); onNavigate('sell') }}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-600 to-violet-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all"
                 >
                   <Rocket size={15} />
                   ابدأ نزيل منتجاتك الآن
@@ -4901,7 +4901,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
                     <input type="number" min={0} value={zone.price}
                       onChange={e => setZone(i, { price: Number(e.target.value), isFree: false })}
                       disabled={zone.isFree || !zone.isEnabled}
-                      className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-gray-100 disabled:text-gray-300" />
+                      className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-violet-400 disabled:bg-gray-100 disabled:text-gray-300" />
                     <span className="text-xs text-gray-400 shrink-0">{currency}</span>
                     <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
                       <input type="checkbox" checked={zone.isFree}
@@ -5138,7 +5138,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
             </div>
           )}
           {savingsOpps.length > 0 && (
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-4 flex items-start gap-3">
+            <div className="bg-gradient-to-br from-emerald-50 to-violet-50 border border-emerald-100 rounded-2xl p-4 flex items-start gap-3">
               <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
                 <DollarSign size={16} className="text-emerald-600" />
               </div>
@@ -5444,7 +5444,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
                                   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors',
                                   isExpanded
                                     ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    : 'bg-emerald-600 text-white hover:bg-emerald-700',
+                                    : 'bg-violet-700 text-white hover:bg-violet-800',
                                 )}
                               >
                                 <ShoppingCart size={11} />
@@ -5464,7 +5464,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
                                   type="number" min={1} max={opp.availableQty ?? 9999}
                                   value={orderState!.qty}
                                   onChange={e => setOrderState(s => s ? { ...s, qty: Math.max(1, parseInt(e.target.value) || 1) } : s)}
-                                  className="w-24 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                                  className="w-24 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-400"
                                 />
                                 <p className="text-xs text-gray-500">
                                   {isRTL
@@ -5817,7 +5817,7 @@ function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
               onChange={e => setPriceInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && priceInput.trim()) setPriceProductId(priceInput.trim()) }}
               placeholder={isRTL ? 'معرّف المنتج...' : 'Product ID...'}
-              className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-400 font-mono"
+              className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:ring-1 focus:ring-violet-400 font-mono"
             />
             <button
               onClick={() => { if (priceInput.trim()) setPriceProductId(priceInput.trim()) }}
@@ -5832,19 +5832,27 @@ function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
         </div>
       </div>
 
-      {/* ── Guaranteed Sell (Coming Soon) ── */}
-      <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 p-5 text-center space-y-2">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto text-2xl">🔒</div>
-        <p className="text-sm font-bold text-emerald-800">{isRTL ? 'ضمان البيع — قريباً' : 'Guaranteed Sell — Coming Soon'}</p>
-        <p className="text-[11px] text-emerald-600 leading-relaxed max-w-xs mx-auto">
-          {isRTL
-            ? 'MediPulse يضمن بيع مخزونك المنتهي الصلاحية قبل الهدر — بسعر ذكي يتغيّر مع اقتراب الانتهاء'
-            : 'MediPulse guarantees your near-expiry stock sells before it expires — AI-adjusted pricing'}
-        </p>
-        <button className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition-colors">
-          {isRTL ? 'سجّل اهتمامك ←' : 'Register Interest →'}
-        </button>
-      </div>
+      {/* ── Expiry Clearance shortcut ── */}
+      <button
+        onClick={() => window.location.href = '/pharmacy/ai-center?tab=tasks&task=expiry_clearance'}
+        className="w-full rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 flex items-center gap-4 hover:shadow-md hover:border-amber-300 transition-all group text-start"
+      >
+        <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-lg">⏱️</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-amber-900">
+            {isRTL ? 'تصفية المخزون قرب الانتهاء — متاح الآن' : 'Near-Expiry Clearance — Available Now'}
+          </p>
+          <p className="text-[11px] text-amber-700/80 mt-0.5 leading-relaxed">
+            {isRTL
+              ? 'الذكاء الاصطناعي يكشف المنتجات قرب الانتهاء ويُنشئ إدراجات بخصم يتزايد تلقائياً — موافقتك تكفي'
+              : 'AI detects near-expiry items and creates auto-deepening discount listings — just approve'}
+          </p>
+        </div>
+        <span className="shrink-0 text-xs font-semibold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-lg group-hover:bg-amber-200 transition-colors whitespace-nowrap">
+          {isRTL ? 'افتح المهام ←' : 'Open Tasks →'}
+        </span>
+      </button>
     </div>
   )
 }
+

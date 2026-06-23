@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import {
   Sparkles, Brain, Barcode, Building2, FlaskConical, Pill,
   CheckCircle2, ShieldCheck, Eye, ArrowLeft, Loader2, X,
@@ -42,10 +42,10 @@ export function AIMatchingWizard({ isOpen, onClose, onConfirm, isPending, unlink
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-900/60 via-blue-900/60 to-teal-900/60 backdrop-blur-sm" onClick={!isPending ? onClose : undefined} />
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-900/60 via-blue-900/60 to-violet-900/60 backdrop-blur-sm" onClick={!isPending ? onClose : undefined} />
       <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
         {/* Animated header */}
-        <div className="relative bg-gradient-to-br from-violet-600 via-fuchsia-600 to-teal-600 p-6 text-white overflow-hidden">
+        <div className="relative bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-600 p-6 text-white overflow-hidden">
           {/* Glow orbs */}
           <div className="absolute -top-10 -end-10 w-40 h-40 bg-white/20 rounded-full blur-3xl animate-pulse" />
           <div className="absolute -bottom-10 -start-10 w-32 h-32 bg-fuchsia-400/30 rounded-full blur-3xl" />
@@ -237,3 +237,4 @@ export function AIMatchingWizard({ isOpen, onClose, onConfirm, isPending, unlink
     </div>
   )
 }
+

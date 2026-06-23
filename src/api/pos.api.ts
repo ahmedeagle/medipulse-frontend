@@ -118,6 +118,21 @@ export interface PosProduct {
   linkStatus:      string
 }
 
+export interface PosSubstitute {
+  inventoryItemId: string
+  productId:       string
+  name:            string
+  nameEn:          string
+  manufacturer:    string | null
+  sellingPrice:    number | null
+  costPrice:       number | null
+  quantity:        number
+  expiryDate:      string | null
+  marginDelta:     number | null  // positive = this earns more per unit than what's in cart
+  customerSaving:  number | null  // positive = cheaper for the customer
+  reason:          'higher_margin' | 'customer_saving' | 'available'
+}
+
 export interface CreateTransactionDto {
   type:            'sale' | 'return'
   customerId?:     string
@@ -234,6 +249,9 @@ export const posApi = {
     sellingPrice?: number
   }): Promise<void> =>
     client.post('/pos/missed-sale', dto).then(r => r.data),
+
+  getSubstitutes: (inventoryItemId: string): Promise<PosSubstitute[]> =>
+    client.get(`/pos/products/${inventoryItemId}/substitutes`).then(r => r.data),
 
   getMissedDemandReport: (days = 30): Promise<{
     days:               number

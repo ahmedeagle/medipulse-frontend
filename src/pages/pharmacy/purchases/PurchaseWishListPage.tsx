@@ -1,0 +1,349 @@
+﻿import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  Plus, Trash2, RefreshCw, ShoppingCart, Sparkles, ArrowLeft,
+  Package, AlertTriangle, CheckCircle2, Building2, Loader2,
+} from 'lucide-react'
+import clsx from 'clsx'
+import { purchasesApi, type WishListItem, type ProductSearchResult } from '../../../api/purchases.api'
+
+const fmtDate = (s: string) =>
+  new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' })
+
+export default function PurchaseWishListPage() {
+  const qc = useQueryClient()
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [searchQ, setSearchQ] = useState('')
+  const [searchResults, setSearchResults] = useState<ProductSearchResult[]>([])
+  const [addForm, setAddForm] = useState<{ product: ProductSearchResult | null; qty: number }>({ product: null, qty: 1 })
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['wish-list'],
+    queryFn: purchasesApi.getWishList,
+    staleTime: 30_000,
+  })
+
+  const removeMut = useMutation({
+    mutationFn: purchasesApi.removeWishListItem,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['wish-list'] }),
+  })
+
+  const createOrdersMut = useMutation({
+    mutationFn: purchasesApi.createOrdersFromWishList,
+    onSuccess: (invoices) => {
+      qc.invalidateQueries({ queryKey: ['wish-list'] })
+      qc.invalidateQueries({ queryKey: ['purchase-invoices'] })
+      alert(`تم إنشاء ${invoices.length} فاتورة مسودة`)
+      setSelected(new Set())
+    },
+  })
+
+  const addItemMut = useMutation({
+    mutationFn: purchasesApi.addWishListItem,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['wish-list'] })
+      setShowAddModal(false)
+      setAddForm({ product: null, qty: 1 })
+      setSearchQ('')
+      setSearchResults([])
+    },
+  })
+
+  const updateQtyMut = useMutation({
+    mutationFn: ({ id, requestedQty }: { id: string; requestedQty: number }) =>
+      purchasesApi.updateWishListItem(id, { requestedQty }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['wish-list'] }),
+  })
+
+  const doSearch = async (q: string) => {
+    setSearchQ(q)
+    if (q.length < 2) { setSearchResults([]); return }
+    const res = await purchasesApi.searchProducts(q)
+    setSearchResults(res)
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    if (selected.size === items.length) setSelected(new Set())
+    else setSelected(new Set(items.map(i => i.id)))
+  }
+
+  const handleCreateOrders = () => {
+    const ids = selected.size > 0 ? [...selected] : []
+    createOrdersMut.mutate(ids)
+  }
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-6">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Link to="/pharmacy/purchases/invoices" className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500">
+            <ArrowLeft size={18} />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">قائمة الأمنيات</h1>
+            <p className="text-sm text-gray-500 mt-0.5">منتجات تحتاج إعادة طلب · تُحدَّث تلقائياً كل ليلة</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {selected.size > 0 && (
+            <button
+              onClick={handleCreateOrders}
+              disabled={createOrdersMut.isPending}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium"
+            >
+              {createOrdersMut.isPending ? <Loader2 size={15} className="animate-spin" /> : <ShoppingCart size={15} />}
+              إنشاء طلبيات ({selected.size})
+            </button>
+          )}
+          {selected.size === 0 && items.length > 0 && (
+            <button
+              onClick={handleCreateOrders}
+              disabled={createOrdersMut.isPending}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium"
+            >
+              {createOrdersMut.isPending ? <Loader2 size={15} className="animate-spin" /> : <ShoppingCart size={15} />}
+              إنشاء طلبيات للكل
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Plus size={15} />
+            إضافة يدوي
+          </button>
+        </div>
+      </div>
+
+      {/* AI notice */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
+        <div className="p-2 rounded-xl bg-emerald-100 shrink-0">
+          <Sparkles size={18} className="text-emerald-700" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-emerald-800">التحديث الليلي التلقائي</p>
+          <p className="text-xs text-emerald-600 mt-0.5">
+            يقوم النظام يومياً الساعة 2:00 صباحاً بفحص كل المنتجات التي وصلت لحد الحد الأدنى للمخزون وإضافتها تلقائياً مع الكمية الموصى بها.
+          </p>
+        </div>
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-gray-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-600 border-t-transparent" />
+        </div>
+      ) : !items.length ? (
+        <div className="bg-white rounded-2xl border border-gray-100 py-20 flex flex-col items-center gap-3 text-gray-400">
+          <CheckCircle2 size={48} className="text-gray-200" />
+          <p className="font-medium text-gray-500">القائمة فارغة</p>
+          <p className="text-sm">مستوى مخزونك جيد أو أضف منتجات يدوياً</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selected.size === items.length}
+                      onChange={toggleAll}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المنتج</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المخزون الحالي</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">الكمية المطلوبة</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المورد الأخير</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المصدر</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">الفاتورة المسودة</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {items.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={clsx(
+                      'transition-colors',
+                      selected.has(item.id) ? 'bg-emerald-50/60' : 'hover:bg-gray-50/50',
+                    )}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-gray-100">
+                          <Package size={13} className="text-gray-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800 text-sm">{item.productName}</p>
+                          {item.productSku && <p className="text-[11px] text-gray-400">{item.productSku}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle size={13} className="text-amber-500" />
+                        <span className="font-bold text-amber-700 tabular-nums">{item.currentStock}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        min={1}
+                        defaultValue={item.requestedQty}
+                        onBlur={e => {
+                          const v = parseInt(e.target.value, 10)
+                          if (v > 0 && v !== item.requestedQty) {
+                            updateQtyMut.mutate({ id: item.id, requestedQty: v })
+                          }
+                        }}
+                        className="w-20 px-2 py-1 text-sm rounded-lg border border-gray-200 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 tabular-nums"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.lastSupplierName ? (
+                        <div className="flex items-center gap-1 text-gray-600 text-xs">
+                          <Building2 size={12} />
+                          {item.lastSupplierName}
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={clsx(
+                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
+                        item.source === 'auto'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-gray-100 text-gray-600',
+                      )}>
+                        {item.source === 'auto' ? <><Sparkles size={10} />تلقائي</> : 'يدوي'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.draftPoNumber ? (
+                        <span className="text-xs text-emerald-600 font-medium">{item.draftPoNumber}</span>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => removeMut.mutate(item.id)}
+                        disabled={removeMut.isPending}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Add modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4" dir="rtl">
+            <h3 className="text-base font-bold text-gray-900">إضافة منتج يدوياً</h3>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">بحث عن المنتج</label>
+              <input
+                type="text"
+                placeholder="اسم المنتج أو الباركود…"
+                value={searchQ}
+                onChange={e => doSearch(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              {searchResults.length > 0 && (
+                <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-auto">
+                  {searchResults.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setAddForm(f => ({ ...f, product: p })); setSearchResults([]) }}
+                      className="w-full text-right px-3 py-2.5 hover:bg-emerald-50 flex items-center justify-between gap-2 border-b border-gray-50 last:border-0"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{p.name}</p>
+                        {p.sku && <p className="text-xs text-gray-400">{p.sku}</p>}
+                      </div>
+                      <span className="text-xs text-gray-500 tabular-nums">مخزون: {p.currentStock}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {addForm.product && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-xl border border-emerald-100 mt-2">
+                  <Package size={14} className="text-emerald-600" />
+                  <span className="text-sm font-medium text-emerald-800">{addForm.product.name}</span>
+                  <button onClick={() => setAddForm(f => ({ ...f, product: null }))} className="mr-auto text-emerald-400 hover:text-emerald-700">×</button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">الكمية المطلوبة</label>
+              <input
+                type="number"
+                min={1}
+                value={addForm.qty}
+                onChange={e => setAddForm(f => ({ ...f, qty: parseInt(e.target.value, 10) || 1 }))}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                disabled={!addForm.product || addForm.qty < 1 || addItemMut.isPending}
+                onClick={() => {
+                  if (!addForm.product) return
+                  addItemMut.mutate({
+                    productId: addForm.product.id,
+                    productName: addForm.product.name,
+                    productSku: addForm.product.sku,
+                    requestedQty: addForm.qty,
+                  })
+                }}
+                className="flex-1 py-2.5 text-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50"
+              >
+                {addItemMut.isPending ? 'جارٍ الإضافة…' : 'إضافة'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

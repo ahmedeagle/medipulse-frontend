@@ -67,7 +67,11 @@
     "signing_in": "Signing in…",
     "app": "MediPulse",
     "logout": "Logout",
-    "reports": "Reports"
+    "reports": "Reports",
+    "purchases": "Purchases",
+    "purchase_invoices": "Purchase Invoices",
+    "purchase_returns": "Purchase Returns",
+    "purchase_wishlist": "Wish List"
   },
   "dashboard": {
     "title": "Dashboard",

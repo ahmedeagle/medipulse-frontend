@@ -17,26 +17,25 @@ const InventoryPage          = lazy(() => import('./pages/pharmacy/InventoryPage
 const CatalogPage            = lazy(() => import('./pages/pharmacy/CatalogPage'));
 const CatalogRequestsPage    = lazy(() => import('./pages/pharmacy/CatalogRequestsPage'));
 const PharmacyOrdersPage     = lazy(() => import('./pages/pharmacy/OrdersPage'));
-const ProcurementQueuePage   = lazy(() => import('./pages/pharmacy/ProcurementQueuePage'));
 const AnalyticsDashboardPage = lazy(() => import('./pages/pharmacy/AnalyticsDashboardPage'));
 const ConnectionsPage        = lazy(() => import('./pages/pharmacy/ConnectionsPage'));
-const ForecastPage           = lazy(() => import('./pages/pharmacy/ForecastPage'));
-const EoqPage                = lazy(() => import('./pages/pharmacy/EoqPage'));
-const DeadStockPage          = lazy(() => import('./pages/pharmacy/DeadStockPage'));
 const P2PPage                = lazy(() => import('./pages/pharmacy/P2PPage'));
 const SettingsPage           = lazy(() => import('./pages/pharmacy/SettingsPage'));
 const PosPage                = lazy(() => import('./pages/pharmacy/pos/PosPage'));
 const ShiftLogPage           = lazy(() => import('./pages/pharmacy/pos/ShiftLogPage'));
 const SalesLogPage           = lazy(() => import('./pages/pharmacy/pos/SalesLogPage'));
 const CustomersPage               = lazy(() => import('./pages/pharmacy/CustomersPage'));
+const PurchaseInvoiceListPage     = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceListPage'));
+const PurchaseInvoiceCreatePage   = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceCreatePage'));
+const PurchaseReturnListPage      = lazy(() => import('./pages/pharmacy/purchases/PurchaseReturnListPage'));
+const PurchaseReturnCreatePage    = lazy(() => import('./pages/pharmacy/purchases/PurchaseReturnCreatePage'));
+const PurchaseWishListPage        = lazy(() => import('./pages/pharmacy/purchases/PurchaseWishListPage'));
 const ReportsHubPage              = lazy(() => import('./pages/pharmacy/reports/ReportsHubPage'));
-const SalesIntelligencePage       = lazy(() => import('./pages/pharmacy/reports/domains/SalesIntelligencePage'));
-const InventoryIntelligencePage   = lazy(() => import('./pages/pharmacy/reports/domains/InventoryIntelligencePage'));
-const ExpiryIntelligencePage      = lazy(() => import('./pages/pharmacy/reports/domains/ExpiryIntelligencePage'));
-const FinancialIntelligencePage   = lazy(() => import('./pages/pharmacy/reports/domains/FinancialIntelligencePage'));
-const ComplianceIntelligencePage  = lazy(() => import('./pages/pharmacy/reports/domains/ComplianceIntelligencePage'));
-const OperationalIntelligencePage = lazy(() => import('./pages/pharmacy/reports/domains/OperationalIntelligencePage'));
-const MissedRevenueReport         = lazy(() => import('./pages/pharmacy/reports/domains/MissedRevenueReport'));
+const SalesSummaryPage            = lazy(() => import('./pages/pharmacy/reports/domains/SalesSummaryPage'));
+const SalesByProductPage          = lazy(() => import('./pages/pharmacy/reports/domains/SalesByProductPage'));
+const CurrentInventoryPage        = lazy(() => import('./pages/pharmacy/reports/domains/CurrentInventoryPage'));
+const ExpiryReportPage            = lazy(() => import('./pages/pharmacy/reports/domains/ExpiryReportPage'));
+const InsuranceClaimsPage         = lazy(() => import('./pages/pharmacy/reports/domains/InsuranceClaimsPage'));
 
 // ── Supplier ──────────────────────────────────────────────────────────────────
 const SupplierDashboardPage  = lazy(() => import('./pages/supplier/DashboardPage'));
@@ -107,11 +106,7 @@ export default function App() {
           >
             <Route index                    element={<PharmacyDashboardPage />} />
             <Route path="ai-center"         element={<AiCenterPage />} />
-            <Route path="queue"             element={<ProcurementQueuePage />} />
             <Route path="ai"               element={<Navigate to="/pharmacy/ai-center" replace />} />
-            <Route path="forecast"         element={<ForecastPage />} />
-            <Route path="eoq"              element={<EoqPage />} />
-            <Route path="dead-stock"       element={<DeadStockPage />} />
             <Route path="analytics"        element={<AnalyticsDashboardPage />} />
             <Route path="inventory"        element={<InventoryPage />} />
             <Route path="catalog"          element={<CatalogPage />} />
@@ -123,16 +118,19 @@ export default function App() {
             <Route path="pos"              element={<PosPage />} />
             <Route path="pos/shifts"       element={<ShiftLogPage />} />
             <Route path="pos/sales"        element={<SalesLogPage />} />
+            <Route path="purchases/invoices"        element={<PurchaseInvoiceListPage />} />
+            <Route path="purchases/invoices/create" element={<PurchaseInvoiceCreatePage />} />
+            <Route path="purchases/returns"         element={<PurchaseReturnListPage />} />
+            <Route path="purchases/returns/create"  element={<PurchaseReturnCreatePage />} />
+            <Route path="purchases/wishlist"        element={<PurchaseWishListPage />} />
             <Route path="customers"        element={<CustomersPage />} />
             <Route path="settings"         element={<SettingsPage />} />
             <Route path="reports"          element={<ReportsHubPage />} />
-            <Route path="reports/sales"    element={<SalesIntelligencePage />} />
-            <Route path="reports/inventory" element={<InventoryIntelligencePage />} />
-            <Route path="reports/expiry"   element={<ExpiryIntelligencePage />} />
-            <Route path="reports/financial" element={<FinancialIntelligencePage />} />
-            <Route path="reports/compliance" element={<ComplianceIntelligencePage />} />
-            <Route path="reports/operational" element={<OperationalIntelligencePage />} />
-            <Route path="reports/missed-revenue" element={<MissedRevenueReport />} />
+            <Route path="reports/sales-summary"  element={<SalesSummaryPage />} />
+            <Route path="reports/sales-by-product" element={<SalesByProductPage />} />
+            <Route path="reports/inventory-current" element={<CurrentInventoryPage />} />
+            <Route path="reports/expiry-report" element={<ExpiryReportPage />} />
+            <Route path="reports/insurance-claims" element={<InsuranceClaimsPage />} />
           </Route>
 
           {/* ── Supplier ─────────────────────────────────────────────────────── */}

@@ -1679,7 +1679,7 @@ export default function InventoryPage() {
   const { data: productsData } = useQuery({ queryKey: ['products'], queryFn: () => inventoryApi.getProducts().then(r => r.data) })
   const { data: listingsData } = useQuery({
     queryKey: ['p2p-listings-ids'],
-    queryFn: () => p2pListingApi.list({ limit: 500 }).then(r => r.data ?? r),
+    queryFn: () => p2pListingApi.list({ limit: 200 }).then(r => r.data ?? r),
     staleTime: 60_000,
   })
 

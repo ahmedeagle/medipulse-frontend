@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, UserPlus, Phone, Mail, MapPin, X, Check,
@@ -16,7 +16,7 @@ const fmtDate = (s: string | null) =>
 function visitBadge(count: number) {
   if (count === 0) return { label: 'جديد',    cls: 'bg-gray-100 text-gray-500' }
   if (count < 3)  return { label: 'عارض',    cls: 'bg-blue-50 text-blue-600' }
-  if (count < 10) return { label: 'منتظم',   cls: 'bg-teal-50 text-teal-700' }
+  if (count < 10) return { label: 'منتظم',   cls: 'bg-violet-50 text-violet-700' }
   return               { label: 'متكرر ⭐', cls: 'bg-amber-50 text-amber-700' }
 }
 
@@ -110,7 +110,7 @@ function RowMenu({ onEdit, onDelete, onHistory }: { onEdit: () => void; onDelete
                    right: ref.current ? window.innerWidth - ref.current.getBoundingClientRect().right : 0 }}>
           <button onClick={() => { onHistory(); setOpen(false) }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-            <History size={13} className="text-teal-500" /> سجل المشتريات
+            <History size={13} className="text-violet-500" /> سجل المشتريات
           </button>
           <button onClick={() => { onEdit(); setOpen(false) }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
@@ -162,13 +162,13 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
       {/* Drawer */}
       <div className="fixed inset-y-0 start-0 z-[70] w-full max-w-md mx-4 sm:mx-0 bg-white shadow-2xl flex flex-col" dir="rtl">
         {/* Header */}
-        <div className="bg-teal-600 px-5 py-4 flex items-center gap-3 shrink-0">
+        <div className="bg-violet-600 px-5 py-4 flex items-center gap-3 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold text-sm shrink-0">
             {customer.name.trim()[0]?.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-white text-sm">{customer.name}</p>
-            <p className="text-teal-100 text-xs">{customer.phone ?? 'بدون هاتف'} · {total} فاتورة</p>
+            <p className="text-violet-100 text-xs">{customer.phone ?? 'بدون هاتف'} · {total} فاتورة</p>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
             <X size={18} />
@@ -221,11 +221,11 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
                       {/* Icon */}
                       <div className={clsx(
                         'w-8 h-8 rounded-xl flex items-center justify-center shrink-0',
-                        isVoided ? 'bg-gray-100' : isReturn ? 'bg-amber-50' : 'bg-teal-50',
+                        isVoided ? 'bg-gray-100' : isReturn ? 'bg-amber-50' : 'bg-violet-50',
                       )}>
                         {isReturn
                           ? <Receipt size={14} className="text-amber-600" />
-                          : <Package size={14} className="text-teal-600" />
+                          : <Package size={14} className="text-violet-600" />
                         }
                       </div>
 
@@ -271,7 +271,7 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
                         {tx.discountAmount > 0 && (
                           <div className="flex justify-between text-xs pt-2 border-t border-gray-200 mt-1">
                             <span className="text-gray-400">خصم</span>
-                            <span className="text-teal-600 font-semibold">−{fmtEGP(tx.discountAmount)}</span>
+                            <span className="text-violet-600 font-semibold">−{fmtEGP(tx.discountAmount)}</span>
                           </div>
                         )}
                       </div>
@@ -382,7 +382,7 @@ function CustomerDrawer({
     'w-full px-3 py-2.5 rounded-xl border text-sm focus:ring-2 outline-none transition-colors',
     touched[k] && errs[k]
       ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
-      : 'border-gray-200 focus:border-teal-400 focus:ring-teal-100',
+      : 'border-gray-200 focus:border-violet-400 focus:ring-violet-100',
   )
 
   return (
@@ -393,8 +393,8 @@ function CustomerDrawer({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center">
-              <UserPlus size={15} className="text-teal-700" />
+            <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center">
+              <UserPlus size={15} className="text-violet-700" />
             </div>
             <h2 className="font-bold text-gray-900">{isEdit ? 'تعديل بيانات العميل' : 'عميل جديد'}</h2>
           </div>
@@ -468,7 +468,7 @@ function CustomerDrawer({
           {/* ── Insurance ── */}
           <div className="space-y-3 pt-1">
             <div className="flex items-center gap-2">
-              <Shield size={13} className="text-teal-600" />
+              <Shield size={13} className="text-violet-600" />
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">بيانات التأمين (اختياري)</p>
             </div>
 
@@ -477,13 +477,13 @@ function CustomerDrawer({
               <label className="text-xs font-semibold text-gray-600 mb-1.5 block">شركة التأمين</label>
               <div className="relative">
                 <button type="button" onClick={() => setInsOpen(o => !o)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-right hover:border-teal-300 transition-colors bg-white">
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-right hover:border-violet-300 transition-colors bg-white">
                   <span className={selectedIns ? 'text-gray-900' : 'text-gray-400'}>
                     {selectedIns ? selectedIns.name : 'اختر شركة التأمين...'}
                   </span>
                   <div className="flex items-center gap-1.5">
                     {selectedIns && (
-                      <span className="text-[10px] text-teal-600 font-semibold bg-teal-50 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[10px] text-violet-600 font-semibold bg-violet-50 px-1.5 py-0.5 rounded-full">
                         المريض {selectedIns.patientPercent}%
                       </span>
                     )}
@@ -496,7 +496,7 @@ function CustomerDrawer({
                       <div className="relative">
                         <Search size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input value={insSearch} onChange={e => setInsSearch(e.target.value)}
-                          className="w-full pr-8 pl-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-teal-400 focus:ring-1 focus:ring-teal-100 outline-none"
+                          className="w-full pr-8 pl-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-100 outline-none"
                           placeholder="ابحث عن شركة..." autoFocus />
                       </div>
                     </div>
@@ -511,8 +511,8 @@ function CustomerDrawer({
                         <p className="px-3 py-3 text-sm text-gray-400 text-center">لا توجد نتائج</p>
                       ) : filteredIns.map(ic => (
                         <button key={ic.id} onClick={() => { set('insuranceCompanyId', ic.id); setInsOpen(false) }}
-                          className={clsx('w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-teal-50 transition-colors',
-                            form.insuranceCompanyId === ic.id ? 'bg-teal-50 text-teal-700' : 'text-gray-700')}>
+                          className={clsx('w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-violet-50 transition-colors',
+                            form.insuranceCompanyId === ic.id ? 'bg-violet-50 text-violet-700' : 'text-gray-700')}>
                           <span>{ic.name}</span>
                           <span className="text-xs text-gray-400">المريض {ic.patientPercent}% / التأمين {100 - ic.patientPercent}%</span>
                         </button>
@@ -522,7 +522,7 @@ function CustomerDrawer({
                 )}
               </div>
               {selectedIns && (
-                <p className="text-[11px] text-teal-600 mt-1 flex items-center gap-1">
+                <p className="text-[11px] text-violet-600 mt-1 flex items-center gap-1">
                   <Shield size={10} />
                   يتحمل المريض {selectedIns.patientPercent}٪ وتغطي {selectedIns.name} {100 - Number(selectedIns.patientPercent)}٪ من الفاتورة
                 </p>
@@ -571,7 +571,7 @@ function CustomerDrawer({
           <button
             onClick={() => { setTouched({ name: true, phone: true, email: true, copayPercent: true }); if (canSave) mut.mutate() }}
             disabled={!canSave || mut.isPending}
-            className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
+            className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
           >
             {mut.isPending
               ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -647,8 +647,8 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center">
-              <Building2 size={15} className="text-teal-700" />
+            <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center">
+              <Building2 size={15} className="text-violet-700" />
             </div>
             <h2 className="font-bold text-gray-900">شركات التأمين</h2>
           </div>
@@ -663,25 +663,25 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
             <div className="relative flex-1">
               <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pr-9 pl-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+                className="w-full pr-9 pl-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none"
                 placeholder="ابحث عن شركة تأمين..." />
             </div>
             <button onClick={openAdd}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors">
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors">
               <Plus size={14} /> إضافة جديدة
             </button>
           </div>
 
           {/* Add / Edit form */}
           {(adding || editing) && (
-            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 space-y-3">
-              <p className="text-sm font-bold text-teal-800">{editing ? 'تعديل شركة التأمين' : 'إضافة شركة تأمين جديدة'}</p>
+            <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-3">
+              <p className="text-sm font-bold text-violet-800">{editing ? 'تعديل شركة التأمين' : 'إضافة شركة تأمين جديدة'}</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="col-span-1 sm:col-span-2">
                   <label className="text-xs font-semibold text-gray-600 mb-1.5 block">اسم شركة التأمين *</label>
                   <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none bg-white"
                     placeholder="أدخل اسم الشركة" autoFocus />
                   {errs.name && <p className="text-red-500 text-[11px] mt-1">{errs.name}</p>}
                 </div>
@@ -692,11 +692,11 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
                   </label>
                   <input type="number" min="0" max="100" step="0.01"
                     value={form.patientPercent} onChange={e => setForm(f => ({ ...f, patientPercent: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none bg-white"
                     placeholder="20" />
                   {errs.patientPercent && <p className="text-red-500 text-[11px] mt-1">{errs.patientPercent}</p>}
                   {form.patientPercent && !isNaN(Number(form.patientPercent)) && (
-                    <p className="text-[11px] text-teal-600 mt-1">
+                    <p className="text-[11px] text-violet-600 mt-1">
                       المريض يدفع {form.patientPercent}٪ وتغطي الشركة {100 - Number(form.patientPercent)}٪
                     </p>
                   )}
@@ -705,7 +705,7 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
                 <div>
                   <label className="text-xs font-semibold text-gray-600 mb-1.5 block">ملاحظات</label>
                   <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none bg-white"
                     placeholder="ملاحظات اختيارية" />
                 </div>
               </div>
@@ -716,7 +716,7 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
                   إلغاء
                 </button>
                 <button onClick={handleSubmit} disabled={isPending}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors disabled:opacity-50">
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors disabled:opacity-50">
                   {isPending
                     ? <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
                     : <><Check size={13} /> {editing ? 'حفظ التعديلات' : 'إضافة'}</>}
@@ -740,7 +740,7 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
               <tbody>
                 {isLoading ? (
                   <tr><td colSpan={5} className="py-10 text-center text-gray-400">
-                    <div className="w-5 h-5 rounded-full border-2 border-teal-400 border-t-transparent animate-spin mx-auto" />
+                    <div className="w-5 h-5 rounded-full border-2 border-violet-400 border-t-transparent animate-spin mx-auto" />
                   </td></tr>
                 ) : companies.length === 0 ? (
                   <tr><td colSpan={5} className="py-12 text-center">
@@ -756,14 +756,14 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-xs font-semibold">
                         {100 - Number(ic.patientPercent)}%
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-400 text-xs">{ic.notes ?? '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => openEdit(ic)} className="p-1.5 rounded-lg hover:bg-teal-50 text-gray-400 hover:text-teal-600 transition-colors">
+                        <button onClick={() => openEdit(ic)} className="p-1.5 rounded-lg hover:bg-violet-50 text-gray-400 hover:text-violet-600 transition-colors">
                           <Pencil size={13} />
                         </button>
                         <button onClick={() => deleteMut.mutate(ic.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
@@ -869,11 +869,11 @@ export default function CustomersPage() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowIns(true)}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-teal-300 text-teal-700 hover:bg-teal-50 text-sm font-medium transition-colors">
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-violet-300 text-violet-700 hover:bg-violet-50 text-sm font-medium transition-colors">
             <Building2 size={14} /> إضافة شركة تأمين جديدة
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors">
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors">
             <UserPlus size={14} /> إضافة عميل جديد
           </button>
         </div>
@@ -899,7 +899,7 @@ export default function CustomersPage() {
           <input type="text" value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="ابحث باسم العميل أو رقم الهاتف أو الرمز..."
-            className="w-full pr-11 pl-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-teal-400 outline-none text-sm transition-all" />
+            className="w-full pr-11 pl-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-violet-400 outline-none text-sm transition-all" />
           {search && (
             <button onClick={() => { setSearch(''); setPage(1) }}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -951,7 +951,7 @@ export default function CustomersPage() {
                   </p>
                   {!search && (
                     <button onClick={() => setShowAdd(true)}
-                      className="mt-3 px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">
+                      className="mt-3 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors">
                       أضف أول عميل
                     </button>
                   )}
@@ -971,7 +971,7 @@ export default function CustomersPage() {
                   {/* الاسم */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-xs shrink-0">
+                      <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center text-violet-700 font-bold text-xs shrink-0">
                         {c.name.trim()[0]?.toUpperCase()}
                       </div>
                       <div>
@@ -989,7 +989,7 @@ export default function CustomersPage() {
                     {ins ? (
                       <div>
                         <p className="text-xs font-semibold text-gray-700">{ins.name}</p>
-                        <p className="text-[10px] text-teal-600">المريض {c.copayPercent ?? ins.patientPercent}%</p>
+                        <p className="text-[10px] text-violet-600">المريض {c.copayPercent ?? ins.patientPercent}%</p>
                       </div>
                     ) : (
                       <span className="text-gray-300 text-sm">—</span>
@@ -1059,3 +1059,4 @@ export default function CustomersPage() {
     </div>
   )
 }
+

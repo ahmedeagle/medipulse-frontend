@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { useTranslation } from 'react-i18next';
@@ -6,10 +6,10 @@ import {
   ChevronDown, LogOut, User, Settings,
   LayoutDashboard, Package, ShoppingCart, Sparkles,
   BookOpen, BarChart2, Building2, Users, Shield,
-  Inbox, TrendingUp, AlertTriangle, Calendar, Star,
+  Inbox, TrendingUp, AlertTriangle, Star,
   Plug, GitBranch, Upload, ListChecks, Bell,
   CheckCircle2, ShieldCheck, Store, Receipt, Clock,
-  Menu, X,
+  Menu, X, FileText, RefreshCw,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProfileStore } from '../../store/auth.store';
@@ -43,13 +43,12 @@ const PHARMACY_NAV: NavGroup[] = [
     ],
   },
   {
-    labelKey: 'nav.procurement_queue',
-    icon: Inbox,
+    labelKey: 'nav.purchases',
+    icon: FileText,
     items: [
-      { labelKey: 'nav.procurement_queue',  to: '/pharmacy/queue',      icon: Inbox },
-      { labelKey: 'nav.forecast',           to: '/pharmacy/forecast',   icon: BarChart2 },
-      { labelKey: 'nav.order_schedule',     to: '/pharmacy/eoq',        icon: Calendar },
-      { labelKey: 'nav.dead_stock',         to: '/pharmacy/dead-stock', icon: AlertTriangle },
+      { labelKey: 'nav.purchase_invoices', to: '/pharmacy/purchases/invoices', icon: FileText },
+      { labelKey: 'nav.purchase_returns',  to: '/pharmacy/purchases/returns',  icon: RefreshCw },
+      { labelKey: 'nav.purchase_wishlist', to: '/pharmacy/purchases/wishlist', icon: ListChecks },
     ],
   },
   {
@@ -517,9 +516,9 @@ function MobileNavDrawer({
                 ))}
               </div>
 
-              {/* Procurement */}
+              {/* Purchases */}
               <div className="pt-2">
-                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'المشتريات' : 'Procurement'}</p>
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'المشتريات' : 'Purchases'}</p>
                 {PHARMACY_NAV[2].items.map(i => (
                   <Link key={i.to} to={i.to} className={linkCls(location.pathname.startsWith(i.to))}>
                     <i.icon size={16} />{t(i.labelKey)}
@@ -652,7 +651,7 @@ export function TopNav() {
                   className={clsx(
                     'px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
                     location.pathname.startsWith('/pharmacy/customers')
-                      ? 'bg-sky-50 text-sky-700'
+                      ? 'bg-emerald-50 text-emerald-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
                   )}
                 >
@@ -664,7 +663,7 @@ export function TopNav() {
                   className={clsx(
                     'px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
                     location.pathname.startsWith('/pharmacy/reports')
-                      ? 'bg-teal-50 text-teal-700'
+                      ? 'bg-emerald-50 text-emerald-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
                   )}
                 >
@@ -752,3 +751,4 @@ export function TopNav() {
     </>
   );
 }
+

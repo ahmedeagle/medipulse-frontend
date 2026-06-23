@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -110,7 +110,7 @@ export default function PharmacyOrdersPage() {
       render: (_: any, row: Order) => (
         <button
           onClick={(e) => { e.stopPropagation(); navigate(`/pharmacy/orders/${row.id}`) }}
-          className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
         >
           <Eye size={14} />
           {t('common.view')}
@@ -130,7 +130,7 @@ export default function PharmacyOrdersPage() {
         </div>
         <button
           onClick={() => { setShowCreate(true); resetCreateForm() }}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-xl transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-xl transition-colors"
         >
           <Plus size={16} />
           {t('order.create')}
@@ -165,7 +165,7 @@ export default function PharmacyOrdersPage() {
             <select
               value={supplierTenantId}
               onChange={(e) => { setSupplierTenantId(e.target.value); setCart([]) }}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               <option value="">{t('order.choose_supplier')}</option>
               {supplierIds.map((id) => (
@@ -191,7 +191,7 @@ export default function PharmacyOrdersPage() {
                       </div>
                       <button
                         onClick={() => addToCart(item)}
-                        className="text-xs px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition-colors"
+                        className="text-xs px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg transition-colors"
                       >
                         {t('order.add_btn')}
                       </button>
@@ -232,7 +232,7 @@ export default function PharmacyOrdersPage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder={t('order.notes_ph')}
-              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
             />
           </div>
 
@@ -250,7 +250,7 @@ export default function PharmacyOrdersPage() {
                 })
               }}
               disabled={createMutation.isPending}
-              className="px-4 py-2 text-sm font-medium bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white rounded-xl"
+              className="px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 text-white rounded-xl"
             >
               {createMutation.isPending ? t('order.placing') : t('order.place')}
             </button>
@@ -324,3 +324,4 @@ export default function PharmacyOrdersPage() {
     </div>
   )
 }
+

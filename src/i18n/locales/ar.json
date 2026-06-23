@@ -67,7 +67,11 @@
     "signing_in": "جارٍ تسجيل الدخول…",
     "app": "MediPulse",
     "logout": "تسجيل الخروج",
-    "reports": "التقارير"
+    "reports": "التقارير",
+    "purchases": "المشتريات",
+    "purchase_invoices": "فواتير الشراء",
+    "purchase_returns": "مرتجعات الشراء",
+    "purchase_wishlist": "قائمة الأمنيات"
   },
   "dashboard": {
     "title": "لوحة التحكم",

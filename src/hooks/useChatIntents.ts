@@ -14,14 +14,16 @@ export type ChatResult =
   | { type: 'error'; message?: string }
 
 export const QUICK_CHIPS = [
-  { label: 'مخزون منخفض 📦',      trigger: 'ما المنتجات التي نفد مخزونها أو يوشك على النفاد؟' },
-  { label: 'ماذا أطلب؟ 🛒',       trigger: 'ماذا يجب أن أطلب هذا الأسبوع؟' },
-  { label: 'انتهاء صلاحية ⚠️',    trigger: 'ما المنتجات التي ستنتهي صلاحيتها خلال 90 يوماً؟' },
-  { label: 'بضاعة راكدة 🛑',      trigger: 'ما المنتجات التي لم تتحرك منذ فترة طويلة؟' },
-  { label: 'فرص P2P 💡',          trigger: 'ما فرص الشراء المتاحة عبر P2P؟' },
-  { label: 'طلبات P2P عالقة 🔄',  trigger: 'في طلبات P2P متأخرة أو عالقة تحتاج متابعة؟' },
-  { label: 'فروق الكاشير 💰',     trigger: 'في فروق نقدية أو مشكلات في شفتات الكاشير الأخيرة؟' },
-  { label: 'ملخص المخزون 📊',     trigger: 'أعطني ملخصاً عن حالة المخزون الآن' },
+  { emoji: '📦', label: 'مخزون منخفض',     accent: 'border-l-red-400',     trigger: 'ما المنتجات التي نفد مخزونها أو يوشك على النفاد؟' },
+  { emoji: '📊', label: 'ملخص المخزون',    accent: 'border-l-sky-400',     trigger: 'أعطني ملخصاً عن حالة المخزون الآن' },
+  { emoji: '🛒', label: 'ماذا أطلب؟',      accent: 'border-l-emerald-400', trigger: 'ماذا يجب أن أطلب هذا الأسبوع؟' },
+  { emoji: '📉', label: 'رادار الإيراد',   accent: 'border-l-rose-400',    trigger: 'ما المنتجات التي طلبها عملاء ولم نتمكن من توفيرها؟ وكم بلغ الإيراد الضائع؟' },
+  { emoji: '⚠️', label: 'انتهاء صلاحية',  accent: 'border-l-amber-400',   trigger: 'ما المنتجات التي ستنتهي صلاحيتها خلال 90 يوماً؟' },
+  { emoji: '🛑', label: 'بضاعة راكدة',    accent: 'border-l-gray-400',    trigger: 'ما المنتجات التي لم تتحرك منذ فترة طويلة؟' },
+  { emoji: '💡', label: 'فرص P2P',         accent: 'border-l-violet-400',  trigger: 'ما فرص الشراء المتاحة عبر P2P؟' },
+  { emoji: '🔄', label: 'طلبات P2P عالقة', accent: 'border-l-orange-400',  trigger: 'في طلبات P2P متأخرة أو عالقة تحتاج متابعة؟' },
+  { emoji: '💰', label: 'فروق الكاشير',    accent: 'border-l-rose-500',    trigger: 'في فروق نقدية أو مشكلات في شفتات الكاشير الأخيرة؟' },
+  { emoji: '📋', label: 'طلبات الشراء',    accent: 'border-l-emerald-500', trigger: 'ما حالة طلبات الشراء المعلّقة أو المتأخرة؟' },
 ]
 
 export function useChatIntents() {

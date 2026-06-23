@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -14,7 +14,7 @@ const STATUS_META: Record<CatalogRequestStatus, { label: string; cls: string; ic
   submitted:    { label: 'مُرسَل',         cls: 'bg-blue-50 text-blue-700 border-blue-200',     icon: Clock },
   under_review: { label: 'قيد المراجعة',   cls: 'bg-amber-50 text-amber-700 border-amber-200',  icon: Search },
   need_info:    { label: 'يحتاج معلومات',  cls: 'bg-purple-50 text-purple-700 border-purple-200', icon: Info },
-  approved:     { label: 'تم الاعتماد',    cls: 'bg-teal-50 text-teal-700 border-teal-200',     icon: CheckCircle2 },
+  approved:     { label: 'تم الاعتماد',    cls: 'bg-violet-50 text-violet-700 border-violet-200',     icon: CheckCircle2 },
   rejected:     { label: 'مرفوض',         cls: 'bg-red-50 text-red-700 border-red-200',         icon: XCircle },
   closed:       { label: 'مغلق',          cls: 'bg-gray-50 text-gray-600 border-gray-200',     icon: FileText },
 }
@@ -40,7 +40,7 @@ function Timeline({ entries }: { entries: CatalogRequest['timeline'] }) {
     <ol className="relative border-s-2 border-gray-100 ms-2 ps-5 space-y-4">
       {entries.map((e, i) => (
         <li key={i} className="relative">
-          <span className="absolute -start-[27px] top-1.5 w-3 h-3 rounded-full bg-teal-500 border-2 border-white shadow" />
+          <span className="absolute -start-[27px] top-1.5 w-3 h-3 rounded-full bg-violet-500 border-2 border-white shadow" />
           <div className="text-xs text-gray-400">{fmtDateTime(e.at)}</div>
           <div className="text-sm font-semibold text-gray-800 mt-0.5">
             {e.event} · <span className="text-xs font-normal text-gray-500">{e.actor}</span>
@@ -153,7 +153,7 @@ export default function CatalogRequestsPage() {
     <div className="px-6 py-8 max-w-6xl mx-auto" dir="rtl">
       {/* Header */}
       <div className="mb-8">
-        <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+        <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
           <Sparkles size={12} /> الكتالوج المركزي
         </p>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">طلبات إضافة المنتجات</h1>
@@ -176,10 +176,10 @@ export default function CatalogRequestsPage() {
             onClick={() => setStatusFilter(k as any)}
             className={`text-start p-4 rounded-2xl border transition-all ${
               statusFilter === k
-                ? 'bg-teal-600 text-white border-teal-600 shadow-md'
-                : 'bg-white border-gray-200 hover:border-teal-300 hover:shadow-sm'
+                ? 'bg-violet-600 text-white border-violet-600 shadow-md'
+                : 'bg-white border-gray-200 hover:border-violet-300 hover:shadow-sm'
             }`}>
-            <p className={`text-xs ${statusFilter === k ? 'text-teal-50' : 'text-gray-500'}`}>{label}</p>
+            <p className={`text-xs ${statusFilter === k ? 'text-violet-50' : 'text-gray-500'}`}>{label}</p>
             <p className={`text-2xl font-bold mt-1 ${statusFilter === k ? 'text-white' : 'text-gray-900'}`}>{c}</p>
           </button>
         ))}
@@ -192,7 +192,7 @@ export default function CatalogRequestsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="بحث برقم التتبّع أو اسم المنتج أو الباركود…"
-          className="w-full ps-10 pe-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+          className="w-full ps-10 pe-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
         />
         {!search && <VoiceMicButton onResult={setSearch} className="absolute end-3 top-1/2 -translate-y-1/2" />}
       </div>
@@ -218,7 +218,7 @@ export default function CatalogRequestsPage() {
                 <tr key={r.id}
                     onClick={() => setSelected(r)}
                     className="border-b last:border-0 border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-teal-700 whitespace-nowrap">{r.trackingNumber}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-violet-700 whitespace-nowrap">{r.trackingNumber}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-900">{r.payload?.nameAr || r.payload?.name || '—'}</p>
                     {r.payload?.manufacturer && <p className="text-xs text-gray-400">{r.payload.manufacturer}</p>}
@@ -249,3 +249,4 @@ export default function CatalogRequestsPage() {
     </div>
   )
 }
+
