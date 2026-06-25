@@ -14,6 +14,7 @@ import {
   pharmacySettingsApi,
   type PharmacySettingsData,
   type Warehouse as WarehouseType,
+  type NotificationSettings,
 } from '../../api/pharmacy-settings.api'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -130,6 +131,49 @@ function Toggle({ checked, onChange, label, desc }: { checked: boolean; onChange
     <div className="flex items-center justify-between gap-4 py-3 border-b border-gray-50 last:border-0">
       <div className="min-w-0">
         <p className="text-sm font-medium text-gray-900">{label}</p>
+        {desc && <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={clsx(
+          'relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none',
+          checked ? 'bg-emerald-500' : 'bg-gray-200',
+        )}
+      >
+        <span className={clsx(
+          'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200',
+          checked ? 'ltr:translate-x-5 rtl:-translate-x-5' : 'translate-x-0',
+        )} />
+      </button>
+    </div>
+  )
+}
+
+function FreqBadge({ label, color }: { label: string; color: 'red' | 'orange' | 'emerald' }) {
+  const styles = {
+    red:     'bg-red-50 text-red-600 border-red-100',
+    orange:  'bg-orange-50 text-orange-600 border-orange-100',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  }
+  return (
+    <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0', styles[color])}>
+      {label}
+    </span>
+  )
+}
+
+function NotifToggle({ checked, onChange, label, desc, freq, freqColor }: {
+  checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string;
+  freq: string; freqColor: 'red' | 'orange' | 'emerald'
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-gray-50 last:border-0">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-medium text-gray-900">{label}</p>
+          <FreqBadge label={freq} color={freqColor} />
+        </div>
         {desc && <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>}
       </div>
       <button
@@ -333,6 +377,11 @@ export default function SettingsPage() {
     disableExpiryForNewBatches: false, reorderDays: 30,
     safetyStockPct: 20, expiryAlertDays: 90, reorderRecommendationType: 'to_safety_stock' as const,
   })
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings>({
+    enableLowStockAlerts: true, enableExpiryAlerts: true, enableDeadStockAlerts: true,
+    enableP2POrderAlerts: true, enableSmartProcurementAlerts: true, enableClearanceAlerts: true,
+    enablePosIntegrityAlerts: true, enableMorningBriefing: true,
+  })
 
   // Sync local state when server data arrives
   useEffect(() => {
@@ -361,6 +410,17 @@ export default function SettingsPage() {
     setReceipt({ ...receipt, ...settings.receiptSettings } as any)
     setLabels({ ...labels, ...settings.labelSettings } as any)
     setInvSettings({ ...invSettings, ...settings.inventorySettings } as any)
+    const n = (settings.notificationSettings ?? {}) as Partial<NotificationSettings>
+    setNotifSettings({
+      enableLowStockAlerts:         n.enableLowStockAlerts         ?? true,
+      enableExpiryAlerts:           n.enableExpiryAlerts           ?? true,
+      enableDeadStockAlerts:        n.enableDeadStockAlerts        ?? true,
+      enableP2POrderAlerts:         n.enableP2POrderAlerts         ?? true,
+      enableSmartProcurementAlerts: n.enableSmartProcurementAlerts ?? true,
+      enableClearanceAlerts:        n.enableClearanceAlerts        ?? true,
+      enablePosIntegrityAlerts:     n.enablePosIntegrityAlerts     ?? true,
+      enableMorningBriefing:        n.enableMorningBriefing        ?? true,
+    })
   }, [settings])
 
   // Scrollspy
@@ -1041,16 +1101,47 @@ export default function SettingsPage() {
         >
           <div className="space-y-4">
             {/* Notification preferences */}
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div>
               <div className="flex items-center gap-2 mb-3">
                 <Bell size={15} className="text-gray-500" />
                 <p className="text-sm font-bold text-gray-900">تفضيلات الإشعارات</p>
               </div>
-              <div className="space-y-0 text-sm text-gray-500 text-center py-4">
-                <Bell size={24} className="mx-auto mb-2 text-gray-300" />
-                <p>إعدادات الإشعارات التفصيلية قادمة قريباً</p>
-                <p className="text-xs mt-1">ستتمكن من التحكم في كل نوع من الإشعارات بشكل منفصل</p>
+              <div className="space-y-3">
+
+                {/* Inventory alerts */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 border-l-4 border-l-red-400">
+                  <p className="text-xs font-bold text-gray-700 mb-0.5">📦 تنبيهات المخزون</p>
+                  <p className="text-xs text-gray-400 mb-3">إشعارات نقص الكميات وانتهاء الصلاحية والمنتجات الراكدة</p>
+                  <NotifToggle checked={notifSettings.enableLowStockAlerts} onChange={v => setNotifSettings(s => ({ ...s, enableLowStockAlerts: v }))} label="نقص المخزون" desc="عند انخفاض كمية منتج عن الحد الأدنى المضبوط" freq="فوري" freqColor="red" />
+                  <NotifToggle checked={notifSettings.enableExpiryAlerts} onChange={v => setNotifSettings(s => ({ ...s, enableExpiryAlerts: v }))} label="تنبيهات الصلاحية" desc="منتجات قريبة الانتهاء أو منتهية الصلاحية في المخزون" freq="يومياً" freqColor="orange" />
+                  <NotifToggle checked={notifSettings.enableDeadStockAlerts} onChange={v => setNotifSettings(s => ({ ...s, enableDeadStockAlerts: v }))} label="المخزون الراكد" desc="منتجات لم تُباع خلال الفترة المحددة في إعدادات الذكاء" freq="يومياً" freqColor="orange" />
+                </div>
+
+                {/* Marketplace alerts */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 border-l-4 border-l-violet-400">
+                  <p className="text-xs font-bold text-gray-700 mb-0.5">🔄 سوق التبادل</p>
+                  <p className="text-xs text-gray-400 mb-3">إشعارات الطلبات والفرص الذكية وعروض التصفية</p>
+                  <NotifToggle checked={notifSettings.enableP2POrderAlerts} onChange={v => setNotifSettings(s => ({ ...s, enableP2POrderAlerts: v }))} label="طلبات P2P" desc="تنبيهات الطلبات المعلقة والمتأخرة بين الصيدليات" freq="فوري" freqColor="red" />
+                  <NotifToggle checked={notifSettings.enableSmartProcurementAlerts} onChange={v => setNotifSettings(s => ({ ...s, enableSmartProcurementAlerts: v }))} label="فرص الشراء الذكي" desc="عروض بأسعار أفضل من صيدليات الشبكة رصدها النظام" freq="يومياً" freqColor="orange" />
+                  <NotifToggle checked={notifSettings.enableClearanceAlerts} onChange={v => setNotifSettings(s => ({ ...s, enableClearanceAlerts: v }))} label="عروض التصفية" desc="منتجات قريبة الانتهاء متاحة للشراء بخصم من شبكتك" freq="فوري" freqColor="red" />
+                </div>
+
+                {/* POS alerts */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 border-l-4 border-l-rose-400">
+                  <p className="text-xs font-bold text-gray-700 mb-0.5">💰 الكاشير</p>
+                  <p className="text-xs text-gray-400 mb-3">إشعارات سلامة نقاط البيع والمخالفات</p>
+                  <NotifToggle checked={notifSettings.enablePosIntegrityAlerts} onChange={v => setNotifSettings(s => ({ ...s, enablePosIntegrityAlerts: v }))} label="تنبيهات سلامة الكاشير" desc="فجوات في المبيعات أو مخالفات في تسجيل المعاملات" freq="فوري" freqColor="red" />
+                </div>
+
+                {/* AI assistant alerts */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 border-l-4 border-l-emerald-400">
+                  <p className="text-xs font-bold text-gray-700 mb-0.5">🤖 المساعد الذكي</p>
+                  <p className="text-xs text-gray-400 mb-3">الملخص اليومي وتحليلات الذكاء الاصطناعي</p>
+                  <NotifToggle checked={notifSettings.enableMorningBriefing} onChange={v => setNotifSettings(s => ({ ...s, enableMorningBriefing: v }))} label="تقرير الصباح" desc="ملخص يومي بأهم مؤشرات الصيدلية عند بداية كل يوم" freq="يومياً" freqColor="emerald" />
+                </div>
+
               </div>
+              <SaveButton loading={saveMut.isPending} onClick={() => save('extra', { notificationSettings: notifSettings })} />
             </div>
 
             {/* Data export */}

@@ -36,8 +36,8 @@ const isoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
   if (!active) return <ChevronUp size={12} className="text-gray-300" />
   return dir === 'asc'
-    ? <ChevronUp size={12} className="text-blue-600" />
-    : <ChevronDown size={12} className="text-blue-600" />
+    ? <ChevronUp size={12} className="text-emerald-600" />
+    : <ChevronDown size={12} className="text-emerald-600" />
 }
 
 function Pagination({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
@@ -55,7 +55,7 @@ function Pagination({ page, total, onChange }: { page: number; total: number; on
           const p = pages <= 7 ? i + 1 : page <= 4 ? i + 1 : page >= pages - 3 ? pages - 6 + i : page - 3 + i
           return (
             <button key={p} onClick={() => onChange(p)}
-              className={`w-7 h-7 rounded-lg text-xs font-medium ${p === page ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-600'}`}>
+              className={`w-7 h-7 rounded-lg text-xs font-medium ${p === page ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-600'}`}>
               {p}
             </button>
           )
@@ -80,7 +80,7 @@ function FilterInput({ label, value, onChange, type = 'text', placeholder = '' }
           type={type} value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="w-full border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
         />
         {value && (
           <button onClick={() => onChange('')} className="absolute left-2 top-1/2 -translate-y-1/2">
@@ -120,15 +120,17 @@ export default function InsuranceClaimsPage() {
     useColState(ALL_COLS, 'insuranceClaims')
 
   // ── Data fetch ────────────────────────────────────────────────────────────
-  const { data: rawRows = [], isLoading, refetch } = useQuery({
+  const { data: queryData, isLoading, refetch } = useQuery({
     queryKey: ['insurance-claims', dateFrom, dateTo, insuranceCompanyId],
     queryFn: () => analyticsApi.getInsuranceClaimsReport({
       dateFrom:           dateFrom           || undefined,
       dateTo:             dateTo             || undefined,
       insuranceCompanyId: insuranceCompanyId || undefined,
+      pageSize: 9999,
     }),
     staleTime: 2 * 60_000,
   })
+  const rawRows = queryData?.data ?? []
 
   // ── Client-side filtering ─────────────────────────────────────────────────
   const rows = useMemo(() => rawRows.filter(r => {
@@ -208,7 +210,7 @@ export default function InsuranceClaimsPage() {
 
   return (
     <DomainShell
-      icon={Shield} iconColor="text-blue-600" iconBg="bg-blue-50"
+      icon={Shield} iconColor="text-emerald-600" iconBg="bg-emerald-50"
       title="ملخص مطالبات التأمين"
       subtitle="ملخص لمطالبات التأمين وحالات السداد المستحقة وضمان دقة التسوية المالية مع شركات التأمين"
     >
@@ -216,15 +218,15 @@ export default function InsuranceClaimsPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 border-l-4 border-l-blue-400 shadow-sm">
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 border-l-4 border-l-emerald-300 shadow-sm">
           <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><FileText size={12} />عدد الفواتير</span>
           <p className="text-lg font-bold text-gray-900 mt-1">{fmtN(totals.invoices)}</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 border-l-4 border-l-indigo-400 shadow-sm">
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 border-l-4 border-l-emerald-400 shadow-sm">
           <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><Users size={12} />عدد المرضى</span>
           <p className="text-lg font-bold text-gray-900 mt-1">{fmtN(totals.patients)}</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 border-l-4 border-l-violet-400 shadow-sm">
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 border-l-4 border-l-emerald-500 shadow-sm">
           <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><DollarSign size={12} />إجمالي المبيعات</span>
           <p className="text-lg font-bold text-gray-900 mt-1">{fmt(totals.sales)}</p>
         </div>
@@ -248,8 +250,8 @@ export default function InsuranceClaimsPage() {
                 onClick={() => { setDateFrom(p.from); setDateTo(p.to); setPage(1) }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
                   dateFrom === p.from && dateTo === p.to
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'border-gray-200 text-gray-600 hover:border-emerald-300'
                 }`}>
                 {p.label}
               </button>
@@ -262,7 +264,7 @@ export default function InsuranceClaimsPage() {
               type="text" value={fCompany}
               onChange={e => { setFCompany(e.target.value); setPage(1) }}
               placeholder="بحث بشركة التأمين..."
-              className="border border-gray-200 rounded-xl pr-8 pl-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-48"
+              className="border border-gray-200 rounded-xl pr-8 pl-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400 w-48"
             />
             {fCompany && (
               <button onClick={() => setFCompany('')} className="absolute left-2 top-1/2 -translate-y-1/2">
@@ -274,19 +276,19 @@ export default function InsuranceClaimsPage() {
             onClick={() => setFiltersOpen(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
               filtersOpen || activeFilterCount > 0
-                ? 'bg-blue-50 border-blue-300 text-blue-700'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
                 : 'border-gray-200 text-gray-600 hover:border-gray-300'
             }`}>
             <Filter size={13} />
             إضافة فلاتر
             {activeFilterCount > 0 && (
-              <span className="bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+              <span className="bg-emerald-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
                 {activeFilterCount}
               </span>
             )}
           </button>
           <button onClick={() => refetch()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-gray-200 text-gray-600 hover:border-gray-300 transition-all">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all">
             <RefreshCw size={12} /> تحديث
           </button>
           <span className="text-xs text-gray-400 hidden sm:block mr-auto">{rows.length} سجل</span>
@@ -301,7 +303,7 @@ export default function InsuranceClaimsPage() {
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">شركة التأمين</label>
                 <select value={insuranceCompanyId} onChange={e => { setInsuranceCompanyId(e.target.value); setPage(1) }}
-                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400">
                   <option value="">كل الشركات</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -334,17 +336,17 @@ export default function InsuranceClaimsPage() {
             </div>
             <div className="flex items-center gap-2">
               <button onClick={handleExport}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-gray-200 text-gray-600 hover:border-gray-300 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all">
                 <Download size={13} /> تنزيل CSV
               </button>
               <div className="relative">
                 <button onClick={() => setColPickerOpen(v => !v)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                    colPickerOpen ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    colPickerOpen ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}>
                   <SlidersHorizontal size={13} /> تعديل الجدول
                   {visible.size < ALL_COLS.length && (
-                    <span className="bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                    <span className="bg-emerald-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
                       {ALL_COLS.length - visible.size}
                     </span>
                   )}
@@ -358,7 +360,7 @@ export default function InsuranceClaimsPage() {
                     onReorder={setOrder}
                     onReset={reset}
                     onClose={() => setColPickerOpen(false)}
-                    checkboxBg="bg-blue-600"
+                    checkboxBg="bg-emerald-600"
                   />
                 )}
               </div>
@@ -407,18 +409,25 @@ export default function InsuranceClaimsPage() {
           <Pagination page={page} total={sorted.length} onChange={setPage} />
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400 shadow-sm">
-          <Shield size={36} className="mx-auto mb-3 opacity-20" />
-          <p className="text-sm">
-            {rawRows.length > 0
-              ? 'لا توجد نتائج مطابقة للفلاتر المحددة'
-              : 'لا توجد مطالبات تأمين في هذه الفترة'}
-          </p>
-          <p className="text-xs mt-1 text-gray-300">تأكد من ربط العملاء بشركات التأمين في نقطة البيع</p>
-          {activeFilterCount > 2 && (
-            <button onClick={clearFilters} className="mt-3 text-xs text-blue-600 hover:underline">
-              مسح الفلاتر
-            </button>
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm">
+          <Shield size={36} className="mx-auto mb-3 text-emerald-200" />
+          {rawRows.length > 0 ? (
+            <>
+              <p className="text-sm text-gray-500">لا توجد نتائج مطابقة للفلاتر المحددة</p>
+              <button onClick={clearFilters} className="mt-3 text-xs text-emerald-600 hover:underline">
+                مسح الفلاتر
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-gray-700 mb-1">لا توجد مطالبات تأمين في هذه الفترة</p>
+              <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
+                لعرض البيانات هنا، تأكد من:<br />
+                ١. إضافة شركات التأمين في الإعدادات<br />
+                ٢. ربط كل مريض بشركة تأمين عند إنشائه<br />
+                ٣. تسجيل المبيعات لهؤلاء المرضى في نقطة البيع
+              </p>
+            </>
           )}
         </div>
       )}

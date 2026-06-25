@@ -219,6 +219,7 @@ function AddBatchModal({ item, onSave, onClose, isPending, error }: {
     batchNumber: '', expiryDate: '', location: item.location || 'Main Warehouse',
     quantity: '', costPrice: String(item.costPrice || ''), sellingPrice: String(item.sellingPrice || ''), notes: '',
   })
+  const [noExpiry, setNoExpiry] = useState(false)
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }))
   return (
@@ -241,8 +242,31 @@ function AddBatchModal({ item, onSave, onClose, isPending, error }: {
           <input value={form.batchNumber} onChange={f('batchNumber')} required placeholder="مثال: LOT-2024-001" className={INPUT} dir="ltr" />
         </div>
         <div>
-          <label className={LABEL}>تاريخ الانتهاء</label>
-          <input type="date" value={form.expiryDate} onChange={f('expiryDate')} className={INPUT} />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className={LABEL + ' mb-0'}>تاريخ الانتهاء</label>
+            <button
+              type="button"
+              onClick={() => setNoExpiry(v => !v)}
+              className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                noExpiry
+                  ? 'bg-violet-50 border-violet-200 text-violet-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              <div className={`w-3 h-3 rounded-full border-2 ${noExpiry ? 'bg-violet-600 border-violet-600' : 'border-gray-400'}`} />
+              بدون انتهاء
+            </button>
+          </div>
+          <input
+            type="date"
+            value={noExpiry ? '' : form.expiryDate}
+            onChange={f('expiryDate')}
+            disabled={noExpiry}
+            className={INPUT + (noExpiry ? ' opacity-40 cursor-not-allowed' : '')}
+          />
+          {noExpiry && (
+            <p className="text-xs text-violet-600 mt-1">مناسب للأجهزة الطبية والمستلزمات (قفازات، حقن…)</p>
+          )}
         </div>
         <div>
           <label className={LABEL}>موقع المستودع</label>
@@ -272,7 +296,7 @@ function AddBatchModal({ item, onSave, onClose, isPending, error }: {
       </div>
       <div className="flex justify-between pt-1">
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50">إلغاء</button>
-        <button onClick={() => onSave(form)} disabled={isPending || !form.batchNumber.trim() || !form.quantity || Number(form.quantity) < 1}
+        <button onClick={() => onSave({ ...form, noExpiry })} disabled={isPending || !form.batchNumber.trim() || !form.quantity || Number(form.quantity) < 1}
           className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl">
           {isPending ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : null}
           إضافة دفعة
@@ -852,9 +876,10 @@ function ProductDetailDrawer({ item, onClose }: { item: InventoryItem; onClose: 
 }
 
 // ── Add Product Modal (browse + create) ────────────────────────────────────────
-function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePending, isCreatePending, error, similarCandidates, onUseCandidate, onForceCreate, onDismissSimilar }: {
+function AddProductModal({ products, onCreate, onCreateWithBatch, onBrowseAdd, onClose, isBrowsePending, isCreatePending, error, similarCandidates, onUseCandidate, onForceCreate, onDismissSimilar, onImageFilePicked }: {
   products: Product[]
   onCreate: (productData: any, inventoryData: any) => void
+  onCreateWithBatch?: (payload: any) => void
   onBrowseAdd: (productId: string, qty: number, threshold: number, expiry?: string) => void
   onClose: () => void
   isBrowsePending: boolean
@@ -864,6 +889,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
   onUseCandidate?: (productId: string, qty: number, threshold: number, expiry?: string) => void
   onForceCreate?: (productData: any, inventoryData: any) => void
   onDismissSimilar?: () => void
+  onImageFilePicked?: (file: File | null) => void
 }) {
   const { t } = useTranslation()
   const [mode, setMode] = useState<'browse' | 'create'>('browse')
@@ -875,11 +901,20 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
   const [barcodeInput, setBarcodeInput] = useState('')
   const [barcodeStatus, setBarcodeStatus] = useState<'idle' | 'found' | 'new' | 'scanning'>('idle')
   const [existingProductId, setExistingProductId] = useState('')
-  const [form, setForm] = useState({ sku:'', name:'', nameAr:'', genericName:'', category:'', dosageForm:'', strength:'', unit:'', manufacturer:'', atcCode:'', sfdaRegistration:'' })
+  const [form, setForm] = useState({ sku:'', name:'', nameAr:'', genericName:'', activeIngredient:'', category:'', dosageForm:'', strength:'', unit:'', manufacturer:'', atcCode:'', sfdaRegistration:'', taxRate:'' })
   const [createQty, setCreateQty] = useState('')
   const [createThreshold, setCreateThreshold] = useState('10')
   const [createExpiry, setCreateExpiry] = useState('')
   const cameraRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  // F-07: First batch section
+  const [showBatch, setShowBatch]       = useState(false)
+  const [batchNum, setBatchNum]         = useState('')
+  const [batchNoExpiry, setBatchNoExpiry] = useState(false)
+  const [batchCost, setBatchCost]       = useState('')
+  const [batchSell, setBatchSell]       = useState('')
+  // F-08: Product image
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(p => ({ ...p, [k]: e.target.value }))
 
@@ -890,7 +925,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
       const p: Product = res.data
       if (p?.id) {
         setExistingProductId(p.id)
-        setForm({ sku: p.sku||'', name: p.name||'', nameAr: p.nameAr||'', genericName: p.genericName||'', category: p.category||'', dosageForm: p.dosageForm||'', strength: p.strength||'', unit: p.unit||'', manufacturer: p.manufacturer||'', atcCode: p.atcCode||'', sfdaRegistration: p.sfdaRegistration||'' })
+        setForm({ sku: p.sku||'', name: p.name||'', nameAr: p.nameAr||'', genericName: p.genericName||'', activeIngredient: (p as any).activeIngredient||'', category: p.category||'', dosageForm: p.dosageForm||'', strength: p.strength||'', unit: p.unit||'', manufacturer: p.manufacturer||'', atcCode: p.atcCode||'', sfdaRegistration: p.sfdaRegistration||'', taxRate: (p as any).taxRate != null ? String((p as any).taxRate) : '' })
         setBarcodeStatus('found')
       } else { setBarcodeStatus('new'); setExistingProductId('') }
     } catch { setBarcodeStatus('new'); setExistingProductId('') }
@@ -921,7 +956,7 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
   const UNITS = ['tablet','capsule','ml','g','mg','iu','dose','package','vial','tube'] as const
 
   return (
-    <div className="flex flex-col" style={{ maxHeight: '85vh' }}>
+    <div className="flex flex-col">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
         {(['browse','create'] as const).map(m => (
           <button key={m} type="button" onClick={() => { setMode(m); setSelectedProductId(''); setSearch('') }}
@@ -973,8 +1008,34 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
       )}
 
       {mode === 'create' && (
-        <form onSubmit={e => { e.preventDefault(); if (!form.name||!form.category||!form.unit||!createQty) return; const inv = { quantity:Number(createQty), minThreshold:Number(createThreshold), expiryDate:createExpiry||undefined }; if (existingProductId) onBrowseAdd(existingProductId, inv.quantity, inv.minThreshold, inv.expiryDate); else if (similarCandidates && similarCandidates.length > 0 && onForceCreate) onForceCreate({ ...form, barcode:barcodeInput||undefined }, inv); else onCreate({ ...form, barcode:barcodeInput||undefined }, inv) }}
-          className="flex flex-col gap-5 overflow-y-auto flex-1 pe-1">
+        <form onSubmit={e => {
+          e.preventDefault()
+          if (!form.name||!form.category||!form.unit) return
+          const prod = { ...form, barcode:barcodeInput||undefined, taxRate:form.taxRate?Number(form.taxRate):undefined, activeIngredient:form.activeIngredient||undefined }
+          // F-07: single-transaction path when batch fields are filled
+          if (showBatch && batchNum.trim() && createQty && onCreateWithBatch) {
+            const payload = {
+              ...prod,
+              minThreshold: Number(createThreshold),
+              batchNumber: batchNum.trim(),
+              batchQuantity: Number(createQty),
+              noExpiry: batchNoExpiry,
+              expiryDate: batchNoExpiry ? undefined : (createExpiry || undefined),
+              costPerUnit: batchCost ? Number(batchCost) : undefined,
+              sellingPrice: batchSell ? Number(batchSell) : undefined,
+              ...(similarCandidates && similarCandidates.length > 0 ? { forceCreate: true } : {}),
+            }
+            onCreateWithBatch(payload)
+            return
+          }
+          // Legacy two-step path (no batch number supplied)
+          if (!createQty) return
+          const inv = { quantity:Number(createQty), minThreshold:Number(createThreshold), expiryDate:createExpiry||undefined }
+          if (existingProductId) onBrowseAdd(existingProductId, inv.quantity, inv.minThreshold, inv.expiryDate)
+          else if (similarCandidates && similarCandidates.length > 0 && onForceCreate) onForceCreate(prod, inv)
+          else onCreate(prod, inv)
+        }}
+          className="flex flex-col gap-5 flex-1 pe-1">
           {similarCandidates && similarCandidates.length > 0 && (
             <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
               <div className="flex items-start gap-3 mb-3">
@@ -1039,6 +1100,11 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
                 </div>
                 {barcodeStatus==='found' && <p className="text-xs text-teal-600 mt-1 flex items-center gap-1"><CheckCircle size={11} />{t('inventory.add.barcode_found')}</p>}
                 {barcodeStatus==='new' && <p className="text-xs text-amber-600 mt-1 flex items-center gap-1"><Info size={11} />{t('inventory.add.barcode_new')}</p>}
+                {barcodeStatus==='idle' && !barcodeInput && form.name && (
+                  <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                    <AlertCircle size={11} />بدون باركود — مسح POS لن يعمل
+                  </p>
+                )}
               </div>
               <div><label className={LABEL}>{t('inventory.add.field_name_en')}</label><input required value={form.name} onChange={f('name')} placeholder={t('inventory.add.field_name_en_ph')} className={INPUT} dir="ltr" /></div>
             </div>
@@ -1064,25 +1130,123 @@ function AddProductModal({ products, onCreate, onBrowseAdd, onClose, isBrowsePen
                 </select></div>
               <div><label className={LABEL}>{t('inventory.add.field_manufacturer')}</label><input value={form.manufacturer} onChange={f('manufacturer')} placeholder="GSK" className={INPUT} /></div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className={LABEL}>المادة الفعالة / Active Ingredient</label>
+                <input value={form.activeIngredient} onChange={f('activeIngredient')} placeholder="مثال: Amoxicillin trihydrate" className={INPUT} dir="ltr" />
+                <p className="text-xs text-gray-400 mt-1">مطلوب لتقديم MOH — يُملأ تلقائياً من كتالوج WHO</p>
+              </div>
+              <div>
+                <label className={LABEL}>نسبة الضريبة % (ضريبة القيمة المضافة)</label>
+                <div className="relative">
+                  <input type="number" min={0} max={100} step="0.01" value={form.taxRate} onChange={f('taxRate')} placeholder="0" className={INPUT + ' pe-8'} />
+                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">%</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">0 = معفى من الضريبة · 15 = معدل KSA القياسي</p>
+              </div>
+            </div>
           </div>
+          {/* F-08: Product image upload */}
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">صورة المنتج (اختياري)</p>
+            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0] ?? null
+                if (file) {
+                  if (file.size > 2 * 1024 * 1024) { alert('حجم الصورة يجب أن يكون أقل من 2MB'); return }
+                  const url = URL.createObjectURL(file)
+                  setImagePreview(url)
+                  onImageFilePicked?.(file)
+                }
+                if (imageInputRef.current) imageInputRef.current.value = ''
+              }}
+            />
+            <div className="flex items-center gap-4">
+              {imagePreview
+                ? (
+                  <div className="relative w-20 h-20 shrink-0">
+                    <img src={imagePreview} alt="" className="w-20 h-20 rounded-xl object-cover border border-gray-200" />
+                    <button type="button" onClick={() => { setImagePreview(null); onImageFilePicked?.(null) }}
+                      className="absolute -top-2 -end-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
+                      <X size={10} />
+                    </button>
+                  </div>
+                )
+                : (
+                  <button type="button" onClick={() => imageInputRef.current?.click()}
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-teal-400 hover:bg-teal-50 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-teal-600 transition-colors shrink-0">
+                    <Upload size={18} />
+                    <span className="text-[10px] text-center leading-tight">JPG PNG<br/>≤2MB</span>
+                  </button>
+                )
+              }
+              <div className="text-xs text-gray-400 leading-relaxed">
+                <p>أضف صورة للمنتج لتسهيل التعرف عليه في قائمة المخزون.</p>
+                <p className="mt-1 text-gray-300">يمكن تحديثها لاحقاً من صفحة المنتجات.</p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t('inventory.add.section_inventory')}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div><label className={LABEL}>{t('inventory.add.qty_label')}</label><input type="number" min={0} required value={createQty} onChange={e => setCreateQty(e.target.value)} placeholder="200" className={INPUT} /></div>
-              <div><label className={LABEL}>{t('inventory.add.threshold_label')}</label><input type="number" min={0} value={createThreshold} onChange={e => setCreateThreshold(e.target.value)} className={INPUT} /></div>
-              <div><label className={LABEL}>{t('inventory.add.expiry_label')}</label><input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} className={INPUT} /></div>
+              <div><label className={LABEL}>الكمية</label><input type="number" min={0} required value={createQty} onChange={e => setCreateQty(e.target.value)} placeholder="200" className={INPUT} /></div>
+              <div><label className={LABEL}>الحد الأدنى للمخزون</label><input type="number" min={0} value={createThreshold} onChange={e => setCreateThreshold(e.target.value)} className={INPUT} /></div>
+              {!showBatch && <div><label className={LABEL}>تاريخ الانتهاء</label><input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} className={INPUT} /></div>}
             </div>
           </div>
+
+          {/* F-07: First Batch toggle section */}
+          <div className="rounded-xl border border-dashed border-teal-300 bg-teal-50/40">
+            <button type="button"
+              onClick={() => setShowBatch(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-teal-700 hover:bg-teal-50 rounded-xl transition-colors">
+              <span className="flex items-center gap-2">
+                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${showBatch ? 'bg-teal-600 border-teal-600' : 'border-teal-400'}`}>
+                  {showBatch && <CheckCircle size={12} className="text-white" />}
+                </span>
+                إضافة دفعة أولى (تتبع LOT · FEFO)
+              </span>
+              <span className="text-xs text-teal-500">{showBatch ? 'إخفاء' : 'اختياري — يُنشئ المنتج والدفعة في معاملة واحدة'}</span>
+            </button>
+            {showBatch && (
+              <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="lg:col-span-2">
+                  <label className={LABEL}>رقم الدفعة / LOT <span className="text-red-400">*</span></label>
+                  <input value={batchNum} onChange={e => setBatchNum(e.target.value)} placeholder="LOT-2026-001" className={INPUT} />
+                </div>
+                <div>
+                  <label className={LABEL}>تاريخ الانتهاء</label>
+                  <div className="space-y-1">
+                    <input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} disabled={batchNoExpiry} className={`${INPUT} disabled:opacity-40`} />
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-500">
+                      <input type="checkbox" checked={batchNoExpiry} onChange={e => setBatchNoExpiry(e.target.checked)} className="rounded" />
+                      بدون انتهاء (أجهزة / مستهلكات)
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>سعر التكلفة (اختياري)</label>
+                  <input type="number" min={0} step="0.01" value={batchCost} onChange={e => setBatchCost(e.target.value)} placeholder="0.00" className={INPUT} />
+                </div>
+                <div>
+                  <label className={LABEL}>سعر البيع (اختياري)</label>
+                  <input type="number" min={0} step="0.01" value={batchSell} onChange={e => setBatchSell(e.target.value)} placeholder="0.00" className={INPUT} />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end gap-3 pt-1 sticky bottom-0 bg-white pb-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50">{t('common.cancel')}</button>
-            <button type="submit" disabled={isCreatePending||!form.name||!form.category||!form.unit||!createQty}
+            <button type="submit" disabled={isCreatePending||!form.name||!form.category||!form.unit||!createQty||(showBatch&&!batchNum.trim())}
               className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl">
               {isCreatePending ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Plus size={15} />}
               {existingProductId
                 ? t('inventory.add.add_btn')
                 : (similarCandidates && similarCandidates.length > 0
                     ? 'إنشاء جديد رغم التشابه'
-                    : t('inventory.add.create_btn'))}
+                    : (showBatch ? 'حفظ المنتج والدفعة' : t('inventory.add.create_btn')))}
             </button>
           </div>
         </form>
@@ -1581,6 +1745,7 @@ export default function InventoryPage() {
   const [pageSize, setPageSize]               = useState(DEFAULT_PAGE_SIZE)
   const [showBulkUpload, setShowBulkUpload]   = useState(false)
   const [showAdd, setShowAdd]                 = useState(false)
+  const pendingImageRef                       = useRef<File | null>(null)
   const [showExport, setShowExport]           = useState(false)
   const [uploadToast, setUploadToast]         = useState<any | null>(null)
   const [openMenu, setOpenMenu]               = useState<{ id: string; rect: DOMRect } | null>(null)
@@ -1699,9 +1864,16 @@ export default function InventoryPage() {
   const createMutation = useMutation({
     mutationFn: async ({ productData, inventoryData }: { productData: any; inventoryData: any }) => {
       const res = await inventoryApi.createProduct(productData)
-      return inventoryApi.create({ productId: res.data.id, ...inventoryData })
+      const productId = res.data.id as string
+      await inventoryApi.create({ productId, ...inventoryData })
+      return productId
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); setShowAdd(false); setFormError(null); setSimilarCandidates(null) },
+    onSuccess: (productId: string) => {
+      if (pendingImageRef.current) {
+        inventoryApi.uploadProductImage(productId, pendingImageRef.current).finally(() => { pendingImageRef.current = null })
+      }
+      qc.invalidateQueries({ queryKey: ['inventory'] }); setShowAdd(false); setFormError(null); setSimilarCandidates(null)
+    },
     onError: (err: any) => {
       const data = err?.response?.data
       // Backend pre-creation similarity gate — surface candidates so the user
@@ -1722,6 +1894,29 @@ export default function InventoryPage() {
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); setShowAdd(false); setFormError(null); setSimilarCandidates(null) },
     onError: (err: any) => setFormError(err?.response?.data?.message || t('errors.server_error')),
+  })
+  const createWithBatchMutation = useMutation({
+    mutationFn: (payload: any) => inventoryApi.createProductWithBatch(payload),
+    onSuccess: (res: any) => {
+      const productId = res.data?.product?.id as string | undefined
+      if (productId && pendingImageRef.current) {
+        inventoryApi.uploadProductImage(productId, pendingImageRef.current).finally(() => { pendingImageRef.current = null })
+      }
+      qc.invalidateQueries({ queryKey: ['inventory'] })
+      qc.invalidateQueries({ queryKey: ['smart-products'] })
+      qc.invalidateQueries({ queryKey: ['smart-products-summary'] })
+      setShowAdd(false); setFormError(null); setSimilarCandidates(null)
+    },
+    onError: (err: any) => {
+      const data = err?.response?.data
+      if (err?.response?.status === 409 && data?.code === 'SIMILAR_PRODUCT_EXISTS' && Array.isArray(data?.candidates)) {
+        setSimilarCandidates(data.candidates)
+        setFormError(data.message || 'يوجد منتج مشابه بالفعل')
+        return
+      }
+      setSimilarCandidates(null)
+      setFormError(data?.message || t('errors.server_error'))
+    },
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => inventoryApi.update(id, data),
@@ -1963,10 +2158,14 @@ export default function InventoryPage() {
   if (isLoading) return <FullPageSpinner />
 
   const sharedAddProps = {
-    products, onClose: () => { setShowAdd(false); setFormError(null); setSimilarCandidates(null) },
+    products, onClose: () => { setShowAdd(false); setFormError(null); setSimilarCandidates(null); pendingImageRef.current = null },
     onBrowseAdd: (pid: string, qty: number, thr: number, exp?: string) => addMutation.mutate({ productId:pid, quantity:qty, minThreshold:thr, expiryDate:exp }),
     onCreate: (pd: any, inv: any) => createMutation.mutate({ productData:pd, inventoryData:inv }),
-    isBrowsePending: addMutation.isPending, isCreatePending: createMutation.isPending || forceCreateMutation.isPending, error: formError,
+    onCreateWithBatch: (payload: any) => createWithBatchMutation.mutate(payload),
+    onImageFilePicked: (file: File | null) => { pendingImageRef.current = file },
+    isBrowsePending: addMutation.isPending,
+    isCreatePending: createMutation.isPending || forceCreateMutation.isPending || createWithBatchMutation.isPending,
+    error: formError,
     similarCandidates,
     onUseCandidate: (pid: string, qty: number, thr: number, exp?: string) => addMutation.mutate({ productId: pid, quantity: qty, minThreshold: thr, expiryDate: exp }),
     onForceCreate: (pd: any, inv: any) => forceCreateMutation.mutate({ productData: pd, inventoryData: inv }),
@@ -2036,7 +2235,7 @@ export default function InventoryPage() {
               <Sparkles size={15} />
               مطابقة ذكية
             </button>
-            <button onClick={() => setShowExport(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50">
+            <button onClick={() => setShowExport(true)} className="flex items-center gap-2 px-4 py-2 border border-emerald-300 text-emerald-700 bg-emerald-50 text-sm font-medium rounded-xl hover:bg-emerald-100 transition-colors">
               <Upload size={15} />تصدير
             </button>
             <button

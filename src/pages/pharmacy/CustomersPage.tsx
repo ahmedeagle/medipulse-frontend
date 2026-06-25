@@ -106,11 +106,16 @@ function RowMenu({ onEdit, onDelete, onHistory }: { onEdit: () => void; onDelete
       </button>
       {open && (
         <div className="fixed mt-1 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-[200]"
-          style={{ top: ref.current ? ref.current.getBoundingClientRect().bottom + 4 : 0,
-                   right: ref.current ? window.innerWidth - ref.current.getBoundingClientRect().right : 0 }}>
+          style={{
+            top:  ref.current ? ref.current.getBoundingClientRect().bottom + 4 : 0,
+            left: ref.current ? Math.min(
+              ref.current.getBoundingClientRect().left,
+              window.innerWidth - 168
+            ) : 0,
+          }}>
           <button onClick={() => { onHistory(); setOpen(false) }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-            <History size={13} className="text-violet-500" /> سجل المشتريات
+            <History size={13} className="text-emerald-500" /> سجل المشتريات
           </button>
           <button onClick={() => { onEdit(); setOpen(false) }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
@@ -393,8 +398,8 @@ function CustomerDrawer({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center">
-              <UserPlus size={15} className="text-violet-700" />
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <UserPlus size={15} className="text-emerald-700" />
             </div>
             <h2 className="font-bold text-gray-900">{isEdit ? 'تعديل بيانات العميل' : 'عميل جديد'}</h2>
           </div>
@@ -647,8 +652,8 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center">
-              <Building2 size={15} className="text-violet-700" />
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Building2 size={15} className="text-emerald-700" />
             </div>
             <h2 className="font-bold text-gray-900">شركات التأمين</h2>
           </div>
@@ -869,11 +874,11 @@ export default function CustomersPage() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowIns(true)}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-violet-300 text-violet-700 hover:bg-violet-50 text-sm font-medium transition-colors">
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-sm font-medium transition-colors">
             <Building2 size={14} /> إضافة شركة تأمين جديدة
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors">
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors">
             <UserPlus size={14} /> إضافة عميل جديد
           </button>
         </div>
@@ -899,7 +904,7 @@ export default function CustomersPage() {
           <input type="text" value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="ابحث باسم العميل أو رقم الهاتف أو الرمز..."
-            className="w-full pr-11 pl-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-violet-400 outline-none text-sm transition-all" />
+            className="w-full pr-11 pl-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-emerald-400 outline-none text-sm transition-all" />
           {search && (
             <button onClick={() => { setSearch(''); setPage(1) }}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">

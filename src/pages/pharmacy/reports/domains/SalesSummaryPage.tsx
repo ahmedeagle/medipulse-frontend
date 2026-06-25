@@ -364,20 +364,22 @@ export default function SalesSummaryPage() {
 
   useEffect(() => setPage(1), [sortKey, sortDir, dateFrom, dateTo, hideZeroRows, filters])
 
-  const { data: rows = [], isLoading, refetch } = useQuery({
-    queryKey: ['sales-summary', granularity, dateFrom, dateTo, cashierFilter],
+  const { data: queryData, isLoading, refetch } = useQuery({
+    queryKey: ['sales-summary', granularity, dateFrom, dateTo, cashierFilter, hideZeroRows],
     queryFn:  () => analyticsApi.getSalesSummary({
-      granularity, dateFrom, dateTo,
+      granularity, dateFrom, dateTo, hideZeroRows, pageSize: 9999,
       ...(cashierFilter ? { cashierName: cashierFilter } : {}),
     }),
     staleTime: 2 * 60_000,
   })
+  const rows = queryData?.data ?? []
 
-  const { data: priorRows = [] } = useQuery({
+  const { data: priorData } = useQuery({
     queryKey: ['sales-summary', granularity, prior.dateFrom, prior.dateTo],
-    queryFn:  () => analyticsApi.getSalesSummary({ granularity, dateFrom: prior.dateFrom, dateTo: prior.dateTo }),
+    queryFn:  () => analyticsApi.getSalesSummary({ granularity, dateFrom: prior.dateFrom, dateTo: prior.dateTo, pageSize: 9999 }),
     staleTime: 5 * 60_000,
   })
+  const priorRows = priorData?.data ?? []
 
   const totals      = useMemo(() => sumRows(rows),      [rows])
   const priorTotals = useMemo(() => sumRows(priorRows), [priorRows])
@@ -391,9 +393,9 @@ export default function SalesSummaryPage() {
   const bestRow  = rows.length ? rows.reduce((b, r) => r.netSales > b.netSales ? r : b, rows[0]) : null
   const worstRow = rows.length > 1 ? rows.reduce((w, r) => r.netSales < w.netSales ? r : w, rows[0]) : null
 
-  // Apply client-side filters
+  // Apply client-side filters (hideZeroRows is now server-side via HAVING clause)
   const sortedRows = useMemo(() => {
-    let result = hideZeroRows ? rows.filter(r => r.netSales > 0) : [...rows]
+    let result = [...rows]
 
     for (const f of filters) {
       if (!f.value) continue
@@ -738,7 +740,8 @@ export default function SalesSummaryPage() {
                                   key === 'year' || key === 'monthNumber' || key === 'weekNumber'
                                     ? 'text-gray-700' :
                                   typeof val === 'number' && val < 0 ? 'text-red-600 font-medium' :
-                                  key === 'netSales' || key === 'grossMargin' ? 'font-medium text-gray-900' :
+                                  key === 'netSales' || key === 'grossMargin' ? 'font-bold text-gray-900' :
+                                  typeof val === 'number' ? 'font-medium text-gray-700' :
                                   'text-gray-600'
                                 }`}>
                                 {fmtCell(row, key)}
@@ -759,7 +762,7 @@ export default function SalesSummaryPage() {
                             className={`px-3 py-3 text-right text-sm whitespace-nowrap font-semibold ${
                               ci === 0 ? 'font-bold text-violet-800' :
                               col.key === 'netSales' || col.key === 'grossMargin' ? 'font-bold text-violet-900' :
-                              'text-gray-700'
+                              'font-bold text-gray-700'
                             }`}>
                             {fmtTotal(col.key as AllColKey)}
                           </td>

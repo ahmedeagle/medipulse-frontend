@@ -310,21 +310,12 @@ export default function ProfitabilityByProductPage() {
   const rows = queryData?.data ?? []
 
   // ── Derived ──────────────────────────────────────────────────────────────
-  const totals = useMemo(() => rows.reduce((acc, r) => ({
-    invoiceCount:        acc.invoiceCount        + r.invoiceCount,
-    totalSales:          acc.totalSales          + r.totalSales,
-    salesBeforeDiscount: acc.salesBeforeDiscount + r.salesBeforeDiscount,
-    totalReturns:        acc.totalReturns        + r.totalReturns,
-    netSales:            acc.netSales            + r.netSales,
-    totalDiscounts:      acc.totalDiscounts      + r.totalDiscounts,
-    qtySold:             acc.qtySold             + r.qtySold,
-    qtyReturned:         acc.qtyReturned         + r.qtyReturned,
-    cogs:                acc.cogs                + r.cogs,
-    grossMargin:         acc.grossMargin         + r.grossMargin,
-  }), { invoiceCount: 0, totalSales: 0, salesBeforeDiscount: 0, totalReturns: 0, netSales: 0, totalDiscounts: 0, qtySold: 0, qtyReturned: 0, cogs: 0, grossMargin: 0 }), [rows])
+  // KPI totals come from the server (pre-aggregated across ALL rows, not just the current page)
+  const ZERO_TOTALS = { invoiceCount: 0, totalSales: 0, salesBeforeDiscount: 0, totalReturns: 0, netSales: 0, totalDiscounts: 0, qtySold: 0, qtyReturned: 0, cogs: 0, grossMargin: 0, grossMarginPct: 0 }
+  const totals = queryData?.totals ?? ZERO_TOTALS
 
   const categories = useMemo(() => [...new Set(rows.map(r => r.category).filter(Boolean))].sort(), [rows])
-  const marginPct  = totals.netSales > 0 ? (totals.grossMargin / totals.netSales) * 100 : 0
+  const marginPct  = totals.grossMarginPct
 
   // ── Sort + paginate ───────────────────────────────────────────────────────
   const sortedRows = useMemo(() => {

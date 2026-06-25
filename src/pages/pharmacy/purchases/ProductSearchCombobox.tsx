@@ -1,7 +1,8 @@
 import { useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, X, Package, AlertTriangle } from 'lucide-react'
+import { Search, X, Package, AlertTriangle, Plus } from 'lucide-react'
 import clsx from 'clsx'
 import type { ProductSearchResult } from '../../../api/purchases.api'
 
@@ -129,29 +130,42 @@ export function ProductSearchCombobox({ value, onSelect, queryFn, queryKey, plac
               <div className="w-5 h-5 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
             </div>
           ) : results.length === 0 ? (
-            <div className="py-10 text-center px-4">
+            <div className="py-8 text-center px-4">
               <Package size={28} className="text-gray-200 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm font-medium">لا توجد نتائج</p>
-              <p className="text-gray-400 text-xs mt-1">جرّب كلمة بحث مختلفة</p>
+              <p className="text-gray-500 text-sm font-medium">لا يوجد منتج بهذا الاسم في الكتالوج</p>
+              <p className="text-gray-400 text-xs mt-1 mb-3">جرّب كلمة بحث مختلفة أو الاسم الإنجليزي</p>
+              <Link
+                to="/pharmacy/products"
+                onMouseDown={e => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors border border-emerald-200"
+              >
+                <Plus size={12} /> إضافة منتج جديد للكتالوج
+              </Link>
             </div>
           ) : (
             <div className="max-h-72 overflow-y-auto">
               {results.map((p, idx) => {
                 const inStock = Number(p.currentStock) > 0
+                const isNewProduct = p.inInventory === false
                 const warn = expiryWarning(p.expiryDate)
 
                 return (
                   <button
-                    key={p.inventoryItemId ?? p.id}
+                    key={p.id}
                     onMouseDown={() => handleSelect(p)}
                     className={clsx(
                       'w-full text-right flex items-center gap-3 px-4 py-3.5 transition-colors border-b border-gray-50 last:border-0 hover:bg-gray-50',
-                      idx === 0 && 'bg-emerald-50/40',
+                      idx === 0 && !isNewProduct && 'bg-emerald-50/40',
                     )}
                   >
                     {/* Icon */}
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center shrink-0 border border-gray-100">
-                      <Package size={16} className="text-gray-400" />
+                    <div className={clsx(
+                      'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border',
+                      isNewProduct
+                        ? 'bg-violet-50 border-violet-100'
+                        : 'bg-gradient-to-br from-gray-100 to-gray-50 border-gray-100',
+                    )}>
+                      <Package size={16} className={isNewProduct ? 'text-violet-400' : 'text-gray-400'} />
                     </div>
 
                     {/* Info */}
@@ -163,12 +177,18 @@ export function ProductSearchCombobox({ value, onSelect, queryFn, queryKey, plac
                             {p.barcode}
                           </span>
                         )}
-                        <span className={clsx(
-                          'text-[11px] px-2 py-0.5 rounded-full font-semibold',
-                          inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600',
-                        )}>
-                          {inStock ? `المخزون: ${p.currentStock} علبة` : 'غير متوفر'}
-                        </span>
+                        {isNewProduct ? (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-violet-50 text-violet-700">
+                            شراء أول مرة
+                          </span>
+                        ) : (
+                          <span className={clsx(
+                            'text-[11px] px-2 py-0.5 rounded-full font-semibold',
+                            inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700',
+                          )}>
+                            {inStock ? `المخزون: ${p.currentStock}` : 'المخزون: صفر'}
+                          </span>
+                        )}
                         {warn && (
                           <span className={clsx('text-[11px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-0.5', warn.cls)}>
                             <AlertTriangle size={9} /> {warn.label}
@@ -182,8 +202,12 @@ export function ProductSearchCombobox({ value, onSelect, queryFn, queryKey, plac
                       </div>
                     </div>
 
-                    {/* Price */}
-                    {(p.lastCostPrice ?? 0) > 0 && (
+                    {/* Price / first-time label */}
+                    {isNewProduct ? (
+                      <div className="shrink-0 text-xs text-violet-400 font-medium whitespace-nowrap">
+                        من الكتالوج
+                      </div>
+                    ) : (p.lastCostPrice ?? 0) > 0 ? (
                       <div className="shrink-0 text-left">
                         <p className="font-black text-gray-900 tabular-nums text-sm">
                           {Number(p.lastCostPrice).toFixed(2)}
@@ -193,7 +217,7 @@ export function ProductSearchCombobox({ value, onSelect, queryFn, queryKey, plac
                           <p className="text-[10px] text-gray-400 truncate max-w-[90px]">{p.lastSupplierName}</p>
                         )}
                       </div>
-                    )}
+                    ) : null}
                   </button>
                 )
               })}

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -36,8 +36,14 @@ export default function PurchaseReturnListPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
+  const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
+
+  useEffect(() => {
+    const id = setTimeout(() => { setQ(qInput); setPage(1) }, 300)
+    return () => clearTimeout(id)
+  }, [qInput])
 
   const { data, isLoading } = useQuery({
     queryKey: ['purchase-returns', page, q, status],
@@ -85,8 +91,8 @@ export default function PurchaseReturnListPage() {
             <input
               type="text"
               placeholder="بحث برقم المرتجع أو اسم المورد…"
-              value={q}
-              onChange={e => { setQ(e.target.value); setPage(1) }}
+              value={qInput}
+              onChange={e => setQInput(e.target.value)}
               className="w-full pr-9 pl-3 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>

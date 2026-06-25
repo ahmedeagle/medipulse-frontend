@@ -44,7 +44,21 @@ export interface PurchaseInvoice {
   notes: string | null;
   lines: InvoiceLine[];
   createdAt: string;
+  updatedAt: string;
   confirmedAt: string | null;
+  source: 'manual' | 'ai';
+  linesCount?: number;
+}
+
+export interface InvoiceChangelogEntry {
+  id: string;
+  invoiceId: string;
+  userId: string | null;
+  action: 'created' | 'updated' | 'confirmed' | 'cancelled' | 'paid';
+  changes: { field: string; fieldLabel: string; productName?: string; oldValue: string | null; newValue: string | null }[];
+  createdAt: string;
+  userName: string | null;
+  userEmail: string | null;
 }
 
 export interface ReturnLine {
@@ -130,6 +144,8 @@ export interface ProductSearchResult {
   expiryDate?: string | null;
   lastCostPrice: number;
   lastSupplierName: string | null;
+  /** True = product exists in this pharmacy's inventory. False = catalog-only, never purchased here. */
+  inInventory?: boolean;
 }
 
 export interface SupplierResult {
@@ -145,6 +161,36 @@ export type PriceAnomalyResult = {
   historicalAvg: number;
   direction: 'higher' | 'lower';
 } | null;
+
+export interface OcrMatchedProduct {
+  id: string;
+  name: string;
+  nameAr?: string;
+  sku?: string;
+  matchScore: number; // 0–100
+}
+
+export interface OcrLineItem {
+  description: string;
+  quantity: number | null;
+  unitPrice: number | null;
+  amount: number | null;
+  confidence: number; // 0–1 from Azure
+  matchedProduct: OcrMatchedProduct | null;
+}
+
+export interface OcrResult {
+  vendorName: string | null;
+  vendorNameConfidence: number;
+  invoiceId: string | null;
+  invoiceIdConfidence: number;
+  invoiceDate: string | null;
+  invoiceDateConfidence: number;
+  totalAmount: number | null;
+  totalAmountConfidence: number;
+  lineItems: OcrLineItem[];
+  error?: string;
+}
 
 // ─── API ───────────────────────────────────────────────────────────────────────
 
@@ -165,6 +211,15 @@ export const purchasesApi = {
 
   checkPriceAnomaly: (productId: string, price: number, supplierId?: string) =>
     client.get('/pharmacy/purchases/price-check', { params: { productId, price, supplierId } }).then(r => r.data as PriceAnomalyResult),
+
+  // OCR (PUR-011)
+  analyzeInvoiceOcr: (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return client.post<OcrResult>('/pharmacy/purchases/invoices/ocr', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  },
 
   // Invoices
   createInvoice: (dto: any) =>
@@ -190,6 +245,21 @@ export const purchasesApi = {
 
   deleteInvoice: (id: string) =>
     client.delete(`/pharmacy/purchases/invoices/${id}`).then(r => r.data),
+
+  // Export
+  exportInvoices: (params?: Record<string, any>) =>
+    client.get('/pharmacy/purchases/invoices/export', {
+      params,
+      responseType: 'blob',
+    }).then(r => r.data as Blob),
+
+  exportSingleInvoice: (id: string) =>
+    client.get(`/pharmacy/purchases/invoices/${id}/export`, {
+      responseType: 'blob',
+    }).then(r => r.data as Blob),
+
+  getInvoiceChangelog: (id: string) =>
+    client.get<InvoiceChangelogEntry[]>(`/pharmacy/purchases/invoices/${id}/changelog`).then(r => r.data),
 
   // Returns
   createReturn: (dto: any) =>

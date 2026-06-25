@@ -117,6 +117,24 @@ export interface Paginated<T> {
   total: number
 }
 
+export interface SalesReportTotals {
+  qtySold:             number
+  qtyReturned:         number
+  invoiceCount:        number
+  totalSales:          number
+  salesBeforeDiscount: number
+  totalReturns:        number
+  totalDiscounts:      number
+  netSales:            number
+  cogs:                number
+  grossMargin:         number
+  grossMarginPct:      number
+}
+
+export interface PaginatedWithTotals<T> extends Paginated<T> {
+  totals: SalesReportTotals
+}
+
 export const analyticsApi = {
   getDashboard: (weeks = 12) =>
     client.get(`/analytics/dashboard?weeks=${weeks}`),
@@ -145,7 +163,7 @@ export const analyticsApi = {
     category?: string
     page?: number
     pageSize?: number
-  }): Promise<Paginated<ProductSalesRow>> =>
+  }): Promise<PaginatedWithTotals<ProductSalesRow>> =>
     client.get('/analytics/sales/by-product', { params }).then(r => r.data),
 
   getInventoryReport: (params?: {
@@ -184,6 +202,6 @@ export const analyticsApi = {
     category?: string
     page?: number
     pageSize?: number
-  }): Promise<Paginated<CategorySalesRow>> =>
+  }): Promise<PaginatedWithTotals<CategorySalesRow>> =>
     client.get('/analytics/sales/by-category', { params }).then(r => r.data),
 };

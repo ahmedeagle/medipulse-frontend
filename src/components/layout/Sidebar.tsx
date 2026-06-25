@@ -7,7 +7,7 @@ import {
   Building2, Users, ListChecks, Inbox, BarChart2, Star,
   User, Upload, TrendingUp, Shield, Plug, GitBranch,
   Calendar, AlertTriangle, CheckCircle2, ShieldCheck, ChevronDown,
-  Store,
+  Store, Layers,
 } from 'lucide-react';
 import { useAuth } from 'react-oidc-context';
 import { useProfileStore } from '../../store/auth.store';
@@ -31,8 +31,9 @@ const pharmacyNav: NavItem[] = [
   { labelKey: 'nav.forecast',            to: '/pharmacy/forecast',    icon: BarChart2 },
   { labelKey: 'nav.order_schedule',      to: '/pharmacy/eoq',         icon: Calendar },
   { labelKey: 'nav.dead_stock',          to: '/pharmacy/dead-stock',  icon: AlertTriangle },
-  { labelKey: 'nav.analytics',           to: '/pharmacy/analytics',   icon: TrendingUp },
+  { labelKey: 'nav.reports',              to: '/pharmacy/reports',     icon: BarChart2 },
   { labelKey: 'nav.inventory',           to: '/pharmacy/inventory',   icon: Package },
+  { labelKey: 'nav.products',            to: '/pharmacy/products',    icon: Layers },
   { labelKey: 'nav.supplier_catalog',    to: '/pharmacy/catalog',     icon: BookOpen },
   { labelKey: 'nav.catalog_requests',    to: '/pharmacy/catalog-requests', icon: GitBranch },
   { labelKey: 'nav.orders',              to: '/pharmacy/orders',      icon: ShoppingCart },

@@ -151,15 +151,17 @@ export default function SalesByProductPage() {
 
   const { dateFrom, dateTo } = getDateRange(preset, customFrom, customTo)
 
-  const { data: rows = [], isLoading, refetch } = useQuery({
+  const { data: queryData, isLoading, refetch } = useQuery({
     queryKey: ['sales-by-product', dateFrom, dateTo, search, category],
     queryFn:  () => analyticsApi.getSalesByProduct({
       dateFrom, dateTo,
-      search: search || undefined,
+      search:   search   || undefined,
       category: category || undefined,
+      pageSize: 9999,
     }),
     staleTime: 2 * 60_000,
   })
+  const rows = queryData?.data ?? []
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const totals = useMemo(() => rows.reduce((acc, r) => ({
@@ -386,7 +388,8 @@ export default function SalesByProductPage() {
                             row.grossMarginPct >= 10 ? 'text-amber-700' : 'text-red-600'
                           ) :
                           typeof row[col.key as ColKey] === 'number' && (row[col.key as ColKey] as number) < 0 ? 'text-red-600 font-medium' :
-                          col.key === 'netSales' || col.key === 'grossMargin' ? 'font-medium text-gray-900' :
+                          col.key === 'netSales' || col.key === 'grossMargin' ? 'font-bold text-gray-900' :
+                          typeof row[col.key as ColKey] === 'number' ? 'font-medium text-gray-700' :
                           'text-gray-600'
                         }`}>
                         {fmtCell(row, col.key as ColKey)}
@@ -403,7 +406,7 @@ export default function SalesByProductPage() {
                           ci === 0 ? 'font-bold text-indigo-800' :
                           col.key === 'netSales' || col.key === 'grossMargin' ? 'font-bold text-indigo-900' :
                           col.key === 'grossMarginPct' ? (marginPct >= 20 ? 'font-bold text-emerald-700' : marginPct >= 10 ? 'font-bold text-amber-700' : 'font-bold text-red-600') :
-                          'text-gray-700'
+                          'font-bold text-gray-700'
                         }`}>
                         {fmtTotalCell(col.key as ColKey)}
                       </td>

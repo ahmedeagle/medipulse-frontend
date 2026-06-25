@@ -137,7 +137,7 @@ export default function ExpiryReportPage() {
     useColState(ALL_COLS, 'expiryReport')
 
   // ── Data fetch ────────────────────────────────────────────────────────────
-  const { data: rawRows = [], isLoading, refetch } = useQuery({
+  const { data: queryData, isLoading, refetch } = useQuery({
     queryKey: ['expiry-report', dateFrom, dateTo, status, daysAhead, category],
     queryFn: () => analyticsApi.getExpiryReport({
       dateFrom:  dateFrom  || undefined,
@@ -145,9 +145,11 @@ export default function ExpiryReportPage() {
       status:    status    || undefined,
       daysAhead: daysAhead ? Number(daysAhead) : undefined,
       category:  category  || undefined,
+      pageSize: 9999,
     }),
     staleTime: 2 * 60_000,
   })
+  const rawRows = queryData?.data ?? []
 
   // ── Client-side column filtering ──────────────────────────────────────────
   const rows = useMemo(() => rawRows.filter(r => {

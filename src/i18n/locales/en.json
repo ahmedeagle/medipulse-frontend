@@ -42,6 +42,7 @@
     "dashboard": "Dashboard",
     "ai_center": "AI Center",
     "inventory": "Inventory",
+    "products": "Products",
     "orders": "Orders",
     "supplier_catalog": "Supplier Catalog",
     "catalog_requests": "Catalog Requests",

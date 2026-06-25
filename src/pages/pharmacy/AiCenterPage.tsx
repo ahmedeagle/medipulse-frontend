@@ -88,6 +88,13 @@ const SEVERITY_ICON_BG: Record<DashboardWidget['severity'], string> = {
   success: 'bg-emerald-100 text-emerald-700',
 }
 
+const SEVERITY_HOVER: Record<DashboardWidget['severity'], string> = {
+  danger:  'hover:bg-red-50 hover:border-red-200',
+  warning: 'hover:bg-amber-50 hover:border-amber-200',
+  info:    'hover:bg-sky-50 hover:border-sky-200',
+  success: 'hover:bg-emerald-50 hover:border-emerald-200',
+}
+
 const formatRelative = (iso: string): string => {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
@@ -655,7 +662,7 @@ function DashboardTab() {
             <button
               key={w.key}
               onClick={() => navigate(w.deepLink)}
-              className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:shadow-md hover:border-gray-300 transition-all group"
+              className={`text-start p-4 rounded-2xl border border-gray-200 bg-white hover:shadow-md ${SEVERITY_HOVER[w.severity]} transition-all group`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${SEVERITY_ICON_BG[w.severity]}`}>
@@ -1734,16 +1741,28 @@ function ToggleSwitch({ checked, disabled, onChange }: { checked: boolean; disab
 // ═════════════════════════════════════════════════════════════════════════════
 
 function AuditTab() {
-  const [view, setView] = useState<'decisions' | 'runs'>('decisions')
-  const [days, setDays] = useState<7 | 30>(7)
+  const [view, setView]       = useState<'decisions' | 'runs'>('decisions')
+  const [period, setPeriod]   = useState<7 | 30 | 'custom'>(30)
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo,   setCustomTo]   = useState('')
+
+  // Compute effective days for aiRunStats: for custom, derive from date diff; clamp 1-90
+  const effectiveDays: number = (() => {
+    if (period !== 'custom') return period
+    if (!customFrom || !customTo) return 30
+    const diff = Math.round((new Date(customTo).getTime() - new Date(customFrom).getTime()) / 86_400_000)
+    return Math.min(Math.max(diff, 1), 90)
+  })()
+
+  const days = effectiveDays // alias for display labels
 
   const events = useInfiniteList<ApprovalEvent>({
-    queryKey: ['ai-center', 'audit', 'events'],
+    queryKey: ['ai-center', 'audit', 'events', period, customFrom, customTo],
     fetchPage: ({ limit, offset }) => aiCenterApi.approvalEvents(limit, offset),
   })
   const stats = useQuery({
-    queryKey: ['ai-center', 'audit', 'ai-stats', days],
-    queryFn:  () => aiCenterApi.aiRunStats(days),
+    queryKey: ['ai-center', 'audit', 'ai-stats', effectiveDays],
+    queryFn:  () => aiCenterApi.aiRunStats(effectiveDays),
   })
   const runs = useInfiniteList<any>({
     queryKey: ['ai-center', 'audit', 'ai-runs'],
@@ -1766,15 +1785,38 @@ function AuditTab() {
               <Info size={13} className="text-gray-400 cursor-help" />
             </Tooltip>
           </div>
-          <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setDays(7)}
-              className={`px-3 py-1 rounded-md text-xs font-medium ${days === 7 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
-            >آخر ٧ أيام</button>
-            <button
-              onClick={() => setDays(30)}
-              className={`px-3 py-1 rounded-md text-xs font-medium ${days === 30 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
-            >آخر ٣٠ يوم</button>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
+              <button
+                onClick={() => setPeriod(7)}
+                className={`px-3 py-1 rounded-md text-xs font-medium ${period === 7 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+              >آخر ٧ أيام</button>
+              <button
+                onClick={() => setPeriod(30)}
+                className={`px-3 py-1 rounded-md text-xs font-medium ${period === 30 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+              >آخر ٣٠ يوم</button>
+              <button
+                onClick={() => setPeriod('custom')}
+                className={`px-3 py-1 rounded-md text-xs font-medium ${period === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
+              >مخصص</button>
+            </div>
+            {period === 'custom' && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-emerald-400"
+                />
+                <span className="text-xs text-gray-400">—</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-emerald-400"
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -2358,8 +2400,8 @@ const TASK_DEFS: Array<{
     hintAr:  'أوامر شراء مقترحة بانتظار موافقتك',
     subjectType: 'procurement_draft',
     icon: ShoppingCart,
-    tone:       'border-sky-200 bg-sky-50/60 hover:bg-sky-50',
-    toneActive: 'border-sky-500 bg-sky-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'p2p',
@@ -2367,8 +2409,8 @@ const TASK_DEFS: Array<{
     hintAr:  'صيدليات قريبة منك تبيع بأسعار أقل من مورّدك — النظام يكتشفها لك',
     subjectType: 'smart_procurement',
     icon: Store,
-    tone:       'border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50',
-    toneActive: 'border-emerald-500 bg-emerald-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'linking',
@@ -2376,8 +2418,8 @@ const TASK_DEFS: Array<{
     hintAr:  'أصناف يبدو أنها نفس المنتج وتحتاج تأكيدك',
     subjectType: 'inventory_item',
     icon: LinkIcon,
-    tone:       'border-violet-200 bg-violet-50/60 hover:bg-violet-50',
-    toneActive: 'border-violet-500 bg-violet-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'risk',
@@ -2385,8 +2427,8 @@ const TASK_DEFS: Array<{
     hintAr:  'منتجات مهددة بالنفاد قريباً',
     subjectType: 'recommendation',
     icon: AlertOctagon,
-    tone:       'border-red-200 bg-red-50/60 hover:bg-red-50',
-    toneActive: 'border-red-500 bg-red-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'p2p_monitor',
@@ -2394,8 +2436,8 @@ const TASK_DEFS: Array<{
     hintAr:  'طلب شراء من صيدلية أخرى تأخر أو لم يرد عليه — قرارك ينهي الأمر',
     subjectType: 'p2p_order_action',
     icon: AlertTriangle,
-    tone:       'border-orange-200 bg-orange-50/60 hover:bg-orange-50',
-    toneActive: 'border-orange-500 bg-orange-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'pos_integrity',
@@ -2403,8 +2445,8 @@ const TASK_DEFS: Array<{
     hintAr:  'فوارق نقدية أو معدلات مرتجعات غير طبيعية تستوجب مراجعتك',
     subjectType: 'pos_shift_action',
     icon: ShieldCheck,
-    tone:       'border-rose-200 bg-rose-50/60 hover:bg-rose-50',
-    toneActive: 'border-rose-500 bg-rose-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'expiry_clearance',
@@ -2412,8 +2454,8 @@ const TASK_DEFS: Array<{
     hintAr:  'منتجات تنتهي قريباً — أدرجها للبيع بخصم ذكي واسترد قيمتها قبل الهلاك',
     subjectType: 'expiry_liquidation',
     icon: Package,
-    tone:       'border-amber-200 bg-amber-50/60 hover:bg-amber-50',
-    toneActive: 'border-amber-500 bg-amber-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'low_stock',
@@ -2421,8 +2463,8 @@ const TASK_DEFS: Array<{
     hintAr:  'منتجات وصل مخزونها للحد الأدنى — قرّر: شراء من البورصة أو طلب من المورد',
     subjectType: 'low_stock',
     icon: AlertCircle,
-    tone:       'border-red-200 bg-red-50/60 hover:bg-red-50',
-    toneActive: 'border-red-500 bg-red-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
   {
     key: 'dead_stock',
@@ -2430,8 +2472,8 @@ const TASK_DEFS: Array<{
     hintAr:  'منتجات لا تتحرك — أدرجها في السوق بخصم لتسييل رأس المال المجمّد',
     subjectType: 'dead_stock_clearance',
     icon: Archive,
-    tone:       'border-gray-200 bg-gray-50/60 hover:bg-gray-50',
-    toneActive: 'border-gray-500 bg-gray-100',
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
   },
 ]
 

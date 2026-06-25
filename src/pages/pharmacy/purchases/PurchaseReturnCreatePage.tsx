@@ -6,6 +6,7 @@ import {
   Loader2, Save, CheckCircle2,
 } from 'lucide-react'
 import { purchasesApi, type ProductSearchResult } from '../../../api/purchases.api'
+import { getApiErrors } from '../../../api/errors'
 import { ProductSearchCombobox } from './ProductSearchCombobox'
 
 interface ReturnLineItem {
@@ -95,7 +96,18 @@ export default function PurchaseReturnCreatePage() {
   })
 
   const updateLine = useCallback((key: string, patch: Partial<ReturnLineItem>) => {
-    setLines(prev => prev.map(l => l._key === key ? { ...l, ...patch } : l))
+    setLines(prev => prev.map(l => {
+      if (l._key !== key) return l
+      const p = { ...patch }
+      if ('returnPrice'  in p) p.returnPrice  = Number(p.returnPrice)  || 0
+      if ('salePrice'    in p) p.salePrice    = Number(p.salePrice)    || 0
+      if ('discountPct'  in p) p.discountPct  = Number(p.discountPct)  || 0
+      if ('taxPct'       in p) p.taxPct       = Number(p.taxPct)       || 0
+      if ('returnQty'    in p) p.returnQty    = Number(p.returnQty)    || 0
+      if ('freeGoodsQty' in p) p.freeGoodsQty = Number(p.freeGoodsQty) || 0
+      if ('availableQty' in p) p.availableQty = Number(p.availableQty) || 0
+      return { ...l, ...p }
+    }))
   }, [])
 
   const handleSelectProduct = useCallback((key: string, p: ProductSearchResult) => {
@@ -104,7 +116,7 @@ export default function PurchaseReturnCreatePage() {
       productName: p.name,
       productSku: p.sku ?? '',
       availableQty: p.currentStock,
-      returnPrice: p.lastCostPrice ?? 0,
+      returnPrice: +(p.lastCostPrice ?? 0),
     })
   }, [updateLine])
 
@@ -136,12 +148,12 @@ export default function PurchaseReturnCreatePage() {
         productSku: l.productSku || undefined,
         batchNumber: l.batchNumber || undefined,
         expiryDate: l.expiryDate || undefined,
-        availableQty: l.availableQty,
-        returnQty: l.returnQty,
-        freeGoodsQty: l.freeGoodsQty,
-        returnPrice: l.returnPrice,
-        discountPct: l.discountPct,
-        taxPct: l.taxPct,
+        availableQty: +l.availableQty || 0,
+        returnQty: +l.returnQty || 1,
+        freeGoodsQty: +l.freeGoodsQty || 0,
+        returnPrice: +l.returnPrice || 0,
+        discountPct: +l.discountPct || 0,
+        taxPct: +l.taxPct || 0,
       })),
     })
   }
@@ -180,9 +192,14 @@ export default function PurchaseReturnCreatePage() {
       </div>
 
       {saveMut.isError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
-          <AlertTriangle size={15} />
-          حدث خطأ. يرجى المحاولة مجدداً.
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <div className="flex items-center gap-2 font-medium mb-1">
+            <AlertTriangle size={15} className="shrink-0" />
+            فشل الحفظ — يرجى مراجعة البيانات
+          </div>
+          <ul className="list-disc list-inside space-y-0.5 text-xs pr-1">
+            {getApiErrors(saveMut.error).map((m, i) => <li key={i}>{m}</li>)}
+          </ul>
         </div>
       )}
 

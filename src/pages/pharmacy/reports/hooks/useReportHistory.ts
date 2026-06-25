@@ -16,9 +16,24 @@ export interface SavedReport {
 const STORAGE_KEY = 'pulse_report_history'
 const MAX_AUTO = 10
 
+function isValidReport(r: unknown): r is SavedReport {
+  if (!r || typeof r !== 'object') return false
+  const o = r as Record<string, unknown>
+  return (
+    typeof o.id === 'string' &&
+    typeof o.name === 'string' &&
+    typeof o.domain === 'string' &&
+    typeof o.domainLabel === 'string' &&
+    typeof o.savedAt === 'string' &&
+    typeof o.version === 'number'
+  )
+}
+
 function load(): SavedReport[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(isValidReport)
   } catch {
     return []
   }
