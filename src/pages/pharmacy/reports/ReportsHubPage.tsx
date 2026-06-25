@@ -2,7 +2,7 @@
 import { Link } from 'react-router-dom'
 import {
   TrendingUp, Package, Clock, BarChart2,
-  ChevronLeft, Sparkles, Zap, ArrowUpRight, Shield,
+  ChevronLeft, Sparkles, Zap, ArrowUpRight, Shield, DollarSign, Layers,
 } from 'lucide-react'
 import { AiReportAssistant } from './components/AiReportAssistant'
 import { ReportHistory } from './components/ReportHistory'
@@ -36,8 +36,26 @@ const DOMAINS = [
   {
     key: 'insurance-claims', label: 'مطالبات التأمين',
     desc: 'ملخص مطالبات التأمين مجمّعة حسب الشركة والتاريخ — قيمة المبيعات والمبالغ المغطاة والمعلّقة',
-    icon: Shield, color: 'text-blue-600', leftBorder: 'border-l-blue-400',
+    icon: Shield, color: 'text-emerald-600', leftBorder: 'border-l-emerald-500',
     route: '/pharmacy/reports/insurance-claims', tag: 'تأمين',
+  },
+  {
+    key: 'profit-loss', label: 'الأرباح والخسائر',
+    desc: 'قائمة الدخل السنوية — صافي الإيرادات والتكاليف وإجمالي الربح مع مقارنة العام السابق',
+    icon: DollarSign, color: 'text-emerald-700', leftBorder: 'border-l-emerald-500',
+    route: '/pharmacy/reports/profit-loss', tag: 'مالي',
+  },
+  {
+    key: 'profitability-by-product', label: 'الربحية حسب المنتج',
+    desc: 'ربحية كل صنف — الكميات المباعة والمرتجعة، هامش الربح، تكلفة البضاعة مقارنةً بالإيرادات',
+    icon: TrendingUp, color: 'text-teal-600', leftBorder: 'border-l-teal-400',
+    route: '/pharmacy/reports/profitability-by-product', tag: 'ربحية',
+  },
+  {
+    key: 'profitability-by-category', label: 'الربحية حسب الفئة',
+    desc: 'ربحية كل فئة دوائية — مقارنة الإيرادات والتكاليف وهامش الربح بين الفئات',
+    icon: Layers, color: 'text-cyan-600', leftBorder: 'border-l-cyan-400',
+    route: '/pharmacy/reports/profitability-by-category', tag: 'ربحية',
   },
 ]
 
@@ -45,7 +63,10 @@ const QUICK = [
   { label: 'ملخص المبيعات',    route: '/pharmacy/reports/sales-summary',    icon: BarChart2, color: 'text-violet-600',   bg: 'bg-violet-50' },
   { label: 'المخزون الحالي',   route: '/pharmacy/reports/inventory-current', icon: Package,   color: 'text-orange-600', bg: 'bg-orange-50' },
   { label: 'انتهاء الصلاحية', route: '/pharmacy/reports/expiry-report',     icon: Clock,     color: 'text-amber-600',  bg: 'bg-amber-50' },
-  { label: 'مطالبات التأمين',  route: '/pharmacy/reports/insurance-claims',  icon: Shield,    color: 'text-blue-600',   bg: 'bg-blue-50' },
+  { label: 'مطالبات التأمين',  route: '/pharmacy/reports/insurance-claims',  icon: Shield,      color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  { label: 'الأرباح والخسائر', route: '/pharmacy/reports/profit-loss',       icon: DollarSign,  color: 'text-emerald-700', bg: 'bg-emerald-50' },
+  { label: 'ربحية المنتجات',  route: '/pharmacy/reports/profitability-by-product',  icon: TrendingUp, color: 'text-teal-600',    bg: 'bg-teal-50' },
+  { label: 'ربحية الفئات',    route: '/pharmacy/reports/profitability-by-category', icon: Layers,     color: 'text-cyan-600',    bg: 'bg-cyan-50' },
 ]
 
 export default function ReportsHubPage() {
@@ -55,25 +76,23 @@ export default function ReportsHubPage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-violet-600 via-violet-700 to-violet-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 70% 50%, white 0%, transparent 60%)' }} />
-        <div className="relative flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart2 size={20} className="text-violet-200" />
-              <span className="text-violet-200 text-sm font-medium">Pulse — مركز التقارير</span>
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="flex items-start justify-between gap-5 p-6">
+          <div className="flex items-start gap-5 min-w-0">
+            <div className="p-4 rounded-2xl shrink-0 bg-violet-50">
+              <BarChart2 size={28} className="text-violet-600" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
-              تقارير صيدليتك<br />
-              <span className="text-violet-200">في مكان واحد</span>
-            </h1>
-            <p className="text-violet-100 text-sm mt-2 leading-relaxed max-w-md">
-              اختر التقرير الذي تريده — الأرقام مرتبة وواضحة مع إمكانية التصدير.
-            </p>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-violet-500 uppercase tracking-wider mb-1">Pulse — مركز التقارير</p>
+              <h1 className="text-2xl font-bold text-gray-900">تقارير صيدليتك في مكان واحد</h1>
+              <p className="text-gray-500 mt-1.5 text-sm leading-relaxed max-w-xl">
+                اختر التقرير الذي تريده — الأرقام مرتبة وواضحة مع إمكانية التصدير.
+              </p>
+            </div>
           </div>
           <button
             onClick={() => setShowAi(o => !o)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/30 text-white text-sm font-semibold rounded-xl transition-colors backdrop-blur-sm shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shrink-0 shadow-sm"
           >
             <Sparkles size={15} />
             المساعد الذكي
@@ -104,7 +123,7 @@ export default function ReportsHubPage() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-sm font-semibold text-gray-700">التقارير المتاحة</h2>
-          <span className="text-xs text-gray-400">— 5 تقارير مفصلة لمتابعة صيدليتك</span>
+          <span className="text-xs text-gray-400">— 8 تقارير مفصلة لمتابعة صيدليتك</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {DOMAINS.map(d => (

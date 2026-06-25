@@ -9,7 +9,7 @@ import {
   Inbox, TrendingUp, AlertTriangle, Star,
   Plug, GitBranch, Upload, ListChecks, Bell,
   CheckCircle2, ShieldCheck, Store, Receipt, Clock,
-  Menu, X, FileText, RefreshCw,
+  Menu, X, FileText, RefreshCw, Layers,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProfileStore } from '../../store/auth.store';
@@ -30,6 +30,7 @@ const PHARMACY_NAV: NavGroup[] = [
     icon: Package,
     items: [
       { labelKey: 'nav.inventory',         to: '/pharmacy/inventory',        icon: Package },
+      { labelKey: 'nav.products',          to: '/pharmacy/products',         icon: Layers },
       { labelKey: 'nav.supplier_catalog',  to: '/pharmacy/catalog',          icon: BookOpen },
       { labelKey: 'nav.catalog_requests',  to: '/pharmacy/catalog-requests', icon: GitBranch },
     ],
@@ -52,10 +53,10 @@ const PHARMACY_NAV: NavGroup[] = [
     ],
   },
   {
-    labelKey: 'nav.analytics',
-    icon: TrendingUp,
+    labelKey: 'nav.reports',
+    icon: BarChart2,
     items: [
-      { labelKey: 'nav.analytics', to: '/pharmacy/analytics', icon: BarChart2 },
+      { labelKey: 'nav.reports', to: '/pharmacy/reports', icon: BarChart2 },
     ],
   },
 ];
@@ -537,9 +538,6 @@ function MobileNavDrawer({
                     <i.icon size={16} />{t(i.labelKey)}
                   </Link>
                 ))}
-                <Link to="/pharmacy/reports" className={linkCls(location.pathname.startsWith('/pharmacy/reports'))}>
-                  <BarChart2 size={16} />{t('nav.reports')}
-                </Link>
                 <Link to="/pharmacy/settings" className={linkCls(location.pathname.startsWith('/pharmacy/settings'))}>
                   <Settings size={16} />{isRTL ? 'الإعدادات' : 'Settings'}
                 </Link>
@@ -658,17 +656,6 @@ export function TopNav() {
                   {isRTL ? 'العملاء' : 'Customers'}
                 </Link>
                 <DropdownGroup group={PHARMACY_NAV[3]} isActive={PHARMACY_NAV[3].items.some(i => location.pathname.startsWith(i.to))} />
-                <Link
-                  to="/pharmacy/reports"
-                  className={clsx(
-                    'px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
-                    location.pathname.startsWith('/pharmacy/reports')
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
-                  )}
-                >
-                  {t('nav.reports')}
-                </Link>
                 <Link
                   to="/pharmacy/settings"
                   className={clsx(

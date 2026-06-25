@@ -41,6 +41,24 @@ export interface ProductSalesRow {
   cogs:                number
   grossMargin:         number
   grossMarginPct:      number
+  qtyReturned:         number
+  avgInvoiceValue:     number
+}
+
+export interface CategorySalesRow {
+  category:            string
+  saleDate:            string
+  qtySold:             number
+  qtyReturned:         number
+  invoiceCount:        number
+  totalDiscounts:      number
+  totalSales:          number
+  salesBeforeDiscount: number
+  totalReturns:        number
+  netSales:            number
+  cogs:                number
+  grossMargin:         number
+  grossMarginPct:      number
 }
 
 export interface InventoryReportRow {
@@ -94,6 +112,11 @@ export interface InsuranceClaimsRow {
   pendingAmount:          number
 }
 
+export interface Paginated<T> {
+  data: T[]
+  total: number
+}
+
 export const analyticsApi = {
   getDashboard: (weeks = 12) =>
     client.get(`/analytics/dashboard?weeks=${weeks}`),
@@ -109,7 +132,10 @@ export const analyticsApi = {
     dateFrom: string
     dateTo: string
     cashierName?: string
-  }): Promise<SalesSummaryRow[]> =>
+    hideZeroRows?: boolean
+    page?: number
+    pageSize?: number
+  }): Promise<Paginated<SalesSummaryRow>> =>
     client.get('/analytics/sales/summary', { params }).then(r => r.data),
 
   getSalesByProduct: (params: {
@@ -117,14 +143,18 @@ export const analyticsApi = {
     dateTo: string
     search?: string
     category?: string
-  }): Promise<ProductSalesRow[]> =>
+    page?: number
+    pageSize?: number
+  }): Promise<Paginated<ProductSalesRow>> =>
     client.get('/analytics/sales/by-product', { params }).then(r => r.data),
 
   getInventoryReport: (params?: {
     search?: string
     category?: string
     status?: string
-  }): Promise<InventoryReportRow[]> =>
+    page?: number
+    pageSize?: number
+  }): Promise<Paginated<InventoryReportRow>> =>
     client.get('/analytics/inventory/current', { params }).then(r => r.data),
 
   getExpiryReport: (params?: {
@@ -134,13 +164,26 @@ export const analyticsApi = {
     daysAhead?: number
     dateFrom?: string
     dateTo?: string
-  }): Promise<ExpiryReportRow[]> =>
+    page?: number
+    pageSize?: number
+  }): Promise<Paginated<ExpiryReportRow>> =>
     client.get('/analytics/expiry/report', { params }).then(r => r.data),
 
   getInsuranceClaimsReport: (params?: {
     dateFrom?: string
     dateTo?: string
     insuranceCompanyId?: string
-  }): Promise<InsuranceClaimsRow[]> =>
+    page?: number
+    pageSize?: number
+  }): Promise<Paginated<InsuranceClaimsRow>> =>
     client.get('/analytics/insurance/claims', { params }).then(r => r.data),
+
+  getSalesByCategory: (params: {
+    dateFrom: string
+    dateTo: string
+    category?: string
+    page?: number
+    pageSize?: number
+  }): Promise<Paginated<CategorySalesRow>> =>
+    client.get('/analytics/sales/by-category', { params }).then(r => r.data),
 };

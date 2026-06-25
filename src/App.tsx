@@ -17,7 +17,6 @@ const InventoryPage          = lazy(() => import('./pages/pharmacy/InventoryPage
 const CatalogPage            = lazy(() => import('./pages/pharmacy/CatalogPage'));
 const CatalogRequestsPage    = lazy(() => import('./pages/pharmacy/CatalogRequestsPage'));
 const PharmacyOrdersPage     = lazy(() => import('./pages/pharmacy/OrdersPage'));
-const AnalyticsDashboardPage = lazy(() => import('./pages/pharmacy/AnalyticsDashboardPage'));
 const ConnectionsPage        = lazy(() => import('./pages/pharmacy/ConnectionsPage'));
 const P2PPage                = lazy(() => import('./pages/pharmacy/P2PPage'));
 const SettingsPage           = lazy(() => import('./pages/pharmacy/SettingsPage'));
@@ -25,8 +24,10 @@ const PosPage                = lazy(() => import('./pages/pharmacy/pos/PosPage')
 const ShiftLogPage           = lazy(() => import('./pages/pharmacy/pos/ShiftLogPage'));
 const SalesLogPage           = lazy(() => import('./pages/pharmacy/pos/SalesLogPage'));
 const CustomersPage               = lazy(() => import('./pages/pharmacy/CustomersPage'));
+const ProductsPage                = lazy(() => import('./pages/pharmacy/ProductsPage'));
 const PurchaseInvoiceListPage     = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceListPage'));
 const PurchaseInvoiceCreatePage   = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceCreatePage'));
+const PurchaseInvoiceDetailPage   = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceDetailPage'));
 const PurchaseReturnListPage      = lazy(() => import('./pages/pharmacy/purchases/PurchaseReturnListPage'));
 const PurchaseReturnCreatePage    = lazy(() => import('./pages/pharmacy/purchases/PurchaseReturnCreatePage'));
 const PurchaseWishListPage        = lazy(() => import('./pages/pharmacy/purchases/PurchaseWishListPage'));
@@ -36,6 +37,9 @@ const SalesByProductPage          = lazy(() => import('./pages/pharmacy/reports/
 const CurrentInventoryPage        = lazy(() => import('./pages/pharmacy/reports/domains/CurrentInventoryPage'));
 const ExpiryReportPage            = lazy(() => import('./pages/pharmacy/reports/domains/ExpiryReportPage'));
 const InsuranceClaimsPage         = lazy(() => import('./pages/pharmacy/reports/domains/InsuranceClaimsPage'));
+const ProfitLossPage                   = lazy(() => import('./pages/pharmacy/reports/domains/ProfitLossPage'));
+const ProfitabilityByProductPage       = lazy(() => import('./pages/pharmacy/reports/domains/ProfitabilityByProductPage'));
+const ProfitabilityByCategoryPage      = lazy(() => import('./pages/pharmacy/reports/domains/ProfitabilityByCategoryPage'));
 
 // ── Supplier ──────────────────────────────────────────────────────────────────
 const SupplierDashboardPage  = lazy(() => import('./pages/supplier/DashboardPage'));
@@ -107,8 +111,8 @@ export default function App() {
             <Route index                    element={<PharmacyDashboardPage />} />
             <Route path="ai-center"         element={<AiCenterPage />} />
             <Route path="ai"               element={<Navigate to="/pharmacy/ai-center" replace />} />
-            <Route path="analytics"        element={<AnalyticsDashboardPage />} />
             <Route path="inventory"        element={<InventoryPage />} />
+            <Route path="products"         element={<ProductsPage />} />
             <Route path="catalog"          element={<CatalogPage />} />
             <Route path="catalog-requests" element={<CatalogRequestsPage />} />
             <Route path="orders"           element={<PharmacyOrdersPage />} />
@@ -118,8 +122,9 @@ export default function App() {
             <Route path="pos"              element={<PosPage />} />
             <Route path="pos/shifts"       element={<ShiftLogPage />} />
             <Route path="pos/sales"        element={<SalesLogPage />} />
-            <Route path="purchases/invoices"        element={<PurchaseInvoiceListPage />} />
-            <Route path="purchases/invoices/create" element={<PurchaseInvoiceCreatePage />} />
+            <Route path="purchases/invoices"           element={<PurchaseInvoiceListPage />} />
+            <Route path="purchases/invoices/create"    element={<PurchaseInvoiceCreatePage />} />
+            <Route path="purchases/invoices/:id"       element={<PurchaseInvoiceDetailPage />} />
             <Route path="purchases/returns"         element={<PurchaseReturnListPage />} />
             <Route path="purchases/returns/create"  element={<PurchaseReturnCreatePage />} />
             <Route path="purchases/wishlist"        element={<PurchaseWishListPage />} />
@@ -131,6 +136,9 @@ export default function App() {
             <Route path="reports/inventory-current" element={<CurrentInventoryPage />} />
             <Route path="reports/expiry-report" element={<ExpiryReportPage />} />
             <Route path="reports/insurance-claims" element={<InsuranceClaimsPage />} />
+            <Route path="reports/profit-loss"                  element={<ProfitLossPage />} />
+            <Route path="reports/profitability-by-product"     element={<ProfitabilityByProductPage />} />
+            <Route path="reports/profitability-by-category"    element={<ProfitabilityByCategoryPage />} />
           </Route>
 
           {/* ── Supplier ─────────────────────────────────────────────────────── */}

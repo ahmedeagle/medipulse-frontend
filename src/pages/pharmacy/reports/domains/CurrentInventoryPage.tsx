@@ -1,8 +1,8 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Package, DollarSign, TrendingDown, AlertTriangle,
-  RefreshCw, Search, SlidersHorizontal, Download, X,
+  RefreshCw, Search, SlidersHorizontal, Download, X, Plus,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
 } from 'lucide-react'
 import { analyticsApi, type InventoryReportRow } from '../../../../api/analytics.api'
@@ -16,28 +16,149 @@ import { downloadCsv } from '../../../../utils/export'
 
 type ColKey = keyof InventoryReportRow
 
-const ALL_COLS: ColDef[] = [
+type InvColDef = ColDef & { isNumeric?: boolean }
+
+const ALL_COLS: InvColDef[] = [
   { key: 'productCode',      label: 'كود الصنف',                          group: 'أساسي' },
   { key: 'productName',      label: 'اسم الصنف',                          group: 'أساسي' },
   { key: 'barcode',          label: 'الباركود',                           group: 'أساسي' },
   { key: 'category',         label: 'الفئة',                              group: 'أساسي' },
-  { key: 'stockQty',         label: 'كمية المخزون',                       group: 'كميات' },
-  { key: 'costValue',        label: 'قيمة المخزون بسعر التكلفة',          group: 'قيم' },
-  { key: 'sellValue',        label: 'قيمة المخزون بسعر البيع',            group: 'قيم' },
-  { key: 'availableForSale', label: 'الكمية المتاحة للبيع',               group: 'كميات' },
-  { key: 'nearExpiryQty',    label: 'كمية قريبة الانتهاء',                group: 'صلاحية' },
-  { key: 'expiredQty',       label: 'الكمية منتهية الصلاحية',             group: 'صلاحية' },
-  { key: 'avgCostPrice',     label: 'متوسط سعر التكلفة',                  group: 'أسعار' },
-  { key: 'avgSellPrice',     label: 'متوسط سعر البيع',                    group: 'أسعار' },
+  { key: 'stockQty',         label: 'كمية المخزون',                       group: 'كميات',   isNumeric: true },
+  { key: 'costValue',        label: 'قيمة المخزون بسعر التكلفة',          group: 'قيم',     isNumeric: true },
+  { key: 'sellValue',        label: 'قيمة المخزون بسعر البيع',            group: 'قيم',     isNumeric: true },
+  { key: 'availableForSale', label: 'الكمية المتاحة للبيع',               group: 'كميات',   isNumeric: true },
+  { key: 'nearExpiryQty',    label: 'كمية قريبة الانتهاء',                group: 'صلاحية',  isNumeric: true },
+  { key: 'expiredQty',       label: 'الكمية منتهية الصلاحية',             group: 'صلاحية',  isNumeric: true },
+  { key: 'avgCostPrice',     label: 'متوسط سعر التكلفة',                  group: 'أسعار',   isNumeric: true },
+  { key: 'avgSellPrice',     label: 'متوسط سعر البيع',                    group: 'أسعار',   isNumeric: true },
   { key: 'status',           label: 'الحالة',                             group: 'أساسي' },
-  { key: 'avgDiscount',      label: 'متوسط الخصم',                        group: 'خصومات' },
-  { key: 'minDiscount',      label: 'أقل خصم',                            group: 'خصومات' },
-  { key: 'maxDiscount',      label: 'أعلى خصم',                          group: 'خصومات' },
-  { key: 'avgFreeUnits',     label: 'متوسط الوحدات المجانية',             group: 'مجاني' },
-  { key: 'minFreeUnits',     label: 'أقل عدد وحدات مجانية',               group: 'مجاني' },
-  { key: 'maxFreeUnits',     label: 'أعلى عدد وحدات مجانية',              group: 'مجاني' },
-  { key: 'avgProfitPerUnit', label: 'متوسط الربح لكل وحدة',               group: 'ربحية' },
+  { key: 'avgDiscount',      label: 'متوسط الخصم %',                      group: 'خصومات',  isNumeric: true },
+  { key: 'minDiscount',      label: 'أقل خصم %',                          group: 'خصومات',  isNumeric: true },
+  { key: 'maxDiscount',      label: 'أعلى خصم %',                        group: 'خصومات',  isNumeric: true },
+  { key: 'avgFreeUnits',     label: 'متوسط الوحدات المجانية',             group: 'مجاني',   isNumeric: true },
+  { key: 'minFreeUnits',     label: 'أقل عدد وحدات مجانية',               group: 'مجاني',   isNumeric: true },
+  { key: 'maxFreeUnits',     label: 'أعلى عدد وحدات مجانية',              group: 'مجاني',   isNumeric: true },
+  { key: 'avgProfitPerUnit', label: 'متوسط الربح لكل وحدة',               group: 'ربحية',   isNumeric: true },
 ]
+
+// ── Smart filter panel ────────────────────────────────────────────────────────
+
+type FilterEntry = { key: string; label: string; value: string; isNumeric: boolean }
+
+function AddFilterPanel({
+  allCols, active, onAdd, onRemove, onChangeValue,
+}: {
+  allCols: InvColDef[]
+  active: FilterEntry[]
+  onAdd: (col: InvColDef) => void
+  onRemove: (key: string) => void
+  onChangeValue: (key: string, value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRefs   = useRef<Map<string, HTMLInputElement>>(new Map())
+  const [focusKey, setFocusKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!focusKey) return
+    const el = inputRefs.current.get(focusKey)
+    if (el) { el.focus(); el.select() }
+    setFocusKey(null)
+  }, [focusKey, active])
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const activeKeys = new Set(active.map(f => f.key))
+  const available  = allCols.filter(c => !activeKeys.has(c.key))
+
+  function handleAdd(col: InvColDef) {
+    onAdd(col)
+    setFocusKey(col.key)
+    setOpen(false)
+  }
+
+  return (
+    <div className="flex items-center flex-wrap gap-2">
+      {active.map(f => (
+        <div key={f.key}
+          className="flex items-center gap-0 bg-white border-2 border-orange-400 rounded-xl overflow-hidden shadow-sm">
+          <span className="bg-orange-500 text-white text-xs font-semibold px-2.5 py-1.5 whitespace-nowrap select-none">
+            {f.label}
+          </span>
+          <span className="text-xs text-gray-400 px-1.5 select-none whitespace-nowrap">
+            {f.isNumeric ? '≥' : 'يحتوي'}
+          </span>
+          <input
+            ref={el => { if (el) inputRefs.current.set(f.key, el); else inputRefs.current.delete(f.key) }}
+            type={f.isNumeric ? 'number' : 'text'}
+            value={f.value}
+            onChange={e => onChangeValue(f.key, e.target.value)}
+            placeholder={f.isNumeric ? 'أدخل رقماً...' : 'اكتب هنا...'}
+            className="text-sm px-2 py-1.5 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-orange-50 transition-colors w-28"
+            dir="ltr"
+          />
+          <button
+            onClick={() => onRemove(f.key)}
+            className="px-2 py-1.5 text-gray-400 hover:text-white hover:bg-red-500 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+
+      {available.length > 0 && (
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setOpen(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+              open
+                ? 'bg-orange-500 border-orange-500 text-white'
+                : 'border-dashed border-gray-300 text-gray-500 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50'
+            }`}
+          >
+            <Plus size={13} /> إضافة فلتر
+          </button>
+          {open && (
+            <div className="absolute top-full mt-1.5 z-40 bg-white rounded-2xl border border-gray-200 shadow-2xl w-64 py-1.5 max-h-72 overflow-y-auto" style={{ right: 0 }}>
+              <p className="px-3 pt-1 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                اختر حقلاً للتصفية
+              </p>
+              {available.map(col => (
+                <button
+                  key={col.key}
+                  onClick={() => handleAdd(col)}
+                  className="w-full text-right px-3 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-700 transition-colors flex items-center justify-between gap-2"
+                >
+                  <span className="font-medium">{col.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                    col.isNumeric ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {col.isNumeric ? 'رقم' : 'نص'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {active.length > 0 && (
+        <button
+          onClick={() => active.forEach(f => onRemove(f.key))}
+          className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 px-2.5 py-1.5 rounded-xl hover:bg-red-50 border border-transparent hover:border-red-200 transition-all font-medium"
+        >
+          <X size={11} /> مسح الكل
+        </button>
+      )}
+    </div>
+  )
+}
 
 const STATUS_LABELS: Record<InventoryReportRow['status'], { label: string; cls: string }> = {
   active:      { label: 'نشط',               cls: 'bg-emerald-100 text-emerald-700' },
@@ -97,24 +218,34 @@ export default function CurrentInventoryPage() {
   const [sortDir,      setSortDir]     = useState<'asc' | 'desc'>('desc')
   const [page,         setPage]        = useState(1)
   const [colPickerOpen, setColPickerOpen] = useState(false)
+  const [filters,      setFilters]     = useState<FilterEntry[]>([])
+
+  function addFilter(col: InvColDef) {
+    setFilters(prev => [...prev, { key: col.key, label: col.label, value: '', isNumeric: !!col.isNumeric }])
+  }
+  function removeFilter(key: string) {
+    setFilters(prev => prev.filter(f => f.key !== key))
+  }
+  function updateFilterValue(key: string, value: string) {
+    setFilters(prev => prev.map(f => f.key === key ? { ...f, value } : f))
+  }
 
   const { visible, order, displayCols, toggleCol, setOrder, reset } =
     useColState(ALL_COLS, 'inventoryReport')
 
-  const { data: rows = [], isLoading, error, refetch } = useQuery({
+  const { data: queryData, isLoading, error, refetch } = useQuery({
     queryKey: ['inventory-report', search, category, statusFilter],
     queryFn:  () => analyticsApi.getInventoryReport({
-      search:   search   || undefined,
-      category: category || undefined,
+      search:   search        || undefined,
+      category: category      || undefined,
+      status:   statusFilter  || undefined,
+      pageSize: 9999,
     }),
     staleTime: 2 * 60_000,
     retry: 1,
   })
 
-  const filteredRows = useMemo(() =>
-    statusFilter ? rows.filter(r => r.status === statusFilter) : rows,
-    [rows, statusFilter]
-  )
+  const filteredRows = queryData?.data ?? []
 
   const totals = useMemo(() => filteredRows.reduce((acc, r) => ({
     stockQty:  acc.stockQty  + r.stockQty,
@@ -124,15 +255,31 @@ export default function CurrentInventoryPage() {
     expiredQty:    acc.expiredQty    + r.expiredQty,
   }), { stockQty: 0, costValue: 0, sellValue: 0, nearExpiryQty: 0, expiredQty: 0 }), [filteredRows])
 
-  const categories = useMemo(() => [...new Set(rows.map(r => r.category).filter(Boolean))].sort(), [rows])
+  const categories = useMemo(() => [...new Set(filteredRows.map(r => r.category).filter(Boolean))].sort(), [filteredRows])
 
   const sortedRows = useMemo(() => {
-    return [...filteredRows].sort((a, b) => {
+    let result = [...filteredRows]
+    for (const f of filters) {
+      if (!f.value) continue
+      const col = ALL_COLS.find(c => c.key === f.key)
+      if (!col) continue
+      if (col.isNumeric) {
+        const min = parseFloat(f.value)
+        if (!isNaN(min)) result = result.filter(r => {
+          const v = r[f.key as ColKey]
+          return typeof v === 'number' && v >= min
+        })
+      } else {
+        const q = f.value.toLowerCase()
+        result = result.filter(r => String(r[f.key as ColKey] ?? '').toLowerCase().includes(q))
+      }
+    }
+    return result.sort((a, b) => {
       const av = a[sortKey], bv = b[sortKey]
       if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av
       return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
     })
-  }, [filteredRows, sortKey, sortDir])
+  }, [filteredRows, sortKey, sortDir, filters])
 
   const pagedRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -298,6 +445,25 @@ export default function CurrentInventoryPage() {
             </div>
           </div>
 
+          {/* AddFilterPanel */}
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-gray-500">تصفية النتائج:</span>
+              {filters.filter(f => f.value).length > 0 && (
+                <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                  {filters.filter(f => f.value).length} فلتر نشط
+                </span>
+              )}
+            </div>
+            <AddFilterPanel
+              allCols={ALL_COLS}
+              active={filters}
+              onAdd={addFilter}
+              onRemove={removeFilter}
+              onChangeValue={updateFilterValue}
+            />
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm" dir="rtl">
               <thead className="bg-gray-50">
@@ -329,7 +495,8 @@ export default function CurrentInventoryPage() {
                           col.key === 'productCode'  ? 'font-mono text-gray-600' :
                           col.key === 'status'       ? '' :
                           typeof row[col.key as ColKey] === 'number' && (row[col.key as ColKey] as number) < 0 ? 'text-red-600 font-medium' :
-                          col.key === 'sellValue' || col.key === 'costValue' ? 'font-medium text-gray-900' :
+                          col.key === 'sellValue' || col.key === 'costValue' ? 'font-bold text-gray-900' :
+                          col.key === 'stockQty' ? 'font-medium text-gray-800' :
                           'text-gray-600'
                         }`}>
                         {col.key === 'status' ? (
@@ -341,6 +508,28 @@ export default function CurrentInventoryPage() {
                     ))}
                   </tr>
                 ))}
+                {/* Totals footer */}
+                {(page === Math.ceil(sortedRows.length / PAGE_SIZE) || Math.ceil(sortedRows.length / PAGE_SIZE) <= 1) && (
+                  <tr className="border-t-2 border-orange-200 bg-orange-50/60 font-semibold">
+                    {displayCols.map((col, ci) => (
+                      <td key={col.key}
+                        className={`px-3 py-3 text-right text-xs whitespace-nowrap ${
+                          ci === 0 ? 'font-bold text-orange-800' :
+                          col.key === 'sellValue' || col.key === 'costValue' ? 'font-bold text-orange-900' :
+                          col.key === 'stockQty' || col.key === 'nearExpiryQty' || col.key === 'expiredQty' ? 'font-bold text-gray-700' :
+                          'text-gray-500'
+                        }`}>
+                        {ci === 0 ? 'الإجمالي' :
+                         col.key === 'stockQty'      ? fmtN(totals.stockQty) :
+                         col.key === 'costValue'     ? fmt(totals.costValue) :
+                         col.key === 'sellValue'     ? fmt(totals.sellValue) :
+                         col.key === 'nearExpiryQty' ? fmtN(totals.nearExpiryQty) :
+                         col.key === 'expiredQty'    ? fmtN(totals.expiredQty) :
+                         '—'}
+                      </td>
+                    ))}
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
