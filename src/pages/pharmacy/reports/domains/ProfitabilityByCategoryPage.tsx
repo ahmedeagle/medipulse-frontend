@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Layers, TrendingUp, DollarSign, ShoppingCart,
-  RefreshCw, Search, SlidersHorizontal, X,
+  RefreshCw, Search, SlidersHorizontal, X, Plus,
   ChevronUp, ChevronDown, Download,
   ChevronLeft, ChevronRight, type LucideIcon,
 } from 'lucide-react'
@@ -36,25 +36,23 @@ function getDateRange(preset: Preset, customFrom?: string, customTo?: string) {
 type ColKey = keyof CategorySalesRow
 type SortDir = 'asc' | 'desc'
 
-type ColDef = { key: ColKey; label: string; group: string }
+type CatColDef = { key: ColKey; label: string; group: string; isNumeric?: boolean }
 
-const ALL_COLS: ColDef[] = [
+const ALL_COLS: CatColDef[] = [
   { key: 'saleDate',            label: 'التاريخ',                            group: 'أساسي' },
   { key: 'category',            label: 'الفئة',                              group: 'أساسي' },
-  { key: 'qtySold',             label: 'إجمالي الكمية المباعة',               group: 'كميات' },
-  { key: 'qtyReturned',         label: 'إجمالي الكمية المرتجعة',              group: 'كميات' },
-  { key: 'invoiceCount',        label: 'إجمالي الفواتير',                    group: 'فواتير' },
-  { key: 'totalSales',          label: 'إجمالي المبيعات',                    group: 'مبيعات' },
-  { key: 'salesBeforeDiscount', label: 'إجمالي المبيعات قبل الخصومات',       group: 'مبيعات' },
-  { key: 'totalReturns',        label: 'قيمة المرتجعات',                     group: 'مبيعات' },
-  { key: 'totalDiscounts',      label: 'قيمة الخصومات',                      group: 'مبيعات' },
-  { key: 'netSales',            label: 'صافي الإيرادات',                     group: 'مبيعات' },
-  { key: 'cogs',                label: 'إجمالي قيمة التكلفة',                group: 'ربحية' },
-  { key: 'grossMargin',         label: 'إجمالي الربح',                       group: 'ربحية' },
-  { key: 'grossMarginPct',      label: 'نسبة هامش الربح الإجمالي',           group: 'ربحية' },
+  { key: 'qtySold',             label: 'إجمالي الكمية المباعة',               group: 'كميات',  isNumeric: true },
+  { key: 'qtyReturned',         label: 'إجمالي الكمية المرتجعة',              group: 'كميات',  isNumeric: true },
+  { key: 'invoiceCount',        label: 'إجمالي الفواتير',                    group: 'فواتير', isNumeric: true },
+  { key: 'totalSales',          label: 'إجمالي صافي المبيعات',               group: 'مبيعات', isNumeric: true },
+  { key: 'salesBeforeDiscount', label: 'إجمالي المبيعات الإجمالية',           group: 'مبيعات', isNumeric: true },
+  { key: 'totalReturns',        label: 'قيمة المرتجعات',                     group: 'مبيعات', isNumeric: true },
+  { key: 'totalDiscounts',      label: 'قيمة الخصومات',                      group: 'مبيعات', isNumeric: true },
+  { key: 'netSales',            label: 'صافي الإيرادات',                     group: 'مبيعات', isNumeric: true },
+  { key: 'cogs',                label: 'إجمالي قيمة التكلفة',                group: 'ربحية',  isNumeric: true },
+  { key: 'grossMargin',         label: 'إجمالي الربح',                       group: 'ربحية',  isNumeric: true },
+  { key: 'grossMarginPct',      label: 'نسبة هامش الربح الإجمالي',           group: 'ربحية',  isNumeric: true },
 ]
-
-const COL_GROUPS = ['أساسي', 'كميات', 'فواتير', 'مبيعات', 'ربحية']
 const DEFAULT_VISIBLE = new Set<ColKey>([
   'saleDate', 'category', 'qtySold', 'qtyReturned',
   'netSales', 'cogs', 'grossMargin', 'grossMarginPct',
@@ -69,6 +67,125 @@ const PRESETS: { key: Preset; label: string }[] = [
   { key: 'year',      label: 'هذا العام' },
   { key: 'custom',    label: 'مخصص' },
 ]
+
+// ── Column filter panel ───────────────────────────────────────────────────────
+
+type FilterEntry = { key: string; label: string; value: string; isNumeric: boolean }
+
+function AddFilterPanel({
+  allCols, active, onAdd, onRemove, onChangeValue,
+}: {
+  allCols: CatColDef[]
+  active: FilterEntry[]
+  onAdd: (col: CatColDef) => void
+  onRemove: (key: string) => void
+  onChangeValue: (key: string, value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRefs   = useRef<Map<string, HTMLInputElement>>(new Map())
+  const [focusKey, setFocusKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!focusKey) return
+    const el = inputRefs.current.get(focusKey)
+    if (el) { el.focus(); el.select() }
+    setFocusKey(null)
+  }, [focusKey, active])
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const activeKeys = new Set(active.map(f => f.key))
+  const available  = allCols.filter(c => !activeKeys.has(c.key))
+
+  function handleAdd(col: CatColDef) {
+    onAdd(col)
+    setFocusKey(col.key)
+    setOpen(false)
+  }
+
+  return (
+    <div className="flex items-center flex-wrap gap-2">
+      {active.map(f => (
+        <div key={f.key}
+          className="flex items-center gap-0 bg-white border-2 border-cyan-400 rounded-xl overflow-hidden shadow-sm">
+          <span className="bg-cyan-500 text-white text-xs font-semibold px-2.5 py-1.5 whitespace-nowrap select-none">
+            {f.label}
+          </span>
+          <span className="text-xs text-gray-400 px-1.5 select-none whitespace-nowrap">
+            {f.isNumeric ? '≥' : 'يحتوي'}
+          </span>
+          <input
+            ref={el => { if (el) inputRefs.current.set(f.key, el); else inputRefs.current.delete(f.key) }}
+            type={f.isNumeric ? 'number' : 'text'}
+            value={f.value}
+            onChange={e => onChangeValue(f.key, e.target.value)}
+            placeholder={f.isNumeric ? 'أدخل رقماً...' : 'اكتب هنا...'}
+            className="text-sm px-2 py-1.5 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-cyan-50 transition-colors w-28"
+            dir="ltr"
+          />
+          <button
+            onClick={() => onRemove(f.key)}
+            className="px-2 py-1.5 text-gray-400 hover:text-white hover:bg-red-500 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+
+      {available.length > 0 && (
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setOpen(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+              open
+                ? 'bg-cyan-500 border-cyan-500 text-white'
+                : 'border-dashed border-gray-300 text-gray-500 hover:border-cyan-400 hover:text-cyan-600 hover:bg-cyan-50'
+            }`}
+          >
+            <Plus size={13} /> إضافة فلتر
+          </button>
+          {open && (
+            <div className="absolute top-full mt-1.5 z-40 bg-white rounded-2xl border border-gray-200 shadow-2xl w-64 py-1.5 max-h-72 overflow-y-auto" style={{ right: 0 }}>
+              <p className="px-3 pt-1 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                اختر حقلاً للتصفية
+              </p>
+              {available.map(col => (
+                <button
+                  key={col.key}
+                  onClick={() => handleAdd(col)}
+                  className="w-full text-right px-3 py-2.5 text-sm hover:bg-cyan-50 hover:text-cyan-700 transition-colors flex items-center justify-between gap-2"
+                >
+                  <span className="font-medium">{col.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                    col.isNumeric ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {col.isNumeric ? 'رقم' : 'نص'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {active.length > 0 && (
+        <button
+          onClick={() => active.forEach(f => onRemove(f.key))}
+          className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 px-2.5 py-1.5 rounded-xl hover:bg-red-50 border border-transparent hover:border-red-200 transition-all font-medium"
+        >
+          <X size={11} /> مسح الكل
+        </button>
+      )}
+    </div>
+  )
+}
 
 // ── Small components ──────────────────────────────────────────────────────────
 
@@ -154,12 +271,24 @@ export default function ProfitabilityByCategoryPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [page,    setPage]    = useState(1)
 
+  // Column filters
+  const [filters, setFilters] = useState<FilterEntry[]>([])
+  function addFilter(col: CatColDef) {
+    setFilters(prev => [...prev, { key: col.key, label: col.label, value: '', isNumeric: !!col.isNumeric }])
+  }
+  function removeFilter(key: string) {
+    setFilters(prev => prev.filter(f => f.key !== key))
+  }
+  function updateFilterValue(key: string, value: string) {
+    setFilters(prev => prev.map(f => f.key === key ? { ...f, value } : f))
+  }
+
   // Column picker
   const [colPickerOpen, setColPickerOpen] = useState(false)
   const { visible: visibleCols, order: colOrder, displayCols, toggleCol, setOrder, reset: resetCols } =
     useColState(ALL_COLS, 'profitabilityByCategory')
 
-  useEffect(() => setPage(1), [sortKey, sortDir, category, preset, customFrom, customTo])
+  useEffect(() => setPage(1), [sortKey, sortDir, category, preset, customFrom, customTo, filters])
 
   const { dateFrom, dateTo } = getDateRange(preset, customFrom, customTo)
 
@@ -193,12 +322,28 @@ export default function ProfitabilityByCategoryPage() {
 
   // ── Sort + paginate ───────────────────────────────────────────────────────
   const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => {
+    let result = [...rows]
+    for (const f of filters) {
+      if (!f.value) continue
+      const col = ALL_COLS.find(c => c.key === f.key)
+      if (!col) continue
+      if (col.isNumeric) {
+        const min = parseFloat(f.value)
+        if (!isNaN(min)) result = result.filter(r => {
+          const v = r[f.key as ColKey]
+          return typeof v === 'number' && v >= min
+        })
+      } else {
+        const q = f.value.toLowerCase()
+        result = result.filter(r => String(r[f.key as ColKey] ?? '').toLowerCase().includes(q))
+      }
+    }
+    return result.sort((a, b) => {
       const av = a[sortKey], bv = b[sortKey]
       if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av
       return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
     })
-  }, [rows, sortKey, sortDir])
+  }, [rows, sortKey, sortDir, filters])
 
   const pagedRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -358,6 +503,25 @@ export default function ProfitabilityByCategoryPage() {
             </div>
           </div>
 
+          {/* Column filter panel */}
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-gray-500">تصفية النتائج:</span>
+              {filters.filter(f => f.value).length > 0 && (
+                <span className="text-[10px] bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-medium">
+                  {filters.filter(f => f.value).length} فلتر نشط
+                </span>
+              )}
+            </div>
+            <AddFilterPanel
+              allCols={ALL_COLS}
+              active={filters}
+              onAdd={addFilter}
+              onRemove={removeFilter}
+              onChangeValue={updateFilterValue}
+            />
+          </div>
+
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm" dir="rtl">
@@ -433,5 +597,3 @@ export default function ProfitabilityByCategoryPage() {
   )
 }
 
-// suppress unused variable warning for COL_GROUPS (kept for future use)
-void COL_GROUPS

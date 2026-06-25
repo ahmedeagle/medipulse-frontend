@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   TrendingUp, TrendingDown, DollarSign, ShoppingCart,
   Download, RefreshCw, ArrowUpRight, ArrowDownRight,
   ChevronUp, ChevronDown, Bookmark, BarChart2, Percent, SlidersHorizontal,
+  Plus, X,
 } from 'lucide-react'
 import { useColState } from '../../../../hooks/useColState'
 import { ColPicker, type ColDef } from '../../../../components/reports/ColPicker'
@@ -125,6 +126,142 @@ function PlRow({
   )
 }
 
+// ── Column filter panel ───────────────────────────────────────────────────────
+
+type PlFilterEntry = { key: string; label: string; value: string; isNumeric: boolean }
+type PlFilterDef   = { key: string; label: string; isNumeric: boolean }
+
+const FILTER_COLS: PlFilterDef[] = [
+  { key: 'monthNumber',         label: 'رقم الشهر',                        isNumeric: true  },
+  { key: 'year',                label: 'السنة',                            isNumeric: true  },
+  { key: 'period',              label: 'تنسيق السنة والشهر',               isNumeric: false },
+  { key: 'monthStart',          label: 'تاريخ بداية الشهر',                isNumeric: false },
+  { key: 'monthEnd',            label: 'تاريخ نهاية الشهر',                isNumeric: false },
+  { key: 'totalSales',          label: 'صافي إجمالي المبيعات',             isNumeric: true  },
+  { key: 'salesBeforeDiscount', label: 'إجمالي المبيعات قبل الخصومات',    isNumeric: true  },
+  { key: 'totalReturns',        label: 'قيمة المرتجعات',                   isNumeric: true  },
+  { key: 'totalDiscounts',      label: 'قيمة الخصومات',                    isNumeric: true  },
+  { key: 'netSales',            label: 'صافي الإيرادات',                   isNumeric: true  },
+  { key: 'cogs',                label: 'إجمالي قيمة التكلفة',              isNumeric: true  },
+  { key: 'grossMargin',         label: 'إجمالي الربح',                     isNumeric: true  },
+  { key: 'grossMarginPct',      label: 'نسبة هامش الربح الإجمالي',         isNumeric: true  },
+  { key: 'avgInvoice',          label: 'متوسط قيمة الفاتورة',              isNumeric: true  },
+]
+
+function PlAddFilterPanel({
+  active, onAdd, onRemove, onChangeValue,
+}: {
+  active: PlFilterEntry[]
+  onAdd: (col: PlFilterDef) => void
+  onRemove: (key: string) => void
+  onChangeValue: (key: string, value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRefs   = useRef<Map<string, HTMLInputElement>>(new Map())
+  const [focusKey, setFocusKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!focusKey) return
+    const el = inputRefs.current.get(focusKey)
+    if (el) { el.focus(); el.select() }
+    setFocusKey(null)
+  }, [focusKey, active])
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const activeKeys = new Set(active.map(f => f.key))
+  const available  = FILTER_COLS.filter(c => !activeKeys.has(c.key))
+
+  function handleAdd(col: PlFilterDef) {
+    onAdd(col)
+    setFocusKey(col.key)
+    setOpen(false)
+  }
+
+  return (
+    <div className="flex items-center flex-wrap gap-2">
+      {active.map(f => (
+        <div key={f.key}
+          className="flex items-center gap-0 bg-white border-2 border-emerald-400 rounded-xl overflow-hidden shadow-sm">
+          <span className="bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 whitespace-nowrap select-none">
+            {f.label}
+          </span>
+          <span className="text-xs text-gray-400 px-1.5 select-none whitespace-nowrap">
+            {f.isNumeric ? '≥' : 'يحتوي'}
+          </span>
+          <input
+            ref={el => { if (el) inputRefs.current.set(f.key, el); else inputRefs.current.delete(f.key) }}
+            type={f.isNumeric ? 'number' : 'text'}
+            value={f.value}
+            onChange={e => onChangeValue(f.key, e.target.value)}
+            placeholder={f.isNumeric ? 'أدخل رقماً...' : 'اكتب هنا...'}
+            className="text-sm px-2 py-1.5 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-emerald-50 transition-colors w-28"
+            dir="ltr"
+          />
+          <button
+            onClick={() => onRemove(f.key)}
+            className="px-2 py-1.5 text-gray-400 hover:text-white hover:bg-red-500 transition-colors"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+
+      {available.length > 0 && (
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setOpen(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+              open
+                ? 'bg-emerald-600 border-emerald-600 text-white'
+                : 'border-dashed border-gray-300 text-gray-500 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'
+            }`}
+          >
+            <Plus size={13} /> إضافة فلتر
+          </button>
+          {open && (
+            <div className="absolute top-full mt-1.5 z-40 bg-white rounded-2xl border border-gray-200 shadow-2xl w-64 py-1.5 max-h-72 overflow-y-auto" style={{ right: 0 }}>
+              <p className="px-3 pt-1 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                اختر حقلاً للتصفية
+              </p>
+              {available.map(col => (
+                <button
+                  key={col.key}
+                  onClick={() => handleAdd(col)}
+                  className="w-full text-right px-3 py-2.5 text-sm hover:bg-emerald-50 hover:text-emerald-700 transition-colors flex items-center justify-between gap-2"
+                >
+                  <span className="font-medium">{col.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                    col.isNumeric ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {col.isNumeric ? 'رقم' : 'نص'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {active.length > 0 && (
+        <button
+          onClick={() => active.forEach(f => onRemove(f.key))}
+          className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 px-2.5 py-1.5 rounded-xl hover:bg-red-50 border border-transparent hover:border-red-200 transition-all font-medium"
+        >
+          <X size={11} /> مسح الكل
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ProfitLossPage() {
@@ -136,9 +273,20 @@ export default function ProfitLossPage() {
   const YEARS = [currentYear - 2, currentYear - 1, currentYear].filter(y => y >= 2023)
 
   const [year,          setYear]          = useState(currentYear)
-  const [sortKey,       setSortKey]       = useState<ColKey>('month')
-  const [sortDir,       setSortDir]       = useState<'asc' | 'desc'>('asc')
+  const [sortKey,       setSortKey]       = useState<ColKey>('grossMargin')
+  const [sortDir,       setSortDir]       = useState<'asc' | 'desc'>('desc')
   const [colPickerOpen, setColPickerOpen] = useState(false)
+
+  const [filters, setFilters] = useState<PlFilterEntry[]>([])
+  function addFilter(col: PlFilterDef) {
+    setFilters(prev => [...prev, { key: col.key, label: col.label, value: '', isNumeric: col.isNumeric }])
+  }
+  function removeFilter(key: string) {
+    setFilters(prev => prev.filter(f => f.key !== key))
+  }
+  function updateFilterValue(key: string, value: string) {
+    setFilters(prev => prev.map(f => f.key === key ? { ...f, value } : f))
+  }
 
   const { visible: visibleCols, order: colOrder, displayCols, toggleCol, setOrder, reset: resetCols } =
     useColState(ALL_COLS, 'profitLoss')
@@ -184,7 +332,21 @@ export default function ProfitLossPage() {
   const avgInvoice = totals.invoiceCount > 0 ? totals.netSales / totals.invoiceCount : 0
 
   const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => {
+    let result = [...rows]
+    for (const f of filters) {
+      if (!f.value) continue
+      if (f.isNumeric) {
+        const min = parseFloat(f.value)
+        if (!isNaN(min)) result = result.filter(r => {
+          const v = r[f.key as keyof typeof r]
+          return typeof v === 'number' && v >= min
+        })
+      } else {
+        const q = f.value.toLowerCase()
+        result = result.filter(r => String(r[f.key as keyof typeof r] ?? '').toLowerCase().includes(q))
+      }
+    }
+    return result.sort((a, b) => {
       let av: number | string, bv: number | string
       switch (sortKey) {
         case 'month':               av = a.monthNumber ?? 0;        bv = b.monthNumber ?? 0;        break
@@ -203,7 +365,7 @@ export default function ProfitLossPage() {
       if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av
       return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
     })
-  }, [rows, sortKey, sortDir])
+  }, [rows, sortKey, sortDir, filters])
 
   function toggleSort(key: ColKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -424,6 +586,24 @@ export default function ProfitLossPage() {
                   )}
                 </div>
               </div>
+              {/* Filter panel */}
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-gray-500">تصفية الأشهر:</span>
+                  {filters.filter(f => f.value).length > 0 && (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                      {filters.filter(f => f.value).length} فلتر نشط
+                    </span>
+                  )}
+                </div>
+                <PlAddFilterPanel
+                  active={filters}
+                  onAdd={addFilter}
+                  onRemove={removeFilter}
+                  onChangeValue={updateFilterValue}
+                />
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm" dir="rtl">
                   <thead className="bg-gray-50 sticky top-0 z-10">
