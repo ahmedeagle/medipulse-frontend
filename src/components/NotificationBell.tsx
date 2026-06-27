@@ -29,6 +29,7 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   p2p_invoice_ready:            FileText,
   p2p_order_action_required:    AlertTriangle,
   p2p_order_reminder:           AlertTriangle,
+  p2p_pool_opportunity:         Sparkles,
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -49,6 +50,7 @@ const TYPE_COLOR: Record<string, string> = {
   p2p_invoice_ready:            'text-blue-500',
   p2p_order_action_required:    'text-orange-500',
   p2p_order_reminder:           'text-orange-500',
+  p2p_pool_opportunity:         'text-emerald-600',
 };
 
 // Notification types that warrant a critical (urgent) sound

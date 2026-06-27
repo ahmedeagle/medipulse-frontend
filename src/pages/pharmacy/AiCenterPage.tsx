@@ -134,7 +134,20 @@ function approvalActionDescription(approval: Approval): string {
       case 'reorder': {
         const qty      = p.suggestedReorderQty ?? p.deficit ?? '؟'
         const product  = p.productName ?? 'هذا المنتج'
-        return `سيبحث النظام عن أفضل مصدر لـ«${product}» بكمية ${qty} وحدة، بالترتيب:\n• البورصة الدوائية (P2P) إن وفّرت سعرًا أفضل\n• كتالوج الموردين المعتمدين لديك\n\n‏عند العثور على مصدر: تُنشَأ مسودة طلب شراء تلقائيًّا بانتظار موافقتك النهائية.\n‏إن لم يُعثر على مصدر: ستتلقّى تنبيهًا واضحًا بإضافة هذا المنتج إلى كتالوج أحد مورديك.`
+        const eco = p.economics as
+          | { profitVelocity?: number; marginPct?: number | null; restockCost?: number; priorityTier?: string; priorityLabel?: string }
+          | undefined
+        let priorityHint = ''
+        if (eco && (eco.profitVelocity != null || eco.restockCost != null)) {
+          const tierEmoji = eco.priorityTier === 'high' ? '🔥' : eco.priorityTier === 'medium' ? '⭐' : '▫️'
+          const parts: string[] = []
+          if (eco.priorityLabel) parts.push(`${tierEmoji} ${eco.priorityLabel}`)
+          if (eco.marginPct != null) parts.push(`هامش الربح: ${eco.marginPct}%`)
+          if (eco.profitVelocity != null && eco.profitVelocity > 0) parts.push(`ربح يومي مُعرّض للضياع عند النفاد: ${eco.profitVelocity} ج.م/يوم`)
+          if (eco.restockCost != null && eco.restockCost > 0) parts.push(`تكلفة إعادة الطلب: ${eco.restockCost} ج.م`)
+          if (parts.length) priorityHint = `\n\n💡 أولوية الشراء عند ضيق السيولة:\n${parts.map((x) => `• ${x}`).join('\n')}`
+        }
+        return `سيبحث النظام عن أفضل مصدر لـ«${product}» بكمية ${qty} وحدة، بالترتيب:\n• البورصة الدوائية (P2P) إن وفّرت سعرًا أفضل\n• كتالوج الموردين المعتمدين لديك\n\n‏عند العثور على مصدر: تُنشَأ مسودة طلب شراء تلقائيًّا بانتظار موافقتك النهائية.\n‏إن لم يُعثر على مصدر: ستتلقّى تنبيهًا واضحًا بإضافة هذا المنتج إلى كتالوج أحد مورديك.${priorityHint}`
       }
       case 'smart_procurement': {
         const price = p.p2pPrice ? `${Number(p.p2pPrice).toFixed(2)} جنيه` : '؟'
@@ -173,11 +186,19 @@ function approvalActionDescription(approval: Approval): string {
   if (approval.subjectType === 'procurement_basket') {
     const items    = Array.isArray(p.items) ? p.items : []
     const supplier = p.supplierName ?? 'المورد'
-    const subtotal = Number(p.subtotal ?? 0).toFixed(2)
+    const subtotalN = Number(p.subtotal ?? 0)
+    const subtotal = subtotalN.toFixed(2)
     const currency = p.currency ?? 'EGP'
     const lines    = items.slice(0, 5).map((it: any) => `• ${it.productName} × ${it.quantity}`).join('\n')
     const more     = items.length > 5 ? `\nو‌${items.length - 5} أصناف أخرى…` : ''
-    return `سيتم إنشاء طلب شراء واحد مدمج يشمل ${items.length} منتجات من ${supplier} بإجمالي ${subtotal} ${currency} (قبل الضريبة):\n\n${lines}${more}\n\nسيظهر الطلب في صفحة «المشتريات» بحالة «بانتظار الإرسال» — راجع التفاصيل ثم أرسله للمورد عبر القناة المتفق عليها (واتساب/بريد/منصة المورد) لتأكيد الشحنة الواحدة.`
+    const minOrder = Number(p.minOrderAmount ?? 0)
+    const toMin    = Number(p.amountToMinimum ?? 0)
+    const minHint  = minOrder > 0
+      ? (p.belowMinimum
+          ? `\n\n⚠️ الحد الأدنى لطلب هذا المورد هو ${minOrder.toFixed(2)} ${currency}. تنقصك ${toMin.toFixed(2)} ${currency} للوصول إليه — أضف أصنافاً أخرى لنفس المورد لتفادي رفض الطلب أو رسوم شحن إضافية.`
+          : `\n\n✓ تجاوزتَ الحد الأدنى لطلب هذا المورد (${minOrder.toFixed(2)} ${currency}) — الطلب جاهز للإرسال في شحنة واحدة.`)
+      : ''
+    return `سيتم إنشاء طلب شراء واحد مدمج يشمل ${items.length} منتجات من ${supplier} بإجمالي ${subtotal} ${currency} (قبل الضريبة):\n\n${lines}${more}${minHint}\n\nسيظهر الطلب في صفحة «المشتريات» بحالة «بانتظار الإرسال» — راجع التفاصيل ثم أرسله للمورد عبر القناة المتفق عليها (واتساب/بريد/منصة المورد) لتأكيد الشحنة الواحدة.`
   }
   if (approval.subjectType === 'inventory_item') {
     const name = p.suggestedProductName ?? 'المنتج المقترح'

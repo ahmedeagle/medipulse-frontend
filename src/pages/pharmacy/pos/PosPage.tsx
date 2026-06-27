@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -6,10 +6,10 @@ import {
   Clock, Package, CheckCircle2, Keyboard, Zap, Receipt,
   TrendingUp, DollarSign, RotateCcw, Trash2, ScanLine,
   ShoppingCart, Shield, ShieldOff, Store, Boxes, ExternalLink,
-  TrendingDown, Info,
+  TrendingDown, Info, Repeat, Sparkles,
 } from 'lucide-react'
 import clsx from 'clsx'
-import { posApi, type PosProduct, type PosCustomer, type PosShift } from '../../../api/pos.api'
+import { posApi, type PosProduct, type PosCustomer, type PosShift, type PosSubstitute } from '../../../api/pos.api'
 import { p2pMarketplaceApi } from '../../../api/p2p.api'
 import { useCurrency } from '../../../hooks/useCurrency'
 import { pharmacySettingsApi } from '../../../api/pharmacy-settings.api'
@@ -711,6 +711,11 @@ export default function PosPage() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchTab,  setSearchTab]  = useState<'mine' | 'aumet'>('mine')
 
+  // Smart substitution (cheaper / higher-margin alternative at the counter)
+  const [subFor,     setSubFor]     = useState<string | null>(null)
+  const [subList,    setSubList]    = useState<PosSubstitute[]>([])
+  const [subLoading, setSubLoading] = useState(false)
+
   // Active tab
   const activeTab = tabs.find(t => t.id === activeTabId) ?? tabs[0]
   const { cart, customer, discount, insuranceEnabled } = activeTab
@@ -852,6 +857,44 @@ export default function PosPage() {
 
   const updateDiscount = (inventoryItemId: string, amt: number) =>
     patchActive({ cart: activeTab.cart.map(i => i.inventoryItemId === inventoryItemId ? { ...i, discountAmount: Math.max(0, amt) } : i) })
+
+  // Lazily fetch in-stock generic alternatives for a cart line (only on demand → cheap).
+  const loadSubstitutes = async (item: CartItem) => {
+    if (subFor === item.inventoryItemId) { setSubFor(null); setSubList([]); return }
+    setSubFor(item.inventoryItemId)
+    setSubList([])
+    setSubLoading(true)
+    try {
+      setSubList(await posApi.getSubstitutes(item.inventoryItemId))
+    } catch {
+      setSubList([])
+    } finally {
+      setSubLoading(false)
+    }
+  }
+
+  // Swap a cart line for the chosen alternative, preserving the quantity.
+  const replaceWithSubstitute = (oldItem: CartItem, sub: PosSubstitute) => {
+    const existing = activeTab.cart.find(i => i.inventoryItemId === sub.inventoryItemId)
+    const cart: CartItem[] = existing
+      ? activeTab.cart
+          .filter(i => i.inventoryItemId !== oldItem.inventoryItemId)
+          .map(i => i.inventoryItemId === sub.inventoryItemId ? { ...i, quantity: i.quantity + oldItem.quantity } : i)
+      : activeTab.cart.map(i => i.inventoryItemId === oldItem.inventoryItemId ? {
+          inventoryItemId: sub.inventoryItemId,
+          productId:       sub.productId,
+          productName:     sub.name,
+          barcode:         null,
+          quantity:        i.quantity,
+          unitPrice:       sub.sellingPrice ?? 0,
+          discountAmount:  0,
+          available:       sub.quantity,
+          expiryDate:      sub.expiryDate,
+        } : i)
+    patchActive({ cart })
+    setSubFor(null)
+    setSubList([])
+  }
 
   const subtotal       = cart.reduce((s, i) => s + i.unitPrice * i.quantity - i.discountAmount, 0)
   const totalAmount    = Math.max(0, subtotal - discount)
@@ -1480,7 +1523,8 @@ export default function PosPage() {
                     const stock = stockBadge(item.available, 0)
                     const total = item.unitPrice * item.quantity - item.discountAmount
                     return (
-                      <tr key={item.inventoryItemId} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors group">
+                      <Fragment key={item.inventoryItemId}>
+                      <tr className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors group">
                         {/* # */}
                         <td className="px-4 py-3 text-center">
                           <span className="text-xs font-mono text-gray-400">{idx + 1}</span>
@@ -1496,6 +1540,16 @@ export default function PosPage() {
                             <span className={clsx('inline-flex items-center gap-1 text-[10px] font-semibold mt-0.5', warn.cls)}>
                               <AlertTriangle size={8} /> {warn.label}
                             </span>
+                          )}
+                          {!isReturn && (
+                            <button
+                              onClick={() => loadSubstitutes(item)}
+                              className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-teal-600 hover:text-teal-700"
+                              title="اقترح بديلاً بنفس المادة الفعّالة قد يكون أوفر للزبون أو متوفّراً أكثر"
+                            >
+                              <Repeat size={10} />
+                              {subFor === item.inventoryItemId ? 'إخفاء البدائل' : 'بدائل أوفر؟'}
+                            </button>
                           )}
                         </td>
 
@@ -1578,6 +1632,66 @@ export default function PosPage() {
                           </button>
                         </td>
                       </tr>
+
+                      {/* Substitute suggestions — cheaper/in-stock alternative at the counter */}
+                      {subFor === item.inventoryItemId && (
+                        <tr>
+                          <td colSpan={9} className="px-4 pb-3 pt-0 bg-teal-50/40">
+                            <div className="pt-2">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <Sparkles size={12} className="text-teal-600" />
+                                <p className="text-[11px] font-bold text-teal-800">بدائل بنفس المادة الفعّالة ومتوفّرة لديك</p>
+                              </div>
+                              <p className="text-[10px] text-gray-500 mb-2">
+                                إذا كان السعر مرتفعاً على الزبون أو تريد خياراً متوفّراً أكثر، اقترح أحد البدائل التالية بضغطة واحدة.
+                              </p>
+                              {subLoading ? (
+                                <p className="text-[11px] text-gray-400">جارٍ البحث عن بدائل…</p>
+                              ) : subList.length === 0 ? (
+                                <p className="text-[11px] text-gray-400">لا توجد بدائل متوفّرة بنفس المادة الفعّالة حالياً.</p>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">
+                                  {subList.map(sub => {
+                                    const saving = sub.customerSaving ?? 0
+                                    const margin = sub.marginDelta ?? 0
+                                    return (
+                                      <div key={sub.inventoryItemId} className="bg-white border border-teal-100 rounded-xl px-3 py-2 min-w-[210px] shadow-sm">
+                                        <p className="font-semibold text-gray-800 text-xs">{sub.name}</p>
+                                        {sub.manufacturer && <p className="text-[10px] text-gray-400">{sub.manufacturer}</p>}
+                                        <div className="flex items-center gap-2 mt-1 text-[11px]">
+                                          <span className="font-bold text-gray-800 tabular-nums">{sub.sellingPrice != null ? fmt(sub.sellingPrice) : '—'}</span>
+                                          <span className="text-gray-300">·</span>
+                                          <span className="text-gray-500">متوفّر {sub.quantity}</span>
+                                        </div>
+                                        {sub.reason === 'customer_saving' && saving > 0 ? (
+                                          <span className="inline-block mt-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                            أوفر للزبون: يوفّر {fmt(saving)}
+                                          </span>
+                                        ) : sub.reason === 'higher_margin' && margin > 0 ? (
+                                          <span className="inline-block mt-1 text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                                            ربح أعلى لك: +{fmt(margin)} للوحدة
+                                          </span>
+                                        ) : (
+                                          <span className="inline-block mt-1 text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                                            متوفّر في المخزون
+                                          </span>
+                                        )}
+                                        <button
+                                          onClick={() => replaceWithSubstitute(item, sub)}
+                                          className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg py-1 transition-colors"
+                                        >
+                                          <Repeat size={11} /> استبدال
+                                        </button>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     )
                   })}
                 </tbody>
