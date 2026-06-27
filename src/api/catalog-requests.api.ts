@@ -39,4 +39,27 @@ export const catalogRequestsApi = {
     rejectionReason?: string;
     resolvedCatalogProductId?: string;
   }) => client.patch<CatalogRequest>(`/admin/catalog/requests/${id}`, data),
+
+  /**
+   * Pharmacy: submit many catalog requests in one call.
+   * Returns per-line submitted[] and failed[] arrays so the migration UI
+   * can surface row-level results without aborting the whole batch.
+   */
+  bulkCreate: (items: CreateCatalogRequestPayload[], batchNote?: string) =>
+    client.post<{
+      submitted: Array<{ index: number; trackingNumber: string; status: string }>;
+      failed:    Array<{ index: number; reason: string; code?: string }>;
+    }>('/catalog/requests/bulk', { items, batchNote }),
+
+  /** Admin: apply one decision to many request ids at once. */
+  adminBulkUpdate: (data: {
+    ids: string[];
+    status: 'under_review' | 'need_info' | 'approved' | 'rejected' | 'closed';
+    adminNotes?: string;
+    rejectionReason?: string;
+  }) =>
+    client.patch<{
+      succeeded: string[];
+      failed:    Array<{ id: string; reason: string }>;
+    }>('/admin/catalog/requests/bulk', data),
 };

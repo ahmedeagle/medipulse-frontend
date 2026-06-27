@@ -8,9 +8,15 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  /**
+   * Optional sticky footer (e.g. action buttons). When provided, renders
+   * OUTSIDE the scrollable body so primary actions never clip on short
+   * viewports — fixes the "buttons hidden at the bottom" bug on laptops.
+   */
+  footer?: React.ReactNode
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md', footer }: ModalProps) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -60,6 +66,11 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
         <div className="flex-1 overflow-y-auto p-6">
           {children}
         </div>
+        {footer && (
+          <div className="shrink-0 border-t border-gray-100 px-6 py-3 bg-white rounded-b-xl">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   )

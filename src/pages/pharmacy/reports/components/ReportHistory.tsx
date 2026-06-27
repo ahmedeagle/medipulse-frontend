@@ -47,7 +47,7 @@ export function ReportHistory({ history, onRemove }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{r.name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{r.domainLabel} · {r.view === 'summary' ? 'ملخص' : r.view === 'trend' ? 'اتجاه' : r.view === 'table' ? 'جدول' : 'ترتيب'}</p>
-                  <p className="text-xs text-gray-400">{new Date(r.savedAt).toLocaleDateString('ar-EG')}</p>
+                  <p className="text-xs text-gray-400">{new Date(r.savedAt).toLocaleDateString('en-US')}</p>
                 </div>
               </Link>
               <button

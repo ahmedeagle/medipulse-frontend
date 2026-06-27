@@ -46,10 +46,14 @@
     "orders": "Orders",
     "supplier_catalog": "Supplier Catalog",
     "catalog_requests": "Catalog Requests",
+    "price_intelligence": "Price Intelligence",
     "ai_recommendations": "AI Recommendations",
     "procurement_queue": "Procurement Queue",
     "analytics": "Analytics",
     "preferred_suppliers": "Preferred Suppliers",
+    "marketplace": "Supplier Marketplace",
+    "migration": "Data Migration",
+    "onboarding": "Getting Started",
     "forecast": "Demand Forecast",
     "dead_stock": "Dead Stock",
     "order_schedule": "Order Schedule",
@@ -72,7 +76,8 @@
     "purchases": "Purchases",
     "purchase_invoices": "Purchase Invoices",
     "purchase_returns": "Purchase Returns",
-    "purchase_wishlist": "Wish List"
+    "purchase_wishlist": "Wish List",
+    "medicine_market": "Medicine Market"
   },
   "dashboard": {
     "title": "Dashboard",

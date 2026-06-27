@@ -46,11 +46,15 @@
     "orders": "الطلبات",
     "supplier_catalog": "كتالوج الموردين",
     "catalog_requests": "طلبات الكتالوج",
+    "price_intelligence": "ذكاء الأسعار",
     "ai_recommendations": "توصيات الذكاء الاصطناعي",
     "procurement_queue": "المشتريات",
     "analytics": "التحليلات",
     "reports": "التقارير",
     "preferred_suppliers": "الموردون المفضلون",
+    "marketplace": "سوق الموزعين",
+    "migration": "نقل البيانات",
+    "onboarding": "بدء الإعداد",
     "forecast": "توقعات الطلب",
     "dead_stock": "البضاعة الراكدة",
     "order_schedule": "جدول الطلبات",
@@ -73,7 +77,8 @@
     "purchases": "المشتريات",
     "purchase_invoices": "فواتير الشراء",
     "purchase_returns": "مرتجعات الشراء",
-    "purchase_wishlist": "قائمة الأمنيات"
+    "purchase_wishlist": "قائمة الأمنيات",
+    "medicine_market": "سوق الأدوية"
   },
   "dashboard": {
     "title": "لوحة التحكم",

@@ -2,8 +2,9 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, Trash2, RefreshCw, ShoppingCart, Sparkles, ArrowLeft,
+  Plus, Trash2, ShoppingCart, Sparkles, ArrowLeft,
   Package, AlertTriangle, CheckCircle2, Building2, Loader2,
+  ListChecks, MousePointerClick, FileText,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { purchasesApi, type WishListItem, type ProductSearchResult } from '../../../api/purchases.api'
@@ -32,11 +33,19 @@ export default function PurchaseWishListPage() {
 
   const createOrdersMut = useMutation({
     mutationFn: purchasesApi.createOrdersFromWishList,
-    onSuccess: (invoices) => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['wish-list'] })
       qc.invalidateQueries({ queryKey: ['purchase-invoices'] })
-      alert(`تم إنشاء ${invoices.length} فاتورة مسودة`)
+      const parts = [`تم إنشاء ${res.createdCount} فاتورة مسودة`]
+      if (res.skippedCount > 0) {
+        parts.push(`تم تخطي ${res.skippedCount} منتج لديه مسودة قائمة بالفعل`)
+      }
+      alert(parts.join('\n'))
       setSelected(new Set())
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'تعذر إنشاء الطلبيات'
+      alert(msg)
     },
   })
 
@@ -92,8 +101,8 @@ export default function PurchaseWishListPage() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">قائمة الأمنيات</h1>
-            <p className="text-sm text-gray-500 mt-0.5">منتجات تحتاج إعادة طلب · تُحدَّث تلقائياً كل ليلة</p>
+            <h1 className="text-2xl font-bold text-gray-900">قائمة إعادة الطلب</h1>
+            <p className="text-sm text-gray-500 mt-0.5">المنتجات التي تحتاج شراءها · يضيفها النظام تلقائياً كل ليلة عند نقص المخزون</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -127,16 +136,46 @@ export default function PurchaseWishListPage() {
         </div>
       </div>
 
-      {/* AI notice */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
-        <div className="p-2 rounded-xl bg-emerald-100 shrink-0">
-          <Sparkles size={18} className="text-emerald-700" />
+      {/* How it works — guidance for non-technical users */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 md:p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 rounded-lg bg-emerald-100">
+            <ListChecks size={16} className="text-emerald-700" />
+          </div>
+          <p className="text-sm font-bold text-gray-900">كيف تعمل هذه الصفحة؟</p>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-emerald-800">التحديث الليلي التلقائي</p>
-          <p className="text-xs text-emerald-600 mt-0.5">
-            يقوم النظام يومياً الساعة 2:00 صباحاً بفحص كل المنتجات التي وصلت لحد الحد الأدنى للمخزون وإضافتها تلقائياً مع الكمية الموصى بها.
-          </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            {
+              icon: Sparkles,
+              title: '١. تمتلئ تلقائياً',
+              body: 'كل ليلة الساعة ٢:٠٠ صباحاً يفحص النظام مخزونك، ويضيف هنا أي منتج وصل للحد الأدنى مع الكمية الموصى بها. يمكنك أيضاً الإضافة يدوياً.',
+              tone: 'bg-emerald-50 border-emerald-100 text-emerald-700',
+              iconTone: 'text-emerald-600',
+            },
+            {
+              icon: MousePointerClick,
+              title: '٢. اختر وراجع',
+              body: 'حدّد المنتجات التي تريد شراءها (✔)، وعدّل الكمية إن لزم. يحاول النظام تحديد أفضل مورد وأقل سعر تلقائياً لكل منتج.',
+              tone: 'bg-sky-50 border-sky-100 text-sky-700',
+              iconTone: 'text-sky-600',
+            },
+            {
+              icon: FileText,
+              title: '٣. أنشئ طلبية',
+              body: 'اضغط «إنشاء طلبيات» فيحوّل النظام اختيارك إلى فواتير شراء مسودة جاهزة للمراجعة والتأكيد قبل الإرسال للمورد.',
+              tone: 'bg-violet-50 border-violet-100 text-violet-700',
+              iconTone: 'text-violet-600',
+            },
+          ].map((step, i) => (
+            <div key={i} className={clsx('rounded-xl border p-3.5', step.tone)}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <step.icon size={15} className={step.iconTone} />
+                <p className="text-xs font-bold">{step.title}</p>
+              </div>
+              <p className="text-[11px] leading-relaxed opacity-90">{step.body}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -165,13 +204,13 @@ export default function PurchaseWishListPage() {
                       className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                     />
                   </th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المنتج</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المخزون الحالي</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">الكمية المطلوبة</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المورد الأخير</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المصدر</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">الفاتورة المسودة</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs"></th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs" title="اسم المنتج ورمزه (SKU)">المنتج</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs" title="الكمية المتوفرة حالياً في مخزونك">المخزون الحالي</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs" title="الكمية المقترح شراؤها — اضغط الرقم لتعديله">الكمية المطلوبة</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs" title="المورد الذي اشتريت منه هذا المنتج آخر مرة، أو أفضل مورد متاح">المورد الأخير</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs" title="تلقائي = أضافه النظام لنقص المخزون · يدوي = أضفته بنفسك">المصدر</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs" title="رقم فاتورة الشراء المسودة التي أُنشئت لهذا المنتج (إن وُجدت)">الفاتورة المسودة</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs" title="حذف المنتج من القائمة"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">

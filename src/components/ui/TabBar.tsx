@@ -7,6 +7,8 @@ export interface TabItem<T extends string = string> {
   labelEn: string
   icon?: React.ElementType
   badge?: number
+  /** Native tooltip shown on hover — use to explain what the badge count means. */
+  badgeTitle?: string
 }
 
 interface TabBarProps<T extends string = string> {
@@ -50,6 +52,7 @@ export function TabBar<T extends string>({
             key={tab.key}
             type="button"
             onClick={() => onChange(tab.key)}
+            title={tab.badge !== undefined && tab.badge > 0 ? tab.badgeTitle : undefined}
             className={clsx(
               'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap',
               isActive ? c.pill : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',

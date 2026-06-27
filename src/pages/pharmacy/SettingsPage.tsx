@@ -68,7 +68,7 @@ const BARCODE_OPTIONS = [
   {
     value: 'EAN13' as const,
     label: 'EAN-13',
-    desc: 'للمنتجات التجارية الدولية (١٣ رقماً)',
+    desc: 'للمنتجات التجارية الدولية (13 رقماً)',
     bars: [1,1,1,2,3,1,2,1,1,2,1,1,2,1,2,1,1,2,3,1,1,2,1,1,1],
     hasDigits: true,
   },
@@ -357,6 +357,9 @@ export default function SettingsPage() {
   const [general, setGeneral] = useState({
     language: 'ar', currency: 'EGP', timezone: 'Africa/Cairo',
     dateFormat: 'YYYY-MM-DD', timeFormat: '12h', taxEnabled: true,
+    vatCalculationMode: 'tax_on_net' as 'tax_on_net' | 'tax_on_gross',
+    taxRegistrationNumber: '',
+    vatRate: 14,
   })
   const [profile, setProfile] = useState({
     pharmacyNameAr: '', pharmacyNameEn: '', licenseNumber: '',
@@ -393,6 +396,9 @@ export default function SettingsPage() {
       dateFormat: settings.dateFormat ?? 'YYYY-MM-DD',
       timeFormat: settings.timeFormat ?? '12h',
       taxEnabled: settings.taxEnabled ?? true,
+      vatCalculationMode: settings.taxSettings?.vatCalculationMode ?? 'tax_on_net',
+      taxRegistrationNumber: settings.taxSettings?.taxRegistrationNumber ?? '',
+      vatRate: settings.taxSettings?.vatRate ?? 14,
     })
     setProfile({
       pharmacyNameAr: settings.pharmacyNameAr ?? '',
@@ -585,6 +591,100 @@ export default function SettingsPage() {
               label="البلد يحتاج إلى إظهار الضرائب"
               desc="عند التفعيل، ستظهر معلومات الضرائب في المشتريات، الإيصالات، ونقطة البيع"
             />
+
+            {general.taxEnabled && (
+              <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+                <div>
+                  <label className={FIELD}>نسبة ضريبة القيمة المضافة (%)</label>
+                  <input
+                    dir="ltr"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={general.vatRate}
+                    onChange={e => setGeneral(p => ({ ...p, vatRate: e.target.value === '' ? 0 : Number(e.target.value) }))}
+                    placeholder="14"
+                    className={INPUT}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    تُطبَّق على طلبات الشراء والفواتير. الافتراضي: مصر 14٪، السعودية 15٪، الإمارات/عمان 5٪، البحرين 10٪.
+                  </p>
+                </div>
+
+                <div>
+                  <label className={FIELD}>الرقم الضريبي (اختياري)</label>
+                  <input
+                    dir="ltr"
+                    value={general.taxRegistrationNumber}
+                    onChange={e => setGeneral(p => ({ ...p, taxRegistrationNumber: e.target.value }))}
+                    placeholder="مثال: 123-456-789"
+                    className={INPUT}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">يظهر على الفواتير والإيصالات الضريبية</p>
+                </div>
+
+                <div>
+                  <label className={FIELD}>طريقة احتساب الضريبة عند وجود خصم على الفاتورة</label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    يحدد كيف يُحسب ضريبة القيمة المضافة عندما يكون هناك خصم على إجمالي الفاتورة (وليس على السطر).
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setGeneral(p => ({ ...p, vatCalculationMode: 'tax_on_net' }))}
+                      className={clsx(
+                        'text-right p-4 rounded-xl border-2 transition-all',
+                        general.vatCalculationMode === 'tax_on_net'
+                          ? 'border-emerald-500 bg-emerald-50'
+                          : 'border-gray-200 bg-white hover:border-gray-300',
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">موصى به</span>
+                        {general.vatCalculationMode === 'tax_on_net' && <Check size={18} className="text-emerald-600" />}
+                      </div>
+                      <p className="font-bold text-sm mb-1">ضريبة على الصافي (بعد الخصم)</p>
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        تُحتسب الضريبة على المبلغ بعد خصم الفاتورة.
+                        <br />مطابق لقانون ضريبة القيمة المضافة المصري 67/2016 والممارسات الحديثة في السعودية والإمارات.
+                      </p>
+                      <div className="mt-3 text-[11px] bg-gray-50 rounded p-2 font-mono leading-relaxed">
+                        مثال: 1000 × خصم 10% = 900<br />
+                        الضريبة 14%: 900 × 0.14 = 126<br />
+                        <span className="font-bold">الإجمالي: 1026 ج.م</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setGeneral(p => ({ ...p, vatCalculationMode: 'tax_on_gross' }))}
+                      className={clsx(
+                        'text-right p-4 rounded-xl border-2 transition-all',
+                        general.vatCalculationMode === 'tax_on_gross'
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-200 bg-white hover:border-gray-300',
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">إعدادات قديمة</span>
+                        {general.vatCalculationMode === 'tax_on_gross' && <Check size={18} className="text-amber-600" />}
+                      </div>
+                      <p className="font-bold text-sm mb-1">ضريبة على الإجمالي (قبل الخصم)</p>
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        تُحتسب الضريبة على المبلغ الأصلي قبل تطبيق خصم الفاتورة.
+                        <br />استخدم هذا الخيار فقط إذا كان نظامك المحاسبي السابق يعمل بهذه الطريقة.
+                      </p>
+                      <div className="mt-3 text-[11px] bg-gray-50 rounded p-2 font-mono leading-relaxed">
+                        مثال: الضريبة 14% × 1000 = 140<br />
+                        الخصم 10% × 1000 = 100<br />
+                        <span className="font-bold">الإجمالي: 1040 ج.م</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {savedSection === 'general' ? (
@@ -592,7 +692,13 @@ export default function SettingsPage() {
               <span className="inline-flex items-center gap-1.5 text-emerald-700 text-sm font-semibold"><Check size={14} /> تم الحفظ</span>
             </div>
           ) : (
-            <SaveButton loading={saveMut.isPending && activeSection === 'general'} onClick={() => save('general', general)} />
+            <SaveButton loading={saveMut.isPending && activeSection === 'general'} onClick={() => {
+              const { vatCalculationMode, taxRegistrationNumber, vatRate, ...flat } = general
+              save('general', {
+                ...flat,
+                taxSettings: { vatCalculationMode, taxRegistrationNumber, vatRate },
+              } as Partial<PharmacySettingsData>)
+            }} />
           )}
         </SectionCard>
 
@@ -702,11 +808,11 @@ export default function SettingsPage() {
               <div>
                 <label className={FIELD}>رأس الإيصال</label>
                 <input value={receipt.headerText} onChange={e => setReceipt(p => ({ ...p, headerText: e.target.value }))} placeholder="اسم الصيدلية أو شعار" className={INPUT} />
-                <p className="text-xs text-gray-400 mt-1">يظهر في أعلى كل إيصال (٥٠ حرفاً كحد أقصى)</p>
+                <p className="text-xs text-gray-400 mt-1">يظهر في أعلى كل إيصال (50 حرفاً كحد أقصى)</p>
               </div>
               <div>
                 <label className={FIELD}>نص أسفل الإيصال</label>
-                <input value={receipt.footerText} onChange={e => setReceipt(p => ({ ...p, footerText: e.target.value }))} placeholder="شكراً لزيارتكم · ارجع في غضون ٧ أيام" className={INPUT} />
+                <input value={receipt.footerText} onChange={e => setReceipt(p => ({ ...p, footerText: e.target.value }))} placeholder="شكراً لزيارتكم · ارجع في غضون 7 أيام" className={INPUT} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -897,19 +1003,19 @@ export default function SettingsPage() {
                     <p className="text-[8px] text-gray-500 text-center border-b border-gray-100 pb-1">صيدلية النيل</p>
                   )}
                   {labels.showProductName && (
-                    <p className="text-[10px] font-bold text-gray-900 text-center leading-tight">باناكول ٥٠٠ملجم</p>
+                    <p className="text-[10px] font-bold text-gray-900 text-center leading-tight">باناكول 500ملجم</p>
                   )}
                   {(labels.showPrice || labels.showUom) && (
                     <div className="flex items-center justify-between text-[8px] text-gray-600">
-                      {labels.showPrice  && <span className="font-bold text-emerald-700">٢٥.٠٠ ج.م</span>}
-                      {labels.showUom    && <span className="text-gray-400">علبة / ٢٠ قرص</span>}
+                      {labels.showPrice  && <span className="font-bold text-emerald-700">25.00 ج.م</span>}
+                      {labels.showUom    && <span className="text-gray-400">علبة / 20 قرص</span>}
                     </div>
                   )}
                   {labels.showExpiry && (
-                    <p className="text-[8px] text-orange-600 text-center">ينتهي: ٢٠٢٧/٠٦/٣٠</p>
+                    <p className="text-[8px] text-orange-600 text-center">ينتهي: 2027/06/30</p>
                   )}
                   {labels.showTax && (
-                    <p className="text-[7px] text-gray-400 text-center">ض.ق.م: ١٤٪</p>
+                    <p className="text-[7px] text-gray-400 text-center">ض.ق.م: 14٪</p>
                   )}
                   {labels.showBarcode && (
                     <div className="mt-1 text-gray-800" style={{ height: Math.round(labels.barcodeHeight * 0.5) }}>

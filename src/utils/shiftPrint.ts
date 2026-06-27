@@ -1,4 +1,4 @@
-﻿import type { PosShift } from '../api/pos.api'
+import type { PosShift } from '../api/pos.api'
 
 interface ShiftPrintOpts {
   currency?: string
@@ -40,14 +40,14 @@ export function printShiftSummary(shift: PosShift, opts: ShiftPrintOpts = {}) {
   if (d > 0) durParts.push(`${d} يوم`)
   if (h > 0) durParts.push(`${h} ساعة`)
   if (m > 0 || durParts.length === 0) durParts.push(`${m} دقيقة`)
-  const durStr = durParts.join('، ')
+  const durStr = durParts.join('? ')
 
   const openDate = new Date(shift.openedAt)
-  const dateStr  = openDate.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })
+  const dateStr  = openDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const timeStr  = openDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
   const now      = new Date()
-  const printedAt = now.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) +
-                    ' في ' + now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+  const printedAt = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) +
+                    ' ?? ' + now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
 
   const shiftLabel = `Shift-${shift.id.slice(0, 6).toUpperCase()}`
   const varRowClass = variance < -10 ? 'mismatch' : variance > 10 ? 'over' : ''
@@ -127,14 +127,14 @@ body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-wid
 </div>
 
 <div class="section">
-  <div class="sec-title">تفصيل المدفوعات</div>
+  <div class="sec-title">ملخص الشفت</div>
   <div class="row"><span class="lbl">المدفوعات النقدية</span><span class="val">${f(shift.totalCashSales)}</span></div>
   <div class="row"><span class="lbl">بطاقة ائتمان</span><span class="val">${f(shift.totalCardSales)}</span></div>
   <div class="row"><span class="lbl">محفظة رقمية</span><span class="val">${f(0)}</span></div>
 </div>
 
 <div class="section">
-  <div class="sec-title">تسوية النقدية</div>
+  <div class="sec-title">ملخص الشفت</div>
   <div class="row"><span class="lbl">النقدية المتوقعة</span><span class="val">${f(expected)}</span></div>
   <div class="row"><span class="lbl">النقدية الفعلية المحسوبة</span><span class="val">${f(closing)}</span></div>
   <div class="row ${varRowClass}"><span class="lbl">الفرق</span><span class="val">${f(variance)}</span></div>

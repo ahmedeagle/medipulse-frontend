@@ -146,3 +146,35 @@ export const p2pOrdersApi = {
   openDispute: (id: string, data: { type: string; description: string; evidenceUrls?: string[] }) =>
     client.post<P2pDispute>(`/p2p/orders/${id}/dispute`, data).then(r => r.data),
 }
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+
+export interface P2pReview {
+  id: string;
+  orderId: string;
+  buyerTenantId: string;
+  sellerTenantId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+export interface SellerReviewAggregate {
+  sellerTenantId: string;
+  avgRating: number;
+  sampleSize: number;
+  ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number>;
+}
+
+export const p2pReviewsApi = {
+  create: (orderId: string, data: { rating: number; comment?: string }) =>
+    client.post<P2pReview>(`/p2p/orders/${orderId}/review`, data).then(r => r.data),
+
+  listForSeller: (sellerTenantId: string, params?: { page?: number; pageSize?: number }) =>
+    client.get<{ items: P2pReview[]; total: number; page: number; pageSize: number }>(
+      `/p2p/sellers/${sellerTenantId}/reviews`, { params },
+    ).then(r => r.data),
+
+  getSellerAggregate: (sellerTenantId: string) =>
+    client.get<SellerReviewAggregate>(`/p2p/sellers/${sellerTenantId}/reviews/aggregate`).then(r => r.data),
+}

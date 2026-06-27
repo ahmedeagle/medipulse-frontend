@@ -11,13 +11,13 @@ import { purchasesApi, type PurchaseInvoice, type InvoiceChangelogEntry } from '
 import { buildInvoicePrintHtml } from './buildInvoicePrintHtml'
 
 const fmtDate = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+  s ? new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
 
 const fmtDateTime = (s?: string | null) =>
-  s ? new Date(s).toLocaleString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+  s ? new Date(s).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 
 const fmtMoney = (n: number | string | null | undefined) =>
-  n != null ? Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '٠٫٠٠'
+  n != null ? Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'
 
 const STATUS_CONFIG = {
   draft:     { label: 'مسودة',   cls: 'bg-gray-100 text-gray-600 border-gray-200',       Icon: Clock },

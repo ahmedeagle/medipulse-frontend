@@ -291,5 +291,10 @@ export const purchasesApi = {
     client.delete(`/pharmacy/purchases/wishlist/${id}`).then(r => r.data),
 
   createOrdersFromWishList: (itemIds: string[]) =>
-    client.post<PurchaseInvoice[]>('/pharmacy/purchases/wishlist/create-orders', { itemIds }).then(r => r.data),
+    client.post<{
+      invoices: PurchaseInvoice[];
+      createdCount: number;
+      skippedCount: number;
+      skipped: Array<{ productName: string; draftPoNumber: string }>;
+    }>('/pharmacy/purchases/wishlist/create-orders', { itemIds }).then(r => r.data),
 };

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, AlertTriangle, Clock, Package, ShoppingCart } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Clock, Package, ShoppingCart, Sparkles, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { procurementApi } from '../../api/procurement.api';
 import { Spinner } from '../../components/ui/Spinner';
 import { Badge } from '../../components/ui/Badge';
+import { AskAgentPanel } from '../../components/pharmacy/AskAgentPanel';
 
 const URGENCY_COLOR = {
   critical: 'red',
@@ -24,6 +25,7 @@ export default function ProcurementQueuePage() {
   const qc = useQueryClient();
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [askOpen, setAskOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['procurement-queue'],
@@ -58,6 +60,57 @@ export default function ProcurementQueuePage() {
         <h1 className="text-2xl font-bold text-gray-900">{t('procurement.title')}</h1>
         <p className="text-gray-500 text-sm mt-1">Auto-generated actions ordered by urgency. Approve or reject each draft.</p>
       </div>
+
+      {/* ── Terminology legend ───────────────────────────────────────────────
+          Pharmacists kept confusing "draft", "recommendation", and "cart".
+          A single legend strip nails the language down for every card below. */}
+      <div className="rounded-xl border border-gray-200 bg-white p-3 flex flex-wrap items-center gap-4 text-xs text-gray-600">
+        <span className="font-semibold text-gray-700">المفاهيم:</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-violet-100 text-violet-700 font-bold">🤖</span>
+          توصية ذكاء اصطناعي — تحتاج موافقتك قبل التحوّل لطلب
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold">🛒</span>
+          سلة يدوية — أضفتها بنفسك من الكتالوج
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-amber-100 text-amber-700 font-bold">✋</span>
+          بانتظار موافقتك
+        </span>
+      </div>
+
+      {/* ── Ask Agent CTA — conversational intake ───────────────────────── */}
+      <button
+        type="button"
+        onClick={() => setAskOpen(true)}
+        className="group w-full text-start relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 via-white to-emerald-50 border border-violet-200 hover:border-violet-300 hover:shadow-md transition-all p-5"
+      >
+        <div className="absolute -top-10 -end-10 w-40 h-40 rounded-full bg-violet-200/40 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-8 -start-8 w-32 h-32 rounded-full bg-emerald-200/40 blur-3xl pointer-events-none" />
+        <div className="relative flex items-center gap-4">
+          <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-violet-500/20 group-hover:scale-105 transition-transform">
+            <MessageSquare size={22} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[11px] font-bold">
+                <Sparkles size={11} /> جديد
+              </span>
+              <span className="text-base font-bold text-gray-900">اطلب الأدوية بالكلام</span>
+            </div>
+            <p className="text-sm text-gray-600 mt-0.5">
+              اكتب ما تحتاجه بصياغتك — «50 أوجمنتين، 30 بانادول» — وسيُجهّز النظام خطة شراء جاهزة للموافقة.
+            </p>
+          </div>
+          <div className="shrink-0 hidden sm:flex items-center gap-1.5 text-violet-700 text-sm font-semibold group-hover:translate-x-1 transition-transform">
+            ابدأ
+            <Sparkles size={14} />
+          </div>
+        </div>
+      </button>
+
+      <AskAgentPanel isOpen={askOpen} onClose={() => setAskOpen(false)} />
 
       {/* ── Auto-Generated Drafts ─────────────────────────────────────────── */}
       <section>

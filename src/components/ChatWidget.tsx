@@ -541,6 +541,22 @@ export function ChatWidget() {
               <p className="text-white text-sm font-semibold">مساعد ميدي بولس</p>
               {tenantName && <p className="text-emerald-100 text-[11px] truncate">{tenantName}</p>}
             </div>
+            {/* Direct line to a human via WhatsApp — most visible point for support */}
+            <a
+              href={(() => {
+                const raw = (import.meta as any).env?.VITE_SUPPORT_WHATSAPP ?? '201000000000';
+                const phone = String(raw).replace(/\D/g, '');
+                const greeting = encodeURIComponent('مرحباً، أحتاج مساعدة من فريق الدعم في MediPulse');
+                return `https://wa.me/${phone}?text=${greeting}`;
+              })()}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="تواصل مع موظف دعم حقيقي عبر واتساب"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold transition-colors"
+            >
+              <span aria-hidden>💬</span>
+              <span className="hidden sm:inline">دعم بشري</span>
+            </a>
             <button onClick={() => setOpen(false)} className="text-white/70 hover:text-white transition-colors">
               <X size={16} />
             </button>

@@ -212,7 +212,7 @@ function ResultCard({ result, selected, onSelect, myTenantId }: {
         <div className="flex items-center justify-between gap-2 pt-0.5">
           <div className="flex items-baseline gap-1">
             <span className="text-base font-bold text-gray-900">
-              {listing.price.toLocaleString('ar-EG', { maximumFractionDigits: 1 })}
+              {listing.price.toLocaleString('en-US', { maximumFractionDigits: 1 })}
             </span>
             <span className="text-[10px] text-gray-400">ج.م</span>
             {listing.discountPct != null && (
@@ -511,7 +511,7 @@ export function EmergencyFinderSheet({ open, onClose }: Props) {
                         {selectedResult.seller.legalName ?? 'صيدلية'}
                       </p>
                       <p className="text-[11px] text-emerald-600 mt-0.5">
-                        السعر: {selectedResult.listing.price.toLocaleString('ar-EG', { maximumFractionDigits: 1 })} ج.م
+                        السعر: {selectedResult.listing.price.toLocaleString('en-US', { maximumFractionDigits: 1 })} ج.م
                         {selectedResult.distanceKm != null ? ` · ${selectedResult.distanceKm.toFixed(1)} كم` : ''}
                       </p>
                     </div>

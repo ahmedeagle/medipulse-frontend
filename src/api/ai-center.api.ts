@@ -186,6 +186,21 @@ export interface TokenUsageToday {
   percent:      number
 }
 
+export type AiFeature = 'procurement' | 'chat' | 'migration' | 'whatsapp' | 'generic'
+
+export interface TokenUsageBreakdownRow {
+  feature:       AiFeature
+  inputTokens:   number
+  outputTokens:  number
+  calls:         number
+  cap:           number
+  remaining:     number
+  percent:       number
+  inputCostUsd:  number
+  outputCostUsd: number
+  totalCostUsd:  number
+}
+
 export const aiCenterApi = {
   workforceSummary: (): Promise<WorkforceSummary> =>
     client.get('/ai-center/workforce/summary').then(r => r.data),
@@ -244,6 +259,10 @@ export const aiCenterApi = {
 
   tokenUsageToday: (): Promise<TokenUsageToday> =>
     client.get('/ai-center/agents/token-usage/today').then(r => r.data),
+
+  /** Per-feature daily token + cost breakdown — powers the AI Budget widget. */
+  tokenUsageBreakdown: (): Promise<TokenUsageBreakdownRow[]> =>
+    client.get('/ai-center/agents/token-usage/today/breakdown').then(r => r.data),
 
   // Audit
   approvalEvents: (limit = 100, offset = 0):

@@ -9,6 +9,7 @@ import {
   Building2, FlaskConical, ScanLine, Clock, ScanBarcode, Info,
   Filter, X, ChevronDown, ChevronUp, MoreHorizontal, ArrowUp, ArrowDown, Minus,
   Eye, History, Printer, ShoppingCart, Layers, Store,
+  TrendingUp, Activity, Ban,
 } from 'lucide-react'
 import { inventoryApi } from '../../api/inventory.api'
 import { p2pMarketplaceApi, p2pListingApi } from '../../api/p2p.api'
@@ -825,7 +826,7 @@ function ProductDetailDrawer({ item, onClose }: { item: InventoryItem; onClose: 
                      'تاريخ الانتهاء'}
                   </p>
                   <p className="text-xs opacity-75">
-                    {new Date(item.expiryDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    {new Date(item.expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
               </div>
@@ -843,7 +844,7 @@ function ProductDetailDrawer({ item, onClose }: { item: InventoryItem; onClose: 
                 <div>
                   <p className="text-xs font-semibold text-emerald-800">مربوط بالكتالوج الموحّد</p>
                   <p className="text-[10px] text-emerald-600 mt-0.5">
-                    آخر ربط: {new Date(item.lastLinkedAt).toLocaleDateString('ar-EG')}
+                    آخر ربط: {new Date(item.lastLinkedAt).toLocaleDateString('en-US')}
                     {item.matchScore ? ` · دقة ${Math.round(item.matchScore)}%` : ''}
                   </p>
                 </div>
@@ -857,15 +858,18 @@ function ProductDetailDrawer({ item, onClose }: { item: InventoryItem; onClose: 
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <ArrowUp size={13} />تاريخ سعر الموردين
               </h3>
-              <PriceTrendPanel productId={item.productId} />
+              <PriceTrendPanel
+                productId={item.productId}
+                productName={item.product?.name ?? item.product?.nameAr}
+              />
             </section>
           )}
 
           {/* Timestamps */}
           <section className="border-t border-gray-100 pt-4">
             <div className="flex justify-between text-[11px] text-gray-400">
-              <span>أُضيف: {new Date(item.createdAt).toLocaleDateString('ar-EG')}</span>
-              <span>آخر تحديث: {new Date(item.updatedAt).toLocaleDateString('ar-EG')}</span>
+              <span>أُضيف: {new Date(item.createdAt).toLocaleDateString('en-US')}</span>
+              <span>آخر تحديث: {new Date(item.updatedAt).toLocaleDateString('en-US')}</span>
             </div>
           </section>
         </div>
@@ -915,6 +919,11 @@ function AddProductModal({ products, onCreate, onCreateWithBatch, onBrowseAdd, o
   const [batchSell, setBatchSell]       = useState('')
   // F-08: Product image
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  // F-06: Product behavior toggles
+  const [disablePOSSale, setDisablePOSSale]     = useState(false)
+  const [disablePurchase, setDisablePurchase]   = useState(false)
+  const [returnable, setReturnable]             = useState(true)
+  const [discountAllowed, setDiscountAllowed]   = useState(true)
 
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(p => ({ ...p, [k]: e.target.value }))
 
@@ -1011,7 +1020,7 @@ function AddProductModal({ products, onCreate, onCreateWithBatch, onBrowseAdd, o
         <form onSubmit={e => {
           e.preventDefault()
           if (!form.name||!form.category||!form.unit) return
-          const prod = { ...form, barcode:barcodeInput||undefined, taxRate:form.taxRate?Number(form.taxRate):undefined, activeIngredient:form.activeIngredient||undefined }
+          const prod = { ...form, barcode:barcodeInput||undefined, taxRate:form.taxRate?Number(form.taxRate):undefined, activeIngredient:form.activeIngredient||undefined, disablePOSSale, disablePurchase, returnable, discountAllowed }
           // F-07: single-transaction path when batch fields are filled
           if (showBatch && batchNum.trim() && createQty && onCreateWithBatch) {
             const payload = {
@@ -1187,6 +1196,30 @@ function AddProductModal({ products, onCreate, onCreateWithBatch, onBrowseAdd, o
             </div>
           </div>
 
+          {/* F-06: Product behavior rules */}
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">قواعد المنتج</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {([
+                { label: 'تعطيل البيع على الكاشير', value: disablePOSSale, set: setDisablePOSSale, defaultOn: false },
+                { label: 'تعطيل من أوامر الشراء',   value: disablePurchase, set: setDisablePurchase, defaultOn: false },
+                { label: 'قابل للإرجاع',             value: returnable,     set: setReturnable,     defaultOn: true  },
+                { label: 'يقبل خصم',                 value: discountAllowed, set: setDiscountAllowed, defaultOn: true },
+              ] as const).map(({ label, value, set }) => (
+                <label key={label} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-gray-200 hover:border-gray-300 cursor-pointer bg-gray-50/50 hover:bg-white transition-colors">
+                  <span className="text-sm text-gray-700">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => (set as (v: boolean) => void)(!value)}
+                    className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${value ? 'bg-teal-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${value ? 'right-0.5' : 'left-0.5'}`} />
+                  </button>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t('inventory.add.section_inventory')}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1256,61 +1289,182 @@ function AddProductModal({ products, onCreate, onCreateWithBatch, onBrowseAdd, o
 }
 
 // ── Setup landing (empty state) ────────────────────────────────────────────────
+// Shown the first time a pharmacy opens /pharmacy/inventory with no rows.
+// Surfaces THREE paths in clear priority order — Smart Migration first
+// because it gives the best ROI for any pharmacy coming from a legacy ERP.
+// Layout is a vertical scroll-friendly column (no fixed-height side panel
+// that clipped on smaller laptops).
 function InventorySetupLanding({ onBulkUpload, onAddManually }: { onBulkUpload: () => void; onAddManually: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isAr = i18n.language === 'ar'
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-8">
-          <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider mb-3">{t('inventory.setup.badge')}</p>
-          <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-3">{t('inventory.setup.title')}</h1>
-          <p className="text-gray-500 mb-8 leading-relaxed">{t('inventory.setup.subtitle')}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-            <button onClick={onBulkUpload} className="flex items-center gap-3 px-5 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-start transition-all shadow-sm hover:shadow-md">
-              <div className="p-2.5 bg-white/20 rounded-xl shrink-0"><Upload size={20} /></div>
-              <div className="flex-1"><p className="font-semibold text-base">{t('inventory.setup.bulk_cta')}</p><p className="text-teal-100 text-xs mt-0.5">{t('inventory.setup.bulk_sub')}</p></div>
-              <ArrowRight size={16} className="opacity-70 shrink-0" />
-            </button>
-            <button onClick={onAddManually} className="flex items-center gap-3 px-5 py-4 border-2 border-gray-200 hover:border-teal-300 hover:bg-teal-50 text-gray-700 rounded-2xl text-start transition-all">
-              <div className="p-2.5 bg-gray-100 rounded-xl shrink-0"><Plus size={20} className="text-gray-600" /></div>
-              <div className="flex-1"><p className="font-semibold text-base">{t('inventory.setup.manual_cta')}</p><p className="text-gray-400 text-xs mt-0.5">{t('inventory.setup.manual_sub')}</p></div>
-              <ArrowRight size={16} className="opacity-40 shrink-0" />
-            </button>
+    <div className="space-y-8 max-w-7xl mx-auto pb-12">
+      {/* Hero */}
+      <div className="text-center max-w-2xl mx-auto">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
+          <Sparkles size={12} />
+          {isAr ? 'إعداد لأول مرة' : 'First-time setup'}
+        </span>
+        <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
+          {isAr ? 'مرحباً بك في MediPulse' : 'Welcome to MediPulse'}
+        </h1>
+        <p className="mt-3 text-gray-500 leading-relaxed">
+          {isAr
+            ? 'اختر الطريقة الأنسب لنقل صيدليتك إلى النظام — لكل خيار خطوات واضحة وزمن متوقع.'
+            : 'Pick the path that fits your pharmacy. Every option has clear steps and a realistic time estimate.'}
+        </p>
+      </div>
+
+      {/* Three paths — Smart Migration is the recommended primary CTA */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 1. Smart Migration (recommended) */}
+        <Link
+          to="/pharmacy/migration"
+          className="group relative flex flex-col rounded-2xl border-2 border-violet-300 bg-gradient-to-br from-violet-50 via-white to-emerald-50 p-6 shadow-sm hover:shadow-lg hover:border-violet-400 transition-all"
+        >
+          <span className="absolute -top-2 start-4 px-2 py-0.5 rounded-full bg-violet-600 text-white text-[10px] font-bold tracking-wider uppercase">
+            {isAr ? 'موصى به' : 'Recommended'}
+          </span>
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-md shadow-violet-600/30">
+              <Sparkles size={20} />
+            </div>
+            <span className="text-[11px] font-semibold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+              {isAr ? '5–15 دقيقة' : '5–15 min'}
+            </span>
           </div>
-          <div className="flex items-center">
-            {[{ icon:Upload, label:t('inventory.setup.step1'), sub:t('inventory.setup.step1_sub') }, { icon:Package, label:t('inventory.setup.step2'), sub:t('inventory.setup.step2_sub') }, { icon:Sparkles, label:t('inventory.setup.step3'), sub:t('inventory.setup.step3_sub') }].map((step,i) => (
-              <div key={i} className="flex items-center flex-1">
-                <div className="flex flex-col items-center text-center flex-1">
-                  <div className="w-10 h-10 rounded-full bg-teal-50 border-2 border-teal-200 flex items-center justify-center mb-2"><step.icon size={16} className="text-teal-600" /></div>
-                  <p className="text-xs font-semibold text-gray-700">{step.label}</p><p className="text-xs text-gray-400 mt-0.5">{step.sub}</p>
-                </div>
-                {i < 2 && <div className="w-8 h-px bg-teal-200 mb-6 shrink-0" />}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-teal-700 text-white rounded-2xl p-6 flex flex-col">
-          <p className="text-xs font-semibold text-teal-300 uppercase tracking-wider mb-1">{t('inventory.setup.sidebar_label')}</p>
-          <h3 className="text-lg font-bold mb-3 leading-snug">{t('inventory.setup.sidebar_title')}</h3>
-          <p className="text-teal-100 text-sm leading-relaxed mb-6">{t('inventory.setup.sidebar_desc')}</p>
-          <p className="text-xs font-semibold text-teal-300 mb-3 uppercase tracking-wider">{t('inventory.setup.can_do')}</p>
-          <ul className="space-y-2.5 flex-1">
-            {(['can_1','can_2','can_3','can_4'] as const).map(k => (
-              <li key={k} className="flex items-start gap-2.5 text-sm text-teal-50"><CheckCircle size={14} className="text-teal-300 mt-0.5 shrink-0" />{t(`inventory.setup.${k}`)}</li>
+          <h3 className="mt-4 text-lg font-bold text-gray-900">
+            {isAr ? 'نقل مخزونك بالذكاء الاصطناعي' : 'Smart Migration'}
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 leading-relaxed flex-1">
+            {isAr
+              ? 'ارفع ملف Excel أو CSV واحد من نظامك السابق — الذكاء الاصطناعي يطابق المنتجات تلقائياً مع الكتالوج المركزي ويعرض ما يحتاج مراجعة.'
+              : 'Upload one Excel / CSV from your legacy system. The AI matches each row against the central catalog and surfaces what needs review.'}
+          </p>
+          <ul className="mt-4 space-y-1.5 text-xs text-gray-600">
+            {[
+              isAr ? 'يفهم العربية والإنجليزية والباركود' : 'Understands Arabic, English & barcodes',
+              isAr ? 'مطابقة 60-85٪ تلقائياً في المعدل' : '60–85% auto-matched on average',
+              isAr ? 'يحوّل ما لم يتطابق إلى طلبات كتالوج' : 'Unmatched rows turn into catalog requests',
+            ].map(line => (
+              <li key={line} className="flex items-start gap-1.5">
+                <CheckCircle size={12} className="text-violet-500 mt-0.5 shrink-0" />
+                <span>{line}</span>
+              </li>
             ))}
           </ul>
-          <div className="mt-6 pt-5 border-t border-teal-600"><p className="text-xs text-teal-300 flex items-center gap-1.5"><CheckCircle size={12} />{t('inventory.setup.live_caption')}</p></div>
-        </div>
+          <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 group-hover:gap-2 transition-all">
+            {isAr ? 'ابدأ النقل الذكي' : 'Start Smart Migration'}
+            <ArrowRight size={14} className={isAr ? 'rotate-180' : ''} />
+          </div>
+        </Link>
+
+        {/* 2. Bulk Upload */}
+        <button
+          onClick={onBulkUpload}
+          className="group flex flex-col text-start rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-teal-300 transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-sm">
+              <Upload size={20} />
+            </div>
+            <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
+              {isAr ? '2–5 دقائق' : '2–5 min'}
+            </span>
+          </div>
+          <h3 className="mt-4 text-lg font-bold text-gray-900">
+            {isAr ? 'رفع جماعي بقالب' : 'Bulk Upload'}
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 leading-relaxed flex-1">
+            {isAr
+              ? 'حمّل قالب Excel الجاهز، عبّئ الكميات والأسعار، ثم ارفعه. مناسب لمن لديه ملف نظيف ومنظّم.'
+              : 'Download our Excel template, fill in quantities and prices, then upload. Best when you already have a clean file.'}
+          </p>
+          <ul className="mt-4 space-y-1.5 text-xs text-gray-600">
+            <li className="flex items-start gap-1.5"><CheckCircle size={12} className="text-teal-500 mt-0.5 shrink-0" /><span>{isAr ? 'قالب جاهز مع أعمدة ثابتة' : 'Fixed-column template provided'}</span></li>
+            <li className="flex items-start gap-1.5"><CheckCircle size={12} className="text-teal-500 mt-0.5 shrink-0" /><span>{isAr ? 'تحقّق فوري من الأخطاء' : 'Instant validation feedback'}</span></li>
+          </ul>
+          <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 group-hover:gap-2 transition-all">
+            {isAr ? 'ابدأ الرفع' : 'Start Upload'}
+            <ArrowRight size={14} className={isAr ? 'rotate-180' : ''} />
+          </div>
+        </button>
+
+        {/* 3. Add Manually */}
+        <button
+          onClick={onAddManually}
+          className="group flex flex-col text-start rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-gray-400 transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-xl bg-gray-700 text-white flex items-center justify-center shadow-sm">
+              <Plus size={20} />
+            </div>
+            <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+              {isAr ? 'صنف بصنف' : 'One by one'}
+            </span>
+          </div>
+          <h3 className="mt-4 text-lg font-bold text-gray-900">
+            {isAr ? 'إضافة يدوية' : 'Add Manually'}
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 leading-relaxed flex-1">
+            {isAr
+              ? 'تصفّح الكتالوج المركزي أو امسح الباركود واختر صنفك. مناسب للصيدليات الصغيرة (< 100 صنف).'
+              : 'Browse the central catalog or scan a barcode and pick your item. Best for small pharmacies (< 100 SKUs).'}
+          </p>
+          <ul className="mt-4 space-y-1.5 text-xs text-gray-600">
+            <li className="flex items-start gap-1.5"><CheckCircle size={12} className="text-gray-500 mt-0.5 shrink-0" /><span>{isAr ? 'بحث فوري بالاسم أو الباركود' : 'Instant search by name or barcode'}</span></li>
+            <li className="flex items-start gap-1.5"><CheckCircle size={12} className="text-gray-500 mt-0.5 shrink-0" /><span>{isAr ? 'لا حاجة لملفات أو قوالب' : 'No files or templates needed'}</span></li>
+          </ul>
+          <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 group-hover:gap-2 transition-all">
+            {isAr ? 'أضف صنفاً' : 'Add Item'}
+            <ArrowRight size={14} className={isAr ? 'rotate-180' : ''} />
+          </div>
+        </button>
       </div>
+
+      {/* What happens after you upload — timeline */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-1.5">
+          <Info size={14} className="text-emerald-600" />
+          {isAr ? 'ماذا يحدث بعد الرفع؟' : 'What happens after upload?'}
+        </h3>
+        <ol className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          {[
+            { num: 1, title: isAr ? 'تحليل ذكي' : 'Smart parsing', sub: isAr ? 'النظام يقرأ الأعمدة ويوحّد التنسيقات' : 'Columns parsed & normalized', icon: Sparkles },
+            { num: 2, title: isAr ? 'مطابقة الكتالوج' : 'Catalog matching', sub: isAr ? 'كل صنف يُربط بالمنتج المركزي' : 'Each row linked to central product', icon: CheckCircle },
+            { num: 3, title: isAr ? 'مراجعة سريعة' : 'Quick review', sub: isAr ? 'تأكّد من المتطابقات وأرسل ما لم يتطابق' : 'Confirm matches, submit the rest', icon: Package },
+            { num: 4, title: isAr ? 'الذكاء يبدأ' : 'AI activates', sub: isAr ? 'توصيات شراء وإنذارات نقص فوراً' : 'Reorder + low-stock alerts live', icon: Building2 },
+          ].map(step => (
+            <li key={step.num} className="flex flex-col items-start gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">{step.num}</span>
+                <step.icon size={14} className="text-emerald-600" />
+              </div>
+              <p className="text-sm font-semibold text-gray-900 leading-tight">{step.title}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{step.sub}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {/* Coming soon */}
       <div>
-        <div className="flex items-center gap-2 mb-4"><Clock size={14} className="text-gray-400" /><p className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{t('inventory.setup.coming_soon_title')}</p></div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[{ icon:Building2, title:t('inventory.setup.moh_title'), sub:t('inventory.setup.moh_sub') }, { icon:FlaskConical, title:t('inventory.setup.sfda_title'), sub:t('inventory.setup.sfda_sub') }, { icon:ScanLine, title:t('inventory.setup.gs1_title'), sub:t('inventory.setup.gs1_sub') }].map(item => (
-            <div key={item.title} className="bg-white border border-gray-200 rounded-2xl p-5 opacity-70 relative overflow-hidden">
-              <span className="absolute top-4 end-4 text-xs font-semibold px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">{t('common.coming_soon')}</span>
-              <div className="p-2.5 bg-gray-100 rounded-xl w-fit mb-3"><item.icon size={18} className="text-gray-500" /></div>
-              <p className="font-semibold text-gray-700 text-sm mb-1">{item.title}</p>
-              <p className="text-xs text-gray-400 leading-relaxed">{item.sub}</p>
+        <div className="flex items-center gap-2 mb-3">
+          <Clock size={13} className="text-gray-400" />
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('inventory.setup.coming_soon_title')}</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { icon: Building2,    title: t('inventory.setup.moh_title'),  sub: t('inventory.setup.moh_sub') },
+            { icon: FlaskConical, title: t('inventory.setup.sfda_title'), sub: t('inventory.setup.sfda_sub') },
+            { icon: ScanLine,     title: t('inventory.setup.gs1_title'),  sub: t('inventory.setup.gs1_sub') },
+          ].map(item => (
+            <div key={item.title} className="bg-white border border-gray-200 rounded-xl p-4 opacity-70 relative">
+              <span className="absolute top-3 end-3 text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">{t('common.coming_soon')}</span>
+              <div className="p-2 bg-gray-100 rounded-lg w-fit mb-2"><item.icon size={16} className="text-gray-500" /></div>
+              <p className="font-semibold text-gray-700 text-sm">{item.title}</p>
+              <p className="text-xs text-gray-400 leading-relaxed mt-0.5">{item.sub}</p>
             </div>
           ))}
         </div>
@@ -1746,6 +1900,7 @@ export default function InventoryPage() {
   const [showBulkUpload, setShowBulkUpload]   = useState(false)
   const [showAdd, setShowAdd]                 = useState(false)
   const pendingImageRef                       = useRef<File | null>(null)
+  const promptBatchAfterAdd                   = useRef(false)
   const [showExport, setShowExport]           = useState(false)
   const [uploadToast, setUploadToast]         = useState<any | null>(null)
   const [openMenu, setOpenMenu]               = useState<{ id: string; rect: DOMRect } | null>(null)
@@ -1837,7 +1992,7 @@ export default function InventoryPage() {
   // this page performs client-side filtering/counting across tabs (all / low /
   // expiring / expired / dead / review). Pharmacies above 200 items should
   // migrate to server-side filters in a follow-up.
-  const { data: inventoryData, isLoading } = useQuery({
+  const { data: inventoryData, isLoading, isError } = useQuery({
     queryKey: ['inventory'],
     queryFn: () => inventoryApi.getAll({ limit: 200 }).then((r) => r.data?.data ?? r.data),
   })
@@ -1858,8 +2013,16 @@ export default function InventoryPage() {
   // Mutations
   const addMutation = useMutation({
     mutationFn: (data: any) => inventoryApi.create(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); setShowAdd(false); setFormError(null) },
-    onError: (err: any) => setFormError(err?.response?.data?.message || t('errors.server_error')),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['inventory'] })
+      setShowAdd(false)
+      setFormError(null)
+      if (promptBatchAfterAdd.current && res?.data?.id) {
+        setAddBatchItem(res.data)
+        promptBatchAfterAdd.current = false
+      }
+    },
+    onError: (err: any) => { promptBatchAfterAdd.current = false; setFormError(err?.response?.data?.message || t('errors.server_error')) },
   })
   const createMutation = useMutation({
     mutationFn: async ({ productData, inventoryData }: { productData: any; inventoryData: any }) => {
@@ -2159,7 +2322,7 @@ export default function InventoryPage() {
 
   const sharedAddProps = {
     products, onClose: () => { setShowAdd(false); setFormError(null); setSimilarCandidates(null); pendingImageRef.current = null },
-    onBrowseAdd: (pid: string, qty: number, thr: number, exp?: string) => addMutation.mutate({ productId:pid, quantity:qty, minThreshold:thr, expiryDate:exp }),
+    onBrowseAdd: (pid: string, qty: number, thr: number, exp?: string) => { promptBatchAfterAdd.current = true; addMutation.mutate({ productId:pid, quantity:qty, minThreshold:thr, expiryDate:exp }) },
     onCreate: (pd: any, inv: any) => createMutation.mutate({ productData:pd, inventoryData:inv }),
     onCreateWithBatch: (payload: any) => createWithBatchMutation.mutate(payload),
     onImageFilePicked: (file: File | null) => { pendingImageRef.current = file },
@@ -2167,7 +2330,7 @@ export default function InventoryPage() {
     isCreatePending: createMutation.isPending || forceCreateMutation.isPending || createWithBatchMutation.isPending,
     error: formError,
     similarCandidates,
-    onUseCandidate: (pid: string, qty: number, thr: number, exp?: string) => addMutation.mutate({ productId: pid, quantity: qty, minThreshold: thr, expiryDate: exp }),
+    onUseCandidate: (pid: string, qty: number, thr: number, exp?: string) => { promptBatchAfterAdd.current = true; addMutation.mutate({ productId: pid, quantity: qty, minThreshold: thr, expiryDate: exp }) },
     onForceCreate: (pd: any, inv: any) => forceCreateMutation.mutate({ productData: pd, inventoryData: inv }),
     onDismissSimilar: () => setSimilarCandidates(null),
   }
@@ -2175,7 +2338,7 @@ export default function InventoryPage() {
   // ── Empty state ──────────────────────────────────────────────────────────────
   // Only show setup landing when we KNOW inventory is empty (query finished, not just loading).
   // If we bail out while isLoading=true the URL-driven statFilter is lost and the table never renders.
-  if (!isLoading && inventory.length === 0) {
+  if (!isLoading && !isError && inventory.length === 0) {
     return (
       <>
         {uploadToast && <UploadToast stats={uploadToast} onDismiss={() => setUploadToast(null)} />}
@@ -2194,26 +2357,16 @@ export default function InventoryPage() {
   }
 
   // ── Populated state ──────────────────────────────────────────────────────────
+  // Unified emerald stat-card spec — same shape for inventory + AI center
+  // so the operator sees one consistent "this is a metric" pattern.
   const STAT_CARDS = [
-    { key:'all' as StatFilter,      label:'كل المنتجات',     count: stats.all,      desc:'عرض جميع المنتجات المتاحة في المخزون',    color:'teal'   },
-    { key:'review' as StatFilter,   label:'بحاجة مراجعة',    count: stats.review,   desc:'اقتراحات الذكاء الاصطناعي ومنتجات بلا ربط بالكتالوج', color:'violet' },
-    { key:'expired' as StatFilter,  label:'منتهية الصلاحية', count: stats.expired,  desc:'⚠ منتجات تجاوزت تاريخ الصلاحية — يجب عزلها فوراً ومنع الصرف', color:'crimson' },
-    { key:'expiring' as StatFilter, label:'تنتهي قريباً',    count: stats.expiring, desc:'دفعات تقترب من تاريخ الانتهاء وتحتاج إلى إجراء سريع', color:'orange' },
-    { key:'low' as StatFilter,      label:'مخزون منخفض',    count: stats.low,      desc:'منتجات أوشكت على النفاد وتحتاج إلى إعادة تعبئة',   color:'red'    },
-    { key:'dead' as StatFilter,     label:'منتجات راكدة',    count: stats.dead,     desc:'منتجات لم تتحرك منذ فترة وتحتاج إلى متابعة', color:'gray'   },
+    { key:'low' as StatFilter,      label:'منخفض المخزون',   count: stats.low,      desc:'منتجات أوشكت على النفاد وتحتاج إلى إعادة تعبئة',                       icon: ArrowDown   },
+    { key:'expiring' as StatFilter, label:'تنتهي قريباً',    count: stats.expiring, desc:'منتجات تنتهي صلاحيتها خلال 30 يوماً',                                  icon: TrendingUp  },
+    { key:'expired' as StatFilter,  label:'منتهية الصلاحية', count: stats.expired,  desc:'منتجات تجاوزت تاريخ الصلاحية يجب مراجعتها',                            icon: Clock       },
+    { key:'review' as StatFilter,   label:'بحاجة مراجعة',    count: stats.review,   desc:'اكتشافات الذكاء الاصطناعي ومنتجات بلا ربط',                            icon: Activity    },
+    { key:'all' as StatFilter,      label:'إجمالي المنتجات', count: stats.all,      desc:'عرض جميع المنتجات في المخزون',                                         icon: Layers      },
+    { key:'dead' as StatFilter,     label:'منتجات راكدة',    count: stats.dead,     desc:'منتجات لم تتحرك منذ فترة طويلة وتحتاج إلى متابعة',                     icon: Ban         },
   ] as const
-
-  const colorMap = {
-    teal:    { card: statFilter==='all'      ? 'border-teal-400 bg-teal-50'   : 'border-gray-200 hover:border-teal-300', count: 'text-teal-700',   icon: 'bg-teal-100 text-teal-600' },
-    violet:  { card: (statFilter==='review' || statFilter==='suggested') ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-violet-300', count: 'text-violet-700', icon: 'bg-violet-100 text-violet-500' },
-    gray:    { card: statFilter==='dead'     ? 'border-gray-400 bg-gray-50'   : 'border-gray-200 hover:border-gray-300', count: 'text-gray-700',   icon: 'bg-gray-100 text-gray-500' },
-    orange:  { card: statFilter==='expiring' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300', count: 'text-orange-600', icon: 'bg-orange-100 text-orange-500' },
-    red:     { card: statFilter==='low'      ? 'border-red-400 bg-red-50'     : 'border-gray-200 hover:border-red-300', count: 'text-red-600',    icon: 'bg-red-100 text-red-500' },
-    // Crimson = already-expired stock. Deliberately darker than `red` (low
-    // stock) so the user instantly distinguishes "need to reorder" from
-    // "must quarantine" — a regulatory + patient-safety priority.
-    crimson: { card: statFilter==='expired'  ? 'border-rose-500 bg-rose-50 ring-1 ring-rose-300' : 'border-rose-200 hover:border-rose-400', count: 'text-rose-700',   icon: 'bg-rose-100 text-rose-600' },
-  }
 
   return (
     <>
@@ -2224,44 +2377,57 @@ export default function InventoryPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">لوحة المخزون</h1>
-            <p className="text-sm text-gray-500 mt-0.5">راقب المنتجات والدفعات وحركات المخزون من مكان واحد.</p>
+            <p className="text-sm text-gray-500 mt-0.5">راقب منتجاتك وحركات المخزون من مكان واحد.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowAIWizard(true)}
               disabled={runMatchingMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white text-sm font-medium rounded-xl disabled:opacity-60 shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-emerald-50 hover:border-emerald-200 disabled:opacity-60 transition-colors"
               title="مطابقة جميع منتجات المخزون مع الكتالوج تلقائياً">
-              <Sparkles size={15} />
+              <Sparkles size={15} className="text-emerald-600" />
               مطابقة ذكية
             </button>
-            <button onClick={() => setShowExport(true)} className="flex items-center gap-2 px-4 py-2 border border-emerald-300 text-emerald-700 bg-emerald-50 text-sm font-medium rounded-xl hover:bg-emerald-100 transition-colors">
-              <Upload size={15} />تصدير
+            <button onClick={() => setShowExport(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition-colors">
+              <Download size={15} className="text-emerald-600" />تصدير
             </button>
             <button
               onClick={() => setShowBulkUpload(true)}
-              className="flex items-center gap-2 px-4 py-2 border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 text-sm font-medium rounded-xl"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
               title="رفع ملف Excel أو CSV لإضافة منتجات بالجملة">
-              <FileSpreadsheet size={15} />رفع ملف
+              <Upload size={15} className="text-emerald-600" />رفع ملف
             </button>
             <button
               onClick={() => { setShowAdd(true); setFormError(null) }}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-xl shadow-sm">
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-sm">
               <Plus size={15} />منتج جديد
             </button>
           </div>
         </div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Stat cards — emerald-circle icon on the leading side, content trailing */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {STAT_CARDS.map(card => {
-            const c = colorMap[card.color]
+            const Icon = card.icon
+            const active = statFilter === card.key || (card.key === 'review' && statFilter === 'suggested')
             return (
-              <button key={card.key} onClick={() => setStatFilter(card.key)}
-                className={`text-start p-4 bg-white rounded-2xl border-2 transition-all ${c.card}`}>
-                <p className={`text-3xl font-bold mb-1 ${c.count}`}>{card.count}</p>
-                <p className="font-semibold text-gray-800 text-sm">{card.label}</p>
-                <p className="text-xs text-gray-400 mt-1 leading-relaxed">{card.desc}</p>
+              <button
+                key={card.key}
+                onClick={() => setStatFilter(card.key)}
+                className={`text-start p-5 bg-white rounded-2xl border transition-all flex items-center gap-4 ${
+                  active
+                    ? 'border-emerald-400 ring-2 ring-emerald-100'
+                    : 'border-gray-200 hover:border-emerald-300 hover:shadow-sm'
+                }`}
+              >
+                <div className="flex-1 min-w-0 text-start">
+                  <p className="text-3xl font-bold text-gray-900 leading-none">{card.count}</p>
+                  <p className="font-semibold text-gray-800 text-sm mt-1.5">{card.label}</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">{card.desc}</p>
+                </div>
+                <div className="shrink-0 w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+                  <Icon size={20} className="text-emerald-600" />
+                </div>
               </button>
             )
           })}
@@ -2270,40 +2436,40 @@ export default function InventoryPage() {
         {/* ── Search & Filter card ────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
 
-          {/* Search row */}
+          {/* Top row: Filter pill + search */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+            <button onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition-colors shrink-0 ${
+                showFilters || hasActiveFilters
+                  ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                  : 'border-gray-200 text-gray-700 bg-white hover:bg-gray-50'
+              }`}>
+              فلتر
+              <Filter size={14} />
+              {activeFiltersCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold">{activeFiltersCount}</span>
+              )}
+            </button>
             <div className="relative flex-1">
-              <Search size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <Search size={16} className="absolute end-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="ابحث بالاسم، المعرف، الباركود، الدفعة..."
+                placeholder="ابحث بالاسم، الكود، الباركود، الدفعة..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full ps-11 pe-11 py-2.5 text-sm bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:border-teal-400 transition-all"
+                className="w-full ps-4 pe-11 py-2.5 text-sm bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:border-emerald-400 transition-all"
               />
-              {search
-                ? <button onClick={() => setSearch('')} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={15} /></button>
-                : <VoiceMicButton onResult={setSearch} className="absolute end-3 top-1/2 -translate-y-1/2" />
-              }
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X size={15} />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Toolbar row */}
-          <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap">
-            <button onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg border transition-colors ${showFilters || hasActiveFilters ? 'border-teal-400 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-              <Filter size={14} />الفلاتر
-              {activeFiltersCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[10px] font-bold">{activeFiltersCount}</span>
-              )}
-              <ChevronDown size={13} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-            </button>
-            {hasActiveFilters && (
-              <button onClick={() => setFilters(EMPTY_FILTERS)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-                <X size={12} />إعادة تعيين
-              </button>
-            )}
-            <p className="text-sm text-gray-400 ms-auto">
+          {/* Result count strip */}
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+            <p className="text-xs text-gray-400 ms-auto">
               {filtered.length !== inventory.length
                 ? <><span className="font-semibold text-gray-700">{filtered.length}</span> من {inventory.length}</>
                 : <>{inventory.length} صنف</>

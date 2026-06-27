@@ -193,7 +193,7 @@ export function ImportProgressToast({ batchId, onDismiss }: Props) {
       {/* Progress bar */}
       <div className="mt-3">
         <div className="flex items-center justify-between text-xs font-medium text-gray-600 mb-1">
-          <span>{batch.processed.toLocaleString('ar-EG')} / {batch.total.toLocaleString('ar-EG')}</span>
+          <span>{batch.processed.toLocaleString('en-US')} / {batch.total.toLocaleString('en-US')}</span>
           <span className="tabular-nums">{percent}%</span>
         </div>
         <div className="h-2.5 rounded-full bg-teal-100/60 overflow-hidden relative">

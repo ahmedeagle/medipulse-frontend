@@ -68,8 +68,11 @@ export interface SmartProduct {
 }
 
 export const inventoryApi = {
-  getAll: (params?: { limit?: number; offset?: number; q?: string }) =>
+  getAll: (params?: { limit?: number; offset?: number; q?: string; linkStatus?: string }) =>
     client.get('/inventory', { params }),
+
+  getSuggestedCount: (): Promise<number> =>
+    client.get('/inventory/suggested-count').then(r => r.data.count as number),
 
   getLowStock: (params?: { limit?: number; offset?: number }) =>
     client.get('/inventory/low-stock', { params }),

@@ -135,7 +135,7 @@ export function ProductSearchCombobox({ value, onSelect, queryFn, queryKey, plac
               <p className="text-gray-500 text-sm font-medium">لا يوجد منتج بهذا الاسم في الكتالوج</p>
               <p className="text-gray-400 text-xs mt-1 mb-3">جرّب كلمة بحث مختلفة أو الاسم الإنجليزي</p>
               <Link
-                to="/pharmacy/products"
+                to="/pharmacy/catalog-requests"
                 onMouseDown={e => e.stopPropagation()}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors border border-emerald-200"
               >
@@ -196,7 +196,7 @@ export function ProductSearchCombobox({ value, onSelect, queryFn, queryKey, plac
                         )}
                         {p.expiryDate && !warn && (
                           <span className="text-[11px] text-gray-400">
-                            ينتهي {new Date(p.expiryDate).toLocaleDateString('ar-EG', { month: 'short', year: 'numeric' })}
+                            ينتهي {new Date(p.expiryDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                           </span>
                         )}
                       </div>

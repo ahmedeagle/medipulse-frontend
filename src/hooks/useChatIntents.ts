@@ -17,6 +17,7 @@ export const QUICK_CHIPS = [
   { emoji: '📦', label: 'مخزون منخفض',     accent: 'border-l-red-400',     trigger: 'ما المنتجات التي نفد مخزونها أو يوشك على النفاد؟' },
   { emoji: '📊', label: 'ملخص المخزون',    accent: 'border-l-sky-400',     trigger: 'أعطني ملخصاً عن حالة المخزون الآن' },
   { emoji: '🛒', label: 'ماذا أطلب؟',      accent: 'border-l-emerald-400', trigger: 'ماذا يجب أن أطلب هذا الأسبوع؟' },
+  { emoji: '🎯', label: 'كم أطلب من دواء؟', accent: 'border-l-teal-400',    trigger: 'كم علبة بانادول يجب أن أطلب؟ ومن أرخص مورد؟' },
   { emoji: '📉', label: 'رادار الإيراد',   accent: 'border-l-rose-400',    trigger: 'ما المنتجات التي طلبها عملاء ولم نتمكن من توفيرها؟ وكم بلغ الإيراد الضائع؟' },
   { emoji: '⚠️', label: 'انتهاء صلاحية',  accent: 'border-l-amber-400',   trigger: 'ما المنتجات التي ستنتهي صلاحيتها خلال 90 يوماً؟' },
   { emoji: '🛑', label: 'بضاعة راكدة',    accent: 'border-l-gray-400',    trigger: 'ما المنتجات التي لم تتحرك منذ فترة طويلة؟' },

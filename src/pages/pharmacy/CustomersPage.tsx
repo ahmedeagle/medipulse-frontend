@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, UserPlus, Phone, Mail, MapPin, X, Check,
@@ -11,13 +11,13 @@ import { posApi, type PosCustomer, type PosInsuranceCompany, type PosTransaction
 import Pagination from '../../components/ui/Pagination'
 import { useCurrency } from '../../hooks/useCurrency'
 const fmtDate = (s: string | null) =>
-  s ? new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  s ? new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '…'
 
 function visitBadge(count: number) {
   if (count === 0) return { label: 'جديد',    cls: 'bg-gray-100 text-gray-500' }
   if (count < 3)  return { label: 'عارض',    cls: 'bg-blue-50 text-blue-600' }
   if (count < 10) return { label: 'منتظم',   cls: 'bg-violet-50 text-violet-700' }
-  return               { label: 'متكرر ⭐', cls: 'bg-amber-50 text-amber-700' }
+  return               { label: 'مميز ⭐', cls: 'bg-amber-50 text-amber-700' }
 }
 
 function validateCustomer(f: typeof EMPTY_FORM) {
@@ -38,7 +38,7 @@ const EMPTY_FORM = {
   insuranceCompanyId: '', insuranceCardNumber: '', insurancePolicyNumber: '', copayPercent: '',
 }
 
-// ── Delete confirmation modal ─────────────────────────────────────────────────
+// -- Delete confirmation modal -------------------------------------------------
 function DeleteCustomerModal({ customer, onClose, onConfirm, isPending }: {
   customer: PosCustomer
   onClose: () => void
@@ -57,7 +57,7 @@ function DeleteCustomerModal({ customer, onClose, onConfirm, isPending }: {
             <h3 className="font-bold text-gray-900 mb-1.5">حذف العميل</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
               هل أنت متأكد من حذف{' '}
-              <span className="font-semibold text-gray-800">"{customer.name}"</span>؟
+              <span className="font-semibold text-gray-800">"{customer.name}"</span>?
             </p>
             <p className="text-sm text-gray-400 mt-1.5 leading-relaxed">
               سيتم أرشفة بيانات العميل وإخفاؤه من القوائم. تبقى السجلات قابلة للمراجعة من قِبل المسؤول.
@@ -87,7 +87,7 @@ function DeleteCustomerModal({ customer, onClose, onConfirm, isPending }: {
   )
 }
 
-// ── Row action menu ───────────────────────────────────────────────────────────
+// -- Row action menu -----------------------------------------------------------
 function RowMenu({ onEdit, onDelete, onHistory }: { onEdit: () => void; onDelete: () => void; onHistory: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -131,7 +131,7 @@ function RowMenu({ onEdit, onDelete, onHistory }: { onEdit: () => void; onDelete
   )
 }
 
-// ── Customer History Drawer ───────────────────────────────────────────────────
+// -- Customer History Drawer ---------------------------------------------------
 function payBadge(method: string) {
   if (method === 'card')  return { label: 'كارت',  cls: 'bg-blue-50 text-blue-600',    Icon: CreditCard }
   if (method === 'split') return { label: 'مختلط', cls: 'bg-violet-50 text-violet-600', Icon: Receipt }
@@ -187,11 +187,11 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
             <p className="font-bold text-gray-900 text-sm">{fmtEGP(customer.totalPurchases)}</p>
           </div>
           <div className="px-4 py-3 text-center border-x border-gray-100">
-            <p className="text-xs text-gray-400 mb-0.5">عدد الزيارات</p>
+            <p className="text-xs text-gray-400 mb-0.5">إجمالي المشتريات</p>
             <p className="font-bold text-gray-900 text-sm">{customer.visitCount}</p>
           </div>
           <div className="px-4 py-3 text-center">
-            <p className="text-xs text-gray-400 mb-0.5">آخر زيارة</p>
+            <p className="text-xs text-gray-400 mb-0.5">إجمالي المشتريات</p>
             <p className="font-bold text-gray-900 text-sm">{customer.lastVisitAt ? fmtDate(customer.lastVisitAt) : '—'}</p>
           </div>
         </div>
@@ -242,7 +242,7 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
                           {isVoided && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold">ملغي</span>}
                         </div>
                         <p className="text-[11px] text-gray-400">
-                          {new Date(tx.createdAt).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(tx.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                           {' '}·{' '}
                           {new Date(tx.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                         </p>
@@ -276,7 +276,7 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
                         {tx.discountAmount > 0 && (
                           <div className="flex justify-between text-xs pt-2 border-t border-gray-200 mt-1">
                             <span className="text-gray-400">خصم</span>
-                            <span className="text-violet-600 font-semibold">−{fmtEGP(tx.discountAmount)}</span>
+                            <span className="text-violet-600 font-semibold">-{fmtEGP(tx.discountAmount)}</span>
                           </div>
                         )}
                       </div>
@@ -303,7 +303,7 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
               disabled={(page + 1) * PAGE >= total}
               onClick={() => setPage(p => p + 1)}
               className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors"
-            >التالي</button>
+            >السابق</button>
           </div>
         )}
       </div>
@@ -311,7 +311,7 @@ function CustomerHistoryDrawer({ customer, onClose }: { customer: PosCustomer; o
   )
 }
 
-// ── Add / Edit Customer Drawer ────────────────────────────────────────────────
+// -- Add / Edit Customer Drawer ------------------------------------------------
 function CustomerDrawer({
   initial, onClose, insuranceCompanies,
 }: {
@@ -411,7 +411,7 @@ function CustomerDrawer({
         {/* Form */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
-          {/* ── Basic info ── */}
+          {/* -- Basic info -- */}
           <div className="space-y-3">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">البيانات الأساسية</p>
 
@@ -470,7 +470,7 @@ function CustomerDrawer({
             </div>
           </div>
 
-          {/* ── Insurance ── */}
+          {/* -- Insurance -- */}
           <div className="space-y-3 pt-1">
             <div className="flex items-center gap-2">
               <Shield size={13} className="text-violet-600" />
@@ -479,7 +479,7 @@ function CustomerDrawer({
 
             {/* Insurance company search dropdown */}
             <div ref={insRef}>
-              <label className="text-xs font-semibold text-gray-600 mb-1.5 block">شركة التأمين</label>
+              <label className="text-xs font-semibold text-gray-600 mb-1.5 block">البريد الإلكتروني</label>
               <div className="relative">
                 <button type="button" onClick={() => setInsOpen(o => !o)}
                   className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-right hover:border-violet-300 transition-colors bg-white">
@@ -529,7 +529,7 @@ function CustomerDrawer({
               {selectedIns && (
                 <p className="text-[11px] text-violet-600 mt-1 flex items-center gap-1">
                   <Shield size={10} />
-                  يتحمل المريض {selectedIns.patientPercent}٪ وتغطي {selectedIns.name} {100 - Number(selectedIns.patientPercent)}٪ من الفاتورة
+                  يتحمل المريض {selectedIns.patientPercent}% وتغطي {selectedIns.name} {100 - Number(selectedIns.patientPercent)}% من التكلفة
                 </p>
               )}
             </div>
@@ -544,7 +544,7 @@ function CustomerDrawer({
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">رقم الوثيقة</label>
+                <label className="text-xs font-semibold text-gray-600 mb-1.5 block">رقم الهاتف</label>
                 <div className="relative">
                   <FileText size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input value={form.insurancePolicyNumber} onChange={e => set('insurancePolicyNumber', e.target.value)}
@@ -559,7 +559,7 @@ function CustomerDrawer({
               </label>
               <input type="number" min="0" max="100" step="0.01"
                 value={form.copayPercent} onChange={e => set('copayPercent', e.target.value)} onBlur={() => touch('copayPercent')}
-                className={fieldCls('copayPercent')} placeholder="مثال: 20 (المريض يدفع 20٪ والتأمين 80٪)" />
+                className={fieldCls('copayPercent')} placeholder="مثال: 20 (المريض يدفع 20% والتأمين 80%)" />
               {touched.copayPercent && errs.copayPercent && <p className="text-red-500 text-[11px] mt-1">{errs.copayPercent}</p>}
               <p className="text-[11px] text-gray-400 mt-1">اتركه فارغاً لاستخدام نسبة شركة التأمين الافتراضية</p>
             </div>
@@ -588,7 +588,7 @@ function CustomerDrawer({
   )
 }
 
-// ── Insurance Companies Modal ─────────────────────────────────────────────────
+// -- Insurance Companies Modal -------------------------------------------------
 function InsuranceModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const [search, setSearch]   = useState('')
@@ -702,7 +702,7 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
                   {errs.patientPercent && <p className="text-red-500 text-[11px] mt-1">{errs.patientPercent}</p>}
                   {form.patientPercent && !isNaN(Number(form.patientPercent)) && (
                     <p className="text-[11px] text-violet-600 mt-1">
-                      المريض يدفع {form.patientPercent}٪ وتغطي الشركة {100 - Number(form.patientPercent)}٪
+                      المريض يدفع {form.patientPercent}% وشركة التأمين تتحمل {100 - Number(form.patientPercent)}%
                     </p>
                   )}
                 </div>
@@ -737,7 +737,7 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">اسم شركة التأمين</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">نسبة المريض</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">تغطية التأمين</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">نسبة المريض</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ملاحظات</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -787,7 +787,7 @@ function InsuranceModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// -- Main Page -----------------------------------------------------------------
 const PAGE_SIZE = 25
 
 export default function CustomersPage() {
@@ -869,7 +869,7 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-xl font-black text-gray-900">العملاء</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {total > 0 ? `عرض ${total.toLocaleString('ar-EG')} عميل` : 'قائمة عملاء نقطة البيع'}
+            {total > 0 ? `عرض ${total.toLocaleString('en-US')} عميل` : 'ابدأ بإضافة عملاء جدد'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -922,7 +922,7 @@ export default function CustomersPage() {
               {[
                 'رمز العميل', 'اسم العميل', 'الهاتف',
                 'التأمين', 'تصنيفات', 'الجنس',
-                'إجمالي المشتريات', 'آخر زيارة', 'الإجراءات',
+                'رمز العميل', 'اسم العميل', 'الهاتف',
               ].map((h, i, arr) => (
                 <th key={h} className={clsx(
                   'text-right px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap bg-gray-50/80',
@@ -986,10 +986,10 @@ export default function CustomersPage() {
                     </div>
                   </td>
 
-                  {/* الهاتف */}
+                  {/* الاسم */}
                   <td className="px-4 py-3 text-gray-600 text-sm font-mono">{c.phone ?? '—'}</td>
 
-                  {/* التأمين */}
+                  {/* الاسم */}
                   <td className="px-4 py-3">
                     {ins ? (
                       <div>
@@ -1001,7 +1001,7 @@ export default function CustomersPage() {
                     )}
                   </td>
 
-                  {/* تصنيفات */}
+                  {/* الاسم */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 flex-wrap">
                       {c.tags.slice(0, 2).map(tag => (
@@ -1018,20 +1018,20 @@ export default function CustomersPage() {
                     </div>
                   </td>
 
-                  {/* الجنس */}
+                  {/* الاسم */}
                   <td className="px-4 py-3">
                     <span className="text-sm text-gray-600">
                       {c.gender === 'male' ? 'ذكر' : c.gender === 'female' ? 'أنثى' : '—'}
                     </span>
                   </td>
 
-                  {/* إجمالي المشتريات */}
+                  {/* رمز العميل */}
                   <td className="px-4 py-3 font-semibold text-gray-900">{fmtEGP(c.totalPurchases)}</td>
 
-                  {/* آخر زيارة */}
+                  {/* رمز العميل */}
                   <td className="px-4 py-3 text-gray-500 text-sm">{fmtDate(c.lastVisitAt)}</td>
 
-                  {/* الإجراءات */}
+                  {/* الاسم */}
                   <td className="px-4 py-3">
                     <RowMenu onEdit={() => setEditing(c)} onDelete={() => setDeleting(c)} onHistory={() => setHistoryCustomer(c)} />
                   </td>

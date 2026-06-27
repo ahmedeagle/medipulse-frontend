@@ -59,6 +59,12 @@ export interface SellerProfile {
   city?: string
   region?: string
   address?: string
+  /** Phone (E.164) — shown to counterparty for delivery coordination */
+  phone?: string
+  /** Business email — used for P2P invoice + dispute trail */
+  email?: string
+  /** WhatsApp number (E.164) — fast-channel for buyers/sellers post-acceptance */
+  whatsapp?: string
   pharmacyLicenseUrl?: string
   commercialRegUrl?: string
   taxDocUrl?: string
@@ -167,8 +173,14 @@ export interface EnrichedP2pOrder extends P2pOrder {
   bonusQty?: number | null
   sellerName?: string | null
   sellerCity?: string | null
+  sellerPhone?: string | null
+  sellerEmail?: string | null
+  sellerWhatsapp?: string | null
   buyerName?: string | null
   buyerCity?: string | null
+  buyerPhone?: string | null
+  buyerEmail?: string | null
+  buyerWhatsapp?: string | null
   hasInvoice: boolean
   hasDispute: boolean
 }

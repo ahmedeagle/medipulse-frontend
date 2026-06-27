@@ -1,0 +1,308 @@
+2) Deferred backlog — items I explicitly said can't be one-shot
+From earlier in this session I flagged these as multi-week, real engineering (not shippable in a single pass):
+
+#	Item	Why deferred	Rough effort
+1	P2P escrow + payment gateway	Needs PSP contract (Paymob/HyperPay/Stripe MENA), KYC, dispute flow, refund ledger, webhook signing. Today P2P orders have no money movement — only listing reservations.	3–4 weeks
+2	Full batch/lot-expiry refactor of inventory model	Current Inventory row is one qty per product. Real batch tracking needs a product_batch table (lot#, expiry, cost, supplier), FIFO/FEFO picking on every sale, expiry alerts per-batch, and rewriting every report/movement query. Touches ~40 files.	4–6 weeks
+3	Cross-branch transfer + GL postings	Multi-branch transfer document, in-transit state, dual-side accounting entries, COGS reconciliation. Needs a real chart-of-accounts. Today branches are isolated silos.	2–3 weeks
+4	Multi-currency FX integration	FX rate feed (daily snapshot table), revaluation jobs, tenant base currency on every monetary column, historical rate at posting time. Touches every price/cost field in DB.	2 weeks
+5	WhatsApp media ingestion (BE side of the tile I just shipped)	Requires BSP selection (Meta Cloud API vs 360dialog), business verification, signed webhook handler for media downloads, OCR pipeline for photos → preview rows. Today the BE module only handles inbound "موافق"/"approve" text replies.	1–2 weeks + BSP onboarding lead time
+6	Price column in migration import	Small (above) — but flagged because today's parser silently drops it.	~½ day
+7	AI inference for ambiguous numeric columns	Column-statistics + LLM fallback when ~1 day
+
+Items 1–4 are the "honestly multi-week" set — recommend treating each as its own sprint with a separate PRD.
+Items 5–7 are bounded — schedulable in a normal week once you decide priority.
+
+Want me to start on #6 (price column) next since it's the smallest and directly answers your question? It would unlock price import in the wizard immediately.
+
+
+
+----------------------  marketplace complettion 1 week  with supplier dashbaord --------------------
+
+--------------------- website 1 week  -------------------
+
+------------------ smart restock 2 days 
+--------------------- QA 2 weeks     ----------------------------------
+
+
+
+
+
+GTM 
+
+
+For GX1, WhatsApp workflows does not mean "send notifications on WhatsApp."
+
+I mean making WhatsApp itself a procurement channel.
+
+For example:
+
+Workflow 1: Pharmacy Ordering
+
+Pharmacy sends:
+
+Panadol 10
+Augmentin 5
+
+to your WhatsApp number.
+
+AI:
+
+Identifies products
+Searches marketplace
+Finds best suppliers
+Creates draft PO
+
+Replies:
+
+Found 3 suppliers.
+
+Best price: Supplier A
+
+Total: 1,250 EGP
+
+Delivery: Tomorrow
+
+Reply:
+
+1 = Confirm
+
+2 = Show alternatives
+
+No dashboard needed.
+
+Workflow 2: Supplier Price List Upload
+
+Supplier sends:
+
+PDF
+Excel
+Image
+
+to WhatsApp.
+
+GX1:
+
+Reads file
+Extracts products
+Updates catalog
+Flags price changes
+
+Supplier gets:
+
+1,250 products imported.
+
+15 products need review.
+
+Workflow 3: Shortage Replenishment
+
+GX1 sends automatically:
+
+Low Stock Alert
+
+Panadol: 3 days remaining
+
+Augmentin: 5 days remaining
+
+Suggested PO: 4,500 EGP
+
+Estimated saving: 320 EGP
+
+Reply:
+
+APPROVE
+
+GX1 creates the order.
+
+Workflow 4: RFQ (Quotation)
+
+This is the one I think could be powerful for Egypt.
+
+Pharmacy:
+
+Need 50 Panadol, delivery tomorrow.
+
+GX1 sends RFQ to 10 suppliers.
+
+Suppliers reply via WhatsApp:
+
+Total 4,200 EGP
+
+or
+
+Available 40 only
+
+GX1 ranks offers and returns:
+
+Supplier	Price	Delivery
+A	4,200	Tomorrow
+B	4,350	Tomorrow
+C	4,100	2 days
+
+Pharmacy replies:
+
+Choose A
+
+Done.
+
+
+For GX1, WhatsApp workflows does not mean "send notifications on WhatsApp."
+
+I mean making WhatsApp itself a procurement channel.
+
+For example:
+
+Workflow 1: Pharmacy Ordering
+
+Pharmacy sends:
+
+Panadol 10
+Augmentin 5
+
+to your WhatsApp number.
+
+AI:
+
+Identifies products
+Searches marketplace
+Finds best suppliers
+Creates draft PO
+
+Replies:
+
+Found 3 suppliers.
+
+Best price: Supplier A
+
+Total: 1,250 EGP
+
+Delivery: Tomorrow
+
+Reply:
+
+1 = Confirm
+
+2 = Show alternatives
+
+No dashboard needed.
+
+Workflow 2: Supplier Price List Upload
+
+Supplier sends:
+
+PDF
+Excel
+Image
+
+to WhatsApp.
+
+GX1:
+
+Reads file
+Extracts products
+Updates catalog
+Flags price changes
+
+Supplier gets:
+
+1,250 products imported.
+
+15 products need review.
+
+Workflow 3: Shortage Replenishment
+
+GX1 sends automatically:
+
+Low Stock Alert
+
+Panadol: 3 days remaining
+
+Augmentin: 5 days remaining
+
+Suggested PO: 4,500 EGP
+
+Estimated saving: 320 EGP
+
+Reply:
+
+APPROVE
+
+GX1 creates the order.
+
+Workflow 4: RFQ (Quotation)
+
+This is the one I think could be powerful for Egypt.
+
+Pharmacy:
+
+Need 50 Panadol, delivery tomorrow.
+
+GX1 sends RFQ to 10 suppliers.
+
+Suppliers reply via WhatsApp:
+
+Total 4,200 EGP
+
+or
+
+Available 40 only
+
+GX1 ranks offers and returns:
+
+Supplier	Price	Delivery
+A	4,200	Tomorrow
+B	4,350	Tomorrow
+C	4,100	2 days
+
+Pharmacy replies:
+
+Choose A
+
+Done.
+
+However...
+
+From what you've described, you already have:
+
+Marketplace
+AI recommendations
+Best-price matching
+Smart replenishment
+Purchase plans
+
+So I would not prioritize WhatsApp ordering right now.
+
+If I were CTO of GX1, I'd focus on:
+
+Finish marketplace.
+Finish supplier dashboard.
+Get 10 suppliers.
+Get 20 pharmacies.
+Observe real usage.
+
+Only then add WhatsApp integrations.
+
+Because a common startup mistake is:
+
+Build WhatsApp AI.
+
+Build wallet.
+
+Build BNPL.
+
+Build OCR.
+
+before having enough suppliers and pharmacies actively using the platform.
+
+For Egypt specifically, I would put priorities as:
+
+Supplier acquisition ⭐⭐⭐⭐⭐
+Catalog quality ⭐⭐⭐⭐⭐
+AI procurement ⭐⭐⭐⭐⭐
+Pharmacy onboarding ⭐⭐⭐⭐⭐
+WhatsApp workflows ⭐⭐⭐
+Wallet ⭐⭐
+BNPL ⭐
+Escrow ⭐
+
+The reason is simple: if a pharmacy can save 5–10% on procurement and 30 minutes per day, they'll use GX1. They don't need a wallet to start placing orders. They need access to suppliers, pricing, and inventory. That's where I'd focus first.

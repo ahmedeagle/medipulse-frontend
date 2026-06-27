@@ -15,7 +15,7 @@ import { pharmacySettingsApi } from '../../../api/pharmacy-settings.api'
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 30
 const fmtDate = (s: string) =>
-  new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' })
+  new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
 const fmtTime = (s: string) =>
   new Date(s).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
 const shortId = (id: string) => id.slice(0, 6).toUpperCase()
@@ -733,7 +733,7 @@ export default function SalesLogPage() {
         <div>
           <h1 className="text-xl font-black text-gray-900">سجل المبيعات والمرتجعات</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {shiftIdParam ? 'معاملات الشفت المحدد' : total > 0 ? `${total.toLocaleString('ar-EG')} معاملة إجمالاً` : 'جميع معاملات نقطة البيع'}
+            {shiftIdParam ? 'معاملات الشفت المحدد' : total > 0 ? `${total.toLocaleString('en-US')} معاملة إجمالاً` : 'جميع معاملات نقطة البيع'}
           </p>
         </div>
       </div>
@@ -872,7 +872,7 @@ export default function SalesLogPage() {
                   {/* Date/Time */}
                   <td className="px-4 py-3">
                     <p className="text-gray-800 text-sm font-medium tabular-nums">
-                      {new Date(tx.createdAt).toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {new Date(tx.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </p>
                     <p className="text-gray-400 text-xs tabular-nums">{fmtTime(tx.createdAt)}</p>
                   </td>

@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Shield, FileText, Users, DollarSign,
@@ -100,16 +100,16 @@ export default function InsuranceClaimsPage() {
   const firstOfMonth = isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
   const today = isoDate(now)
 
-  // ── Backend filters ───────────────────────────────────────────────────────
+  // -- Backend filters -------------------------------------------------------
   const [dateFrom,           setDateFrom]           = useState(firstOfMonth)
   const [dateTo,             setDateTo]             = useState(today)
   const [insuranceCompanyId, setInsuranceCompanyId] = useState('')
 
-  // ── Client-side column filters ────────────────────────────────────────────
+  // -- Client-side column filters --------------------------------------------
   const [fCompany, setFCompany] = useState('')
   const [fId,      setFId]      = useState('')
 
-  // ── UI state ──────────────────────────────────────────────────────────────
+  // -- UI state --------------------------------------------------------------
   const [filtersOpen,   setFiltersOpen]   = useState(false)
   const [sortKey,       setSortKey]       = useState<ColKey>('invoiceDate')
   const [sortDir,       setSortDir]       = useState<'asc' | 'desc'>('desc')
@@ -119,7 +119,7 @@ export default function InsuranceClaimsPage() {
   const { visible, order, displayCols, toggleCol, setOrder, reset } =
     useColState(ALL_COLS, 'insuranceClaims')
 
-  // ── Data fetch ────────────────────────────────────────────────────────────
+  // -- Data fetch ------------------------------------------------------------
   const { data: queryData, isLoading, refetch } = useQuery({
     queryKey: ['insurance-claims', dateFrom, dateTo, insuranceCompanyId],
     queryFn: () => analyticsApi.getInsuranceClaimsReport({
@@ -132,7 +132,7 @@ export default function InsuranceClaimsPage() {
   })
   const rawRows = queryData?.data ?? []
 
-  // ── Client-side filtering ─────────────────────────────────────────────────
+  // -- Client-side filtering -------------------------------------------------
   const rows = useMemo(() => rawRows.filter(r => {
     const lc = (s: string) => s.toLowerCase()
     if (fCompany && !lc(r.insuranceCompany).includes(lc(fCompany))) return false
@@ -235,7 +235,7 @@ export default function InsuranceClaimsPage() {
           <p className="text-lg font-bold text-emerald-700 mt-1">{fmt(totals.covered)}</p>
         </div>
         <div className="bg-white rounded-2xl p-4 border border-gray-100 border-l-4 border-l-orange-400 shadow-sm">
-          <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><DollarSign size={12} />المبلغ المعلّق</span>
+          <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><DollarSign size={12} />إجمالي المبيعات</span>
           <p className="text-lg font-bold text-orange-600 mt-1">{fmt(totals.pending)}</p>
         </div>
       </div>
@@ -423,9 +423,9 @@ export default function InsuranceClaimsPage() {
               <p className="text-sm font-semibold text-gray-700 mb-1">لا توجد مطالبات تأمين في هذه الفترة</p>
               <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
                 لعرض البيانات هنا، تأكد من:<br />
-                ١. إضافة شركات التأمين في الإعدادات<br />
-                ٢. ربط كل مريض بشركة تأمين عند إنشائه<br />
-                ٣. تسجيل المبيعات لهؤلاء المرضى في نقطة البيع
+                1. ربط العميل بشركة التأمين عند إضافته<br />
+                2. وجود مبيعات تأمين خلال الفترة المختارة<br />
+                3. توسيع نطاق الفلاتر ليشمل تاريخ أوسع
               </p>
             </>
           )}

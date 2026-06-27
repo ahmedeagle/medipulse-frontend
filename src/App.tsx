@@ -15,6 +15,7 @@ const PharmacyDashboardPage  = lazy(() => import('./pages/pharmacy/DashboardPage
 const AiCenterPage           = lazy(() => import('./pages/pharmacy/AiCenterPage'));
 const InventoryPage          = lazy(() => import('./pages/pharmacy/InventoryPage'));
 const CatalogPage            = lazy(() => import('./pages/pharmacy/CatalogPage'));
+const PriceIntelligencePage  = lazy(() => import('./pages/pharmacy/PriceIntelligencePage'));
 const CatalogRequestsPage    = lazy(() => import('./pages/pharmacy/CatalogRequestsPage'));
 const PharmacyOrdersPage     = lazy(() => import('./pages/pharmacy/OrdersPage'));
 const ConnectionsPage        = lazy(() => import('./pages/pharmacy/ConnectionsPage'));
@@ -24,7 +25,6 @@ const PosPage                = lazy(() => import('./pages/pharmacy/pos/PosPage')
 const ShiftLogPage           = lazy(() => import('./pages/pharmacy/pos/ShiftLogPage'));
 const SalesLogPage           = lazy(() => import('./pages/pharmacy/pos/SalesLogPage'));
 const CustomersPage               = lazy(() => import('./pages/pharmacy/CustomersPage'));
-const ProductsPage                = lazy(() => import('./pages/pharmacy/ProductsPage'));
 const PurchaseInvoiceListPage     = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceListPage'));
 const PurchaseInvoiceCreatePage   = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceCreatePage'));
 const PurchaseInvoiceDetailPage   = lazy(() => import('./pages/pharmacy/purchases/PurchaseInvoiceDetailPage'));
@@ -40,6 +40,12 @@ const InsuranceClaimsPage         = lazy(() => import('./pages/pharmacy/reports/
 const ProfitLossPage                   = lazy(() => import('./pages/pharmacy/reports/domains/ProfitLossPage'));
 const ProfitabilityByProductPage       = lazy(() => import('./pages/pharmacy/reports/domains/ProfitabilityByProductPage'));
 const ProfitabilityByCategoryPage      = lazy(() => import('./pages/pharmacy/reports/domains/ProfitabilityByCategoryPage'));
+const ProcurementSpendPage             = lazy(() => import('./pages/pharmacy/reports/domains/ProcurementSpendPage'));
+const SupplierPerformancePage          = lazy(() => import('./pages/pharmacy/reports/domains/SupplierPerformancePage'));
+const P2pActivityPage                  = lazy(() => import('./pages/pharmacy/reports/domains/P2pActivityPage'));
+const SupplierMarketplacePage          = lazy(() => import('./pages/pharmacy/SupplierMarketplacePage'));
+const MigrationAssistantPage           = lazy(() => import('./pages/pharmacy/MigrationAssistantPage'));
+const OnboardingHubPage                = lazy(() => import('./pages/pharmacy/OnboardingHubPage'));
 
 // ── Supplier ──────────────────────────────────────────────────────────────────
 const SupplierDashboardPage  = lazy(() => import('./pages/supplier/DashboardPage'));
@@ -111,9 +117,11 @@ export default function App() {
             <Route index                    element={<PharmacyDashboardPage />} />
             <Route path="ai-center"         element={<AiCenterPage />} />
             <Route path="ai"               element={<Navigate to="/pharmacy/ai-center" replace />} />
+            <Route path="procurement"      element={<Navigate to="/pharmacy/ai-center?tab=tasks" replace />} />
             <Route path="inventory"        element={<InventoryPage />} />
-            <Route path="products"         element={<ProductsPage />} />
-            <Route path="catalog"          element={<CatalogPage />} />
+            <Route path="products"         element={<Navigate to="/pharmacy/inventory" replace />} />
+            <Route path="catalog"           element={<CatalogPage />} />
+            <Route path="price-intelligence" element={<PriceIntelligencePage />} />
             <Route path="catalog-requests" element={<CatalogRequestsPage />} />
             <Route path="orders"           element={<PharmacyOrdersPage />} />
             <Route path="orders/:id"       element={<OrderDetailPage />} />
@@ -139,6 +147,12 @@ export default function App() {
             <Route path="reports/profit-loss"                  element={<ProfitLossPage />} />
             <Route path="reports/profitability-by-product"     element={<ProfitabilityByProductPage />} />
             <Route path="reports/profitability-by-category"    element={<ProfitabilityByCategoryPage />} />
+            <Route path="reports/procurement-spend"            element={<ProcurementSpendPage />} />
+            <Route path="reports/supplier-performance"         element={<SupplierPerformancePage />} />
+            <Route path="reports/p2p-activity"                 element={<P2pActivityPage />} />
+            <Route path="marketplace"      element={<SupplierMarketplacePage />} />
+            <Route path="migration"        element={<MigrationAssistantPage />} />
+            <Route path="onboarding"       element={<OnboardingHubPage />} />
           </Route>
 
           {/* ── Supplier ─────────────────────────────────────────────────────── */}

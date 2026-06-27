@@ -234,7 +234,7 @@ export function NotificationBell() {
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 text-right">{n.body}</p>
                       <p className="text-xs text-gray-400 mt-1 text-right">
-                        {new Date(n.createdAt).toLocaleString('ar-EG')}
+                        {new Date(n.createdAt).toLocaleString('en-US')}
                       </p>
                     </div>
                   </button>

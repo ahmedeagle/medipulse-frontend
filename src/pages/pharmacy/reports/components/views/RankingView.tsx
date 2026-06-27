@@ -67,7 +67,7 @@ export function RankingView({ items, valueLabel = 'القيمة', showBottom = t
                           {item.badge}
                         </span>
                       )}
-                      <span className="text-sm font-semibold text-gray-900">{item.value.toLocaleString('ar-EG')}</span>
+                      <span className="text-sm font-semibold text-gray-900">{item.value.toLocaleString('en-US')}</span>
                     </div>
                   </div>
                   <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">

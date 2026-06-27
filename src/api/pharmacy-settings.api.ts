@@ -43,6 +43,23 @@ export interface NotificationSettings {
   enableMorningBriefing:         boolean
 }
 
+export interface TaxSettings {
+  /**
+   * tax_on_net   — VAT computed AFTER invoice-level discount is subtracted.
+   *                Egypt (VAT Law 67/2016 art.11) and modern KSA/GCC use this.
+   * tax_on_gross — VAT computed on the pre-discount subtotal.
+   *                Legacy behaviour kept for tenants who explicitly request it.
+   */
+  vatCalculationMode?: 'tax_on_net' | 'tax_on_gross';
+  taxRegistrationNumber?: string;
+  /**
+   * VAT percentage applied to procurement orders (e.g. 14 for Egypt, 15 for KSA).
+   * Stored as a percentage. When omitted the backend falls back to the
+   * jurisdiction default derived from country/currency.
+   */
+  vatRate?: number;
+}
+
 export interface PharmacySettingsData {
   id: string;
   pharmacyTenantId: string;
@@ -68,6 +85,7 @@ export interface PharmacySettingsData {
   labelSettings: LabelSettings;
   inventorySettings: InventorySettings;
   notificationSettings?: NotificationSettings;
+  taxSettings?: TaxSettings;
   updatedAt: string;
 }
 

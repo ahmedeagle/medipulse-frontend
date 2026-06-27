@@ -12,17 +12,18 @@ import clsx from 'clsx'
 import { purchasesApi, type PurchaseInvoice, type InvoiceChangelogEntry } from '../../../api/purchases.api'
 import Pagination from '../../../components/ui/Pagination'
 import { buildInvoicePrintHtml } from './buildInvoicePrintHtml'
+import PurchaseAnalyticsStrip from './PurchaseAnalyticsStrip'
 
 const PAGE_SIZE = 20
 
 const fmtDate = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  s ? new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 
 const fmtDateTime = (s?: string | null) =>
-  s ? new Date(s).toLocaleString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+  s ? new Date(s).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 
 const fmtMoney = (n: number | string) =>
-  Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 function StatusChip({ status }: { status: PurchaseInvoice['status'] }) {
   const map = {
@@ -379,7 +380,7 @@ export default function PurchaseInvoiceListPage() {
     {
       label: 'فواتير هذا الشهر',
       hint: 'عدد الفواتير المنشأة هذا الشهر',
-      value: stats ? Number(stats.thisMonthCount).toLocaleString('ar-EG') : '—',
+      value: stats ? Number(stats.thisMonthCount).toLocaleString('en-US') : '—',
       icon: FileText,
       color: 'bg-emerald-50 text-emerald-700',
       border: 'border-emerald-200',
@@ -474,6 +475,9 @@ export default function PurchaseInvoiceListPage() {
             : <div key={tile.label}>{card}</div>
         })}
       </div>
+
+      {/* Analytics strip — spend trend, payment mix, top suppliers */}
+      <PurchaseAnalyticsStrip filters={activeFilters} />
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">

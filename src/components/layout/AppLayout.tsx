@@ -11,6 +11,9 @@ import { authApi } from '../../api/auth.api';
 // Only the POS terminal itself needs fullscreen — sub-routes (/sales, /shifts, etc.) are normal scrollable report pages
 const FULLSCREEN_ROUTES = ['/pharmacy/pos']
 
+// Wide pages that benefit from the full viewport width (grids of cards, large dashboards)
+const WIDE_ROUTES = ['/pharmacy/marketplace', '/pharmacy/catalog', '/pharmacy/p2p']
+
 export function AppLayout() {
   const auth = useAuth();
   const { i18n } = useTranslation();
@@ -25,6 +28,7 @@ export function AppLayout() {
 
   const isRTL = i18n.language === 'ar';
   const isFullscreen = FULLSCREEN_ROUTES.includes(location.pathname)
+  const isWide = WIDE_ROUTES.includes(location.pathname)
 
   return (
     <div className={`min-h-screen bg-gray-50 ${isRTL ? 'font-arabic' : ''}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -32,7 +36,9 @@ export function AppLayout() {
       <ChatWidget />
       <main className={isFullscreen
         ? 'h-[calc(100vh-56px)] overflow-hidden'
-        : 'max-w-screen-2xl mx-auto px-4 sm:px-6 py-6'
+        : isWide
+          ? 'w-full px-4 sm:px-6 py-6'
+          : 'max-w-screen-2xl mx-auto px-4 sm:px-6 py-6'
       }>
         <Suspense fallback={
           <div className="flex items-center justify-center h-64">

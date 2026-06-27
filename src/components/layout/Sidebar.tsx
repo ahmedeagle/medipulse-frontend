@@ -7,7 +7,7 @@ import {
   Building2, Users, ListChecks, Inbox, BarChart2, Star,
   User, Upload, TrendingUp, Shield, Plug, GitBranch,
   Calendar, AlertTriangle, CheckCircle2, ShieldCheck, ChevronDown,
-  Store, Layers,
+  Store, Layers, Rocket,
 } from 'lucide-react';
 import { useAuth } from 'react-oidc-context';
 import { useProfileStore } from '../../store/auth.store';
@@ -26,6 +26,7 @@ const aiCenterSubTabs: Array<{ tab: string; labelAr: string; labelEn: string; ic
 
 const pharmacyNav: NavItem[] = [
   { labelKey: 'nav.dashboard',           to: '/pharmacy',             icon: LayoutDashboard },
+  { labelKey: 'nav.onboarding',          to: '/pharmacy/onboarding',  icon: Rocket },
   // AI Center rendered as a special group below — do NOT put it here.
   { labelKey: 'nav.procurement_queue',   to: '/pharmacy/queue',       icon: Inbox },
   { labelKey: 'nav.forecast',            to: '/pharmacy/forecast',    icon: BarChart2 },
@@ -38,6 +39,8 @@ const pharmacyNav: NavItem[] = [
   { labelKey: 'nav.catalog_requests',    to: '/pharmacy/catalog-requests', icon: GitBranch },
   { labelKey: 'nav.orders',              to: '/pharmacy/orders',      icon: ShoppingCart },
   { labelKey: 'nav.preferred_suppliers', to: '/pharmacy/connections', icon: Star },
+  { labelKey: 'nav.marketplace',         to: '/pharmacy/marketplace', icon: Building2 },
+  { labelKey: 'nav.migration',           to: '/pharmacy/migration',   icon: Upload },
 ];
 
 const supplierNav: NavItem[] = [

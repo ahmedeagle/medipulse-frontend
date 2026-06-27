@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -12,10 +12,10 @@ import Pagination from '../../../components/ui/Pagination'
 const PAGE_SIZE = 20
 
 const fmtDate = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  s ? new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '…'
 
 const fmtMoney = (n: number | string) =>
-  Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 function StatusChip({ status }: { status: PurchaseReturn['status'] }) {
   const map = {
@@ -90,7 +90,7 @@ export default function PurchaseReturnListPage() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"
-              placeholder="بحث برقم المرتجع أو اسم المورد…"
+              placeholder="ابحث برقم المرتجع أو اسم المورد…"
               value={qInput}
               onChange={e => setQInput(e.target.value)}
               className="w-full pr-9 pl-3 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -117,10 +117,10 @@ export default function PurchaseReturnListPage() {
               <tr>
                 <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">رقم المرتجع</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المورد</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">التاريخ</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">الحالة</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">الإجمالي</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">إجراءات</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المورد</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المورد</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المورد</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs">المورد</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -129,7 +129,7 @@ export default function PurchaseReturnListPage() {
                   <td colSpan={6} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-600 border-t-transparent" />
-                      <p className="text-sm">جارٍ التحميل…</p>
+                      <p className="text-sm">جاري التحميل…</p>
                     </div>
                   </td>
                 </tr>
@@ -168,7 +168,7 @@ export default function PurchaseReturnListPage() {
                   <td className="px-4 py-3"><StatusChip status={ret.status} /></td>
                   <td className="px-4 py-3">
                     <p className="font-bold text-gray-900 tabular-nums text-sm">{fmtMoney(ret.grandTotal)}</p>
-                    <p className="text-[11px] text-gray-400">ر.س</p>
+                    <p className="text-[11px] text-gray-400">ج.م</p>
                   </td>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1">

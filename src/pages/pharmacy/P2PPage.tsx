@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -12,7 +12,63 @@ import {
   Sparkles, TrendingUp, BarChart2, DollarSign,
   Rocket, Globe, Bell, Truck, Target, Link2,
   Upload, User, HelpCircle, Calendar, ChevronDown, Receipt,
+  Mail, MessageCircle, Phone,
 } from 'lucide-react'
+
+// -- Counterparty contact CTAs (P2P orders) ----------------------------------
+// Renders inline WhatsApp / email / phone buttons next to the buyer/seller
+// name on every P2P order row. The channels are read from the counterparty's
+// seller_profile (see migration AddContactChannelsToProfiles). These exist
+// because once an order is accepted, the two pharmacies must coordinate
+// delivery (timing, who comes to pick up, packing notes, substitutions for
+// near-expiry batches). Forcing that conversation onto WhatsApp / email
+// keeps every dispute auditable while letting the platform stay out of the
+// real-time chat critical path.
+function _digits(s?: string | null): string | null {
+  if (!s) return null
+  const d = String(s).replace(/[^\d]/g, '')
+  return d.length >= 6 ? d : null
+}
+function CounterpartyContactActions({
+  phone, email, whatsapp, counterpartyName, orderShortId,
+}: {
+  phone?: string | null
+  email?: string | null
+  whatsapp?: string | null
+  counterpartyName?: string | null
+  orderShortId: string
+}) {
+  const wa = _digits(whatsapp ?? phone)
+  const tel = _digits(phone)
+  if (!wa && !email && !tel) return null
+  const greeting = encodeURIComponent(
+    `مرحباً ${counterpartyName ?? ''}، بخصوص طلب P2P #${orderShortId}...`,
+  )
+  return (
+    <div className="inline-flex items-center gap-1 ms-1.5" onClick={(e) => e.stopPropagation()}>
+      {wa && (
+        <a href={`https://wa.me/${wa}?text=${greeting}`} target="_blank" rel="noreferrer"
+          title="فتح WhatsApp مع الطرف الآخر"
+          className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors">
+          <MessageCircle size={11} />
+        </a>
+      )}
+      {email && (
+        <a href={`mailto:${email}?subject=${encodeURIComponent('طلب P2P #' + orderShortId)}`}
+          title={`إرسال بريد إلى ${email}`}
+          className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+          <Mail size={11} />
+        </a>
+      )}
+      {tel && (
+        <a href={`tel:+${tel}`} title={`الاتصال على ${tel}`}
+          className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors">
+          <Phone size={11} />
+        </a>
+      )}
+    </div>
+  )
+}
 import { p2pSellerApi, p2pListingApi, p2pMarketplaceApi, p2pOrdersApi } from '../../api/p2p.api'
 import { VoiceMicButton } from '../../components/ui/VoiceMicButton'
 import { pharmacySettingsApi } from '../../api/pharmacy-settings.api'
@@ -23,6 +79,7 @@ import { ProductRulesPanel } from '../../components/p2p/ProductRulesPanel'
 import { LegalDeclarationModal } from '../../components/p2p/LegalDeclarationModal'
 import { SpotlightGuide } from '../../components/p2p/SpotlightGuide'
 import { EmergencyFinderSheet } from '../../components/p2p/EmergencyFinderSheet'
+import { P2pReviewInline, SellerRatingBadge } from '../../components/p2p/P2pReviewInline'
 import { PriceTrendPanel } from '../../components/ui/PriceTrendPanel'
 import { TabBar } from '../../components/ui/TabBar'
 import type { Guide } from '../../components/p2p/SpotlightGuide'
@@ -34,7 +91,7 @@ import type {
   ProcurementOpportunity, MarketIntelligence,
 } from '../../types/p2p'
 
-// ── Countdown hook ────────────────────────────────────────────────────────────
+// -- Countdown hook ------------------------------------------------------------
 function useCountdown(expiresAt?: string | null) {
   const [remaining, setRemaining] = useState<number | null>(null)
   useEffect(() => {
@@ -55,12 +112,12 @@ function useCountdown(expiresAt?: string | null) {
   }
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// -- Constants -----------------------------------------------------------------
 
 const TABS = ['marketplace', 'sell', 'orders', 'profile', 'insights'] as const
 type Tab = typeof TABS[number]
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers -------------------------------------------------------------------
 
 const INPUT = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white'
 
@@ -108,7 +165,7 @@ function OrderStatusBadge({ status, isRTL }: { status: P2pOrder['status']; isRTL
   return <span className={clsx('text-xs px-2.5 py-1 rounded-full font-semibold', cls)}>{isRTL ? ar : en}</span>
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// -- Main Page -----------------------------------------------------------------
 
 export default function P2PPage() {
   const { t, i18n } = useTranslation()
@@ -123,7 +180,7 @@ export default function P2PPage() {
   const [pendingPublish, setPendingPublish] = useState<(() => void) | null>(null)
   const [showQuickStart, setShowQuickStart] = useState(false)
 
-  // ── Check if legal ack needed ──────────────────────────────────────────────
+  // -- Check if legal ack needed ----------------------------------------------
   const { data: sellerProfile, isLoading: profileLoading } = useQuery({
     queryKey: ['p2p-seller-profile'],
     queryFn: p2pSellerApi.getProfile,
@@ -131,7 +188,7 @@ export default function P2PPage() {
     retry: 2,
   })
 
-  // ── Badge: procurement opportunities count ─────────────────────────────────
+  // -- Badge: procurement opportunities count ---------------------------------
   const { data: procOpps } = useQuery({
     queryKey: ['p2p-procurement-opportunities'],
     queryFn: () => p2pMarketplaceApi.getProcurementOpportunities({ limit: 50 }),
@@ -139,7 +196,7 @@ export default function P2PPage() {
     enabled: activeTab !== 'insights', // stop fetching once they're viewing the tab
   })
 
-  // ── Badge: pending orders requiring action ─────────────────────────────────
+  // -- Badge: pending orders requiring action ---------------------------------
   const { data: pendingOrdersData } = useQuery({
     queryKey: ['p2p-orders-pending-badge'],
     queryFn: () => p2pOrdersApi.list({ role: 'both', status: 'pending', limit: 1, offset: 0 }),
@@ -167,16 +224,16 @@ export default function P2PPage() {
     }
   }, [needsLegalAck])
 
-  // ── ProfileTab wizard navigation (used by spotlight guides) ─────────────────
+  // -- ProfileTab wizard navigation (used by spotlight guides) -----------------
   const profileTabApiRef = useRef<{ goToStep: (n: number) => void } | null>(null)
 
-  // ── Spotlight Guide definitions ─────────────────────────────────────────────
+  // -- Spotlight Guide definitions ---------------------------------------------
   const spotlightGuides: Guide[] = [
     {
       id: 'add-listing',
       labelAr: 'أضف أول إعلان للبيع',
       labelEn: 'Add your first listing',
-      emoji: '📦',
+      emoji: '??',
       steps: [
         {
           targetId: 'p2p-tab-sell',
@@ -205,11 +262,11 @@ export default function P2PPage() {
       id: 'complete-profile',
       labelAr: 'أكمل ملف البائع',
       labelEn: 'Complete your seller profile',
-      emoji: '🏪',
+      emoji: '??',
       steps: [
         {
           targetId: 'p2p-tab-profile',
-          titleAr: 'انتقل لتبويب "ملفي كبائع"',
+          titleAr: 'انتقل لتبويب "أعرض للبيع"',
           titleEn: 'Go to Seller Profile',
           bodyAr: 'ملف البائع المكتمل يُعطيك أولوية في نتائج البحث ويبني الثقة مع المشترين.',
           bodyEn: 'A complete profile boosts your search ranking and builds buyer trust.',
@@ -230,7 +287,7 @@ export default function P2PPage() {
           targetId: 'p2p-profile-gps',
           titleAr: 'أضف إحداثيات GPS',
           titleEn: 'Add your GPS coordinates',
-          bodyAr: 'الإحداثيات تتيح للمشترين القريبين العثور عليك أولاً في نتائج البحث.',
+          bodyAr: 'من هنا ستنشئ إعلاناتك وتعرض منتجاتك للصيدليات الأخرى في الشبكة.',
           bodyEn: 'GPS coordinates help nearby buyers find you first in search results.',
           beforeActivate: () => profileTabApiRef.current?.goToStep(1),
           validate: () => !!((document.getElementById('p2p-profile-gps') as HTMLInputElement | null)?.value?.trim()),
@@ -239,15 +296,15 @@ export default function P2PPage() {
         },
         {
           targetId: 'p2p-delivery-zones',
-          titleAr: 'حدّد مناطق التوصيل',
+          titleAr: 'اختر المنتج والسعر',
           titleEn: 'Set your delivery zones',
-          bodyAr: 'فعّل المناطق التي تغطيها وحدد سعر التوصيل أو اجعله مجاناً.',
+          bodyAr: 'من هنا ستنشئ إعلاناتك وتعرض منتجاتك للصيدليات الأخرى في الشبكة.',
           bodyEn: 'Enable zones you cover and set delivery prices or offer free delivery.',
           beforeActivate: () => profileTabApiRef.current?.goToStep(3),
         },
         {
           targetId: 'p2p-docs-section',
-          titleAr: 'ارفع مستنداتك الرسمية',
+          titleAr: 'اختر المنتج والسعر',
           titleEn: 'Upload your official documents',
           bodyAr: 'رفع الترخيص والسجل التجاري يُسرّع التحقق ويمنحك شارة الموثق.',
           bodyEn: 'Uploading your license and commercial registration speeds up verification.',
@@ -263,7 +320,7 @@ export default function P2PPage() {
         },
         {
           targetId: 'p2p-save-section',
-          titleAr: 'احفظ ملفك واطلب التحقق',
+          titleAr: 'أدخل الاسم القانوني للصيدلية',
           titleEn: 'Save & request verification',
           bodyAr: 'اضغط "حفظ الملف الشخصي" لإرسال ملفك للمراجعة. بعد التحقق تظهر إعلاناتك للجميع.',
           bodyEn: 'Press "Save Profile" to submit for admin review. Once verified, your listings go live.',
@@ -273,15 +330,15 @@ export default function P2PPage() {
     },
     {
       id: 'browse-market',
-      labelAr: 'تصفح السوق واشترِ',
+      labelAr: 'أكمل ملف البائع',
       labelEn: 'Browse & buy from market',
-      emoji: '🛒',
+      emoji: '??',
       steps: [
         {
           targetId: 'p2p-tab-marketplace',
           titleAr: 'انتقل لتبويب "السوق"',
           titleEn: 'Go to Marketplace',
-          bodyAr: 'هنا تجد منتجات معروضة للبيع من صيدليات أخرى في شبكتك.',
+          bodyAr: 'من هنا ستنشئ إعلاناتك وتعرض منتجاتك للصيدليات الأخرى في الشبكة.',
           bodyEn: 'Here you\'ll find products listed by other pharmacies in your network.',
           beforeActivate: () => setTab('marketplace'),
         },
@@ -289,11 +346,11 @@ export default function P2PPage() {
           targetId: 'p2p-search-input',
           titleAr: 'ابحث عن دواء أو مكمل',
           titleEn: 'Search for a medicine',
-          bodyAr: 'اكتب اسم الدواء أو الباركود لإيجاد العروض المتاحة بأفضل الأسعار.',
+          bodyAr: 'من هنا ستنشئ إعلاناتك وتعرض منتجاتك للصيدليات الأخرى في الشبكة.',
           bodyEn: 'Type the medicine name or barcode to find available offers at the best price.',
         },
         {
-          titleAr: 'اختر عرضاً واطلب',
+          titleAr: 'اختر المنتج والسعر',
           titleEn: 'Pick an offer and order',
           bodyAr: 'اضغط على بطاقة أي منتج، راجع تفاصيل البائع والسعر، ثم اضغط "اطلب الآن".',
           bodyEn: 'Click any product card, review the seller details and price, then tap "Order Now".',
@@ -304,20 +361,20 @@ export default function P2PPage() {
       id: 'track-orders',
       labelAr: 'تتبع طلباتي',
       labelEn: 'Track my orders',
-      emoji: '📋',
+      emoji: '??',
       steps: [
         {
           targetId: 'p2p-tab-orders',
-          titleAr: 'انتقل لتبويب "الطلبات"',
+          titleAr: 'انتقل لتبويب "السوق"',
           titleEn: 'Go to Orders',
-          bodyAr: 'هنا تتابع كل الطلبات سواء كنت مشترياً أو بائعاً.',
+          bodyAr: 'رفع الترخيص والسجل التجاري يُسرّع التحقق ويمنحك شارة الموثق.',
           bodyEn: 'Track all your orders here, whether you\'re buying or selling.',
           beforeActivate: () => setTab('orders'),
         },
         {
-          titleAr: 'فرّق بين "مشترياتي" و"مبيعاتي"',
+          titleAr: 'ابحث عن "المنتجات" و"الموردين"',
           titleEn: 'Filter buying vs. selling',
-          bodyAr: 'استخدم الفلتر في الأعلى لعرض طلباتك كمشترٍ أو مبيعاتك كبائع منفصلاً.',
+          bodyAr: 'فعّل الإدراج التلقائي لمنتجاتك القريبة من الانتهاء، وحدد الإشعارات التي تريدها.',
           bodyEn: 'Use the filter at the top to see your buying orders or selling orders separately.',
         },
       ],
@@ -330,7 +387,7 @@ export default function P2PPage() {
       id: 'marketplace', labelAr: 'سوق الأدوية', labelEn: 'Marketplace', icon: Store,
       subItems: [
         { labelAr: 'تصفح المنتجات', labelEn: 'Browse Products', onClick: () => setTab('marketplace') },
-        { labelAr: '⚡ أدوية عاجلة', labelEn: '⚡ Urgent Medicine', onClick: () => setTab('marketplace') },
+        { labelAr: '🆘 طلب طارئ', labelEn: '🆘 Urgent Medicine', onClick: () => setTab('marketplace') },
       ],
     },
     {
@@ -423,6 +480,12 @@ export default function P2PPage() {
                 t.id === 'insights' && activeTab !== 'insights' && procOpps?.length ? procOpps.length :
                 t.id === 'orders' && activeTab !== 'orders' && pendingOrdersCount > 0 ? pendingOrdersCount :
                 undefined,
+              badgeTitle:
+                t.id === 'insights'
+                  ? (isRTL ? 'فرص شراء أرخص متاحة الآن' : 'Cheaper procurement opportunities available now')
+                  : t.id === 'orders'
+                  ? (isRTL ? 'طلبات بانتظار إجرائك (كمشتري أو بائع)' : 'Orders awaiting your action (as buyer or seller)')
+                  : undefined,
             }))}
             active={activeTab}
             onChange={setTab}
@@ -434,6 +497,21 @@ export default function P2PPage() {
 
       {/* Tab content */}
       <div className="p-6">
+        {/* -- Off-platform payment notice -----------------------------------
+            P2P settlements happen directly between the two pharmacies today.
+            MediPulse does not hold funds, escrow, or arbitrate financial
+            disputes · so we surface that contract terms loudly on every tab. */}
+        {(activeTab === 'marketplace' || activeTab === 'sell' || activeTab === 'orders') && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900 text-sm flex items-start gap-2">
+            <span className="text-base leading-none">??</span>
+            <div className="leading-relaxed">
+              <strong>{isRTL ? 'تنبيه الدفع: ' : 'Payment notice: '}</strong>
+              {isRTL
+                ? 'طلبات P2P تتم بالدفع عند الاستلام بين الصيدليات. MediPulse لا تتولى المدفوعات ولا تضمن التسوية بين الأطراف المتعاملة. يرجى الاتفاق على شروط الدفع وأدوات السداد مباشرة بينكما.'
+                : 'P2P payments happen directly between the two pharmacies, off-platform. MediPulse does not hold funds or arbitrate financial disputes. Agree on payment terms in writing before shipping and keep the transfer receipt.'}
+            </div>
+          </div>
+        )}
         {activeTab === 'marketplace' && <MarketplaceTab isRTL={isRTL} autoOpenEmergency={searchParams.get('emergency') === '1'} />}
         {activeTab === 'sell' && (
           <SellTab
@@ -456,7 +534,7 @@ export default function P2PPage() {
   )
 }
 
-// ── MARKETPLACE TAB ───────────────────────────────────────────────────────────
+// -- MARKETPLACE TAB -----------------------------------------------------------
 
 function ResultGroup({ title, count, children }: {
   title: string; count: number; children: React.ReactNode
@@ -555,7 +633,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
   return (
     <div className="flex flex-col -mx-4 -mb-4" style={{ minHeight: '72vh' }}>
 
-      {/* ── STICKY HEADER ── */}
+      {/* -- STICKY HEADER -- */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 pt-3 pb-2 shrink-0">
 
         {/* Two clearly separated zones */}
@@ -595,13 +673,13 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
         <div className="flex items-center gap-2 mt-2">
           <span className="text-[11px] text-gray-400">
             {byType.length} {isRTL ? 'عرض متاح' : 'listings'}
-            {(data?.total ?? 0) > 40 ? ` ${isRTL ? 'من' : 'of'} ${data!.total}` : ''}
+            {(data?.total ?? 0) > 40 ? ` ${isRTL ? '??' : 'of'} ${data!.total}` : ''}
           </span>
           {isFetching && <Loader2 size={12} className="animate-spin text-emerald-500" />}
         </div>
       </div>
 
-      {/* ── TWO COLUMNS ── */}
+      {/* -- TWO COLUMNS -- */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
         {/* LEFT: Filters */}
@@ -678,7 +756,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[11px] font-bold text-gray-700">الحد الأقصى للسعر</p>
                 <span className="text-[11px] text-emerald-700 font-semibold">
-                  {maxPrice < 10000 ? `${maxPrice.toLocaleString()} ج.م` : 'الكل'}
+                  {maxPrice < 10000 ? `${maxPrice.toLocaleString()} ج.م` : 'غير محدد'}
                 </span>
               </div>
               <input
@@ -700,13 +778,13 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
 
             {/* Distance */}
             <div>
-              <p className="text-[11px] font-bold text-gray-700 mb-2.5">المسافة</p>
+              <p className="text-[11px] font-bold text-gray-700 mb-2.5">التقييم</p>
               <div className="space-y-2">
                 {([
                   { label: 'الكل', val: null },
-                  { label: '< 2 كم', val: 2 },
-                  { label: '< 5 كم', val: 5 },
-                  { label: '< 15 كم', val: 15 },
+                  { label: '< 2 ??', val: 2 },
+                  { label: '< 5 ??', val: 5 },
+                  { label: '< 15 ??', val: 15 },
                 ] as { label: string; val: number | null }[]).map(o => (
                   <label key={String(o.val)} className="flex items-center gap-2 cursor-pointer" onClick={() => setMaxKm(o.val)}>
                     <div className={clsx('w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors',
@@ -803,19 +881,20 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
                 <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 font-bold text-sm">
-                  {selectedListing.seller.legalName?.[0] ?? 'ص'}
+                  {selectedListing.seller.legalName?.[0] ?? '?'}
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">{selectedListing.seller.legalName ?? '-'}</p>
                   <p className="text-xs text-gray-500">{selectedListing.seller.city ?? ''}</p>
                 </div>
-                <div className="ms-auto">
+                <div className="ms-auto flex items-center gap-2">
+                  <SellerRatingBadge sellerTenantId={selectedListing.listing.sellerTenantId} size="md" />
                   <TrustBadge level={selectedListing.reliability.trustLevel as TrustLevel} />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
                 {[
-                  { label: isRTL ? 'السعر/وحدة' : 'Unit Price', value: `${selectedListing.listing.price} ${isRTL ? 'ر.س' : 'SAR'}` },
+                  { label: isRTL ? 'سعر الوحدة' : 'Unit Price', value: `${selectedListing.listing.price} ${isRTL ? 'ج.م' : 'SAR'}` },
                   { label: isRTL ? 'المتاح' : 'Available', value: selectedListing.listing.quantity },
                   { label: isRTL ? 'الحد الأدنى' : 'Min Order', value: selectedListing.listing.minOrderQty },
                 ].map(({ label, value }) => (
@@ -841,7 +920,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
                             : u === 'urgent' ? 'bg-amber-100 border-amber-400 text-amber-700'
                             : 'bg-emerald-100 border-emerald-400 text-emerald-700'
                           : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50')}>
-                      {u === 'normal' ? 'عادي' : u === 'urgent' ? '⚡ عاجل' : '🚨 حرج'}
+                      {u === 'normal' ? 'عادي' : u === 'urgent' ? '⚡ عاجل' : '🆘 طارئ'}
                     </button>
                   ))}
                 </div>
@@ -854,7 +933,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
               <div className="flex items-center justify-between bg-emerald-50 rounded-xl p-3">
                 <span className="text-sm font-medium text-gray-700">{isRTL ? 'الإجمالي' : 'Total'}</span>
                 <span className="font-bold text-emerald-700">
-                  {(Number(selectedListing.listing.price) * orderQty).toFixed(2)} {isRTL ? 'ر.س' : 'SAR'}
+                  {(Number(selectedListing.listing.price) * orderQty).toFixed(2)} {isRTL ? 'ج.م' : 'SAR'}
                 </span>
               </div>
               {orderMutation.isError && (
@@ -874,7 +953,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
 
       <EmergencyFinderSheet open={showEmergencySheet} onClose={() => setShowEmergencySheet(false)} />
 
-      {/* ── ORDER SUCCESS MODAL ── */}
+      {/* -- ORDER SUCCESS MODAL -- */}
       {orderSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOrderSuccess(null)} />
@@ -903,7 +982,7 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
                   <span className="text-sm font-semibold text-gray-800 text-right max-w-[55%] leading-tight">{orderSuccess.productName}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">الكمية</span>
+                  <span className="text-xs text-gray-500">المنتج</span>
                   <span className="text-sm font-semibold text-gray-800">{orderSuccess.qty} وحدة</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-200 pt-2 mt-2">
@@ -985,7 +1064,7 @@ function MarketplaceCard({
 
           <div className="flex items-center gap-1.5 mt-auto pt-1">
             <div className="w-5 h-5 rounded-md bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-[10px] shrink-0">
-              {seller.legalName?.[0] ?? 'ص'}
+              {seller.legalName?.[0] ?? '?'}
             </div>
             <span className="text-[11px] text-gray-600 font-medium truncate">{seller.legalName ?? '-'}</span>
             {seller.city && (
@@ -994,6 +1073,9 @@ function MarketplaceCard({
               </span>
             )}
           </div>
+          <div className="flex items-center gap-2 ps-6">
+            <SellerRatingBadge sellerTenantId={listing.sellerTenantId} size="sm" />
+          </div>
         </div>
 
         {/* LEFT col (RTL secondary): price, badges, qty, score */}
@@ -1001,10 +1083,10 @@ function MarketplaceCard({
           {/* Price */}
           <div className="flex items-baseline gap-1 flex-wrap">
             <span className="text-xl font-black text-gray-900 leading-none">{listing.price}</span>
-            <span className="text-[10px] text-gray-400">{isRTL ? 'ر.س' : 'SAR'}</span>
+            <span className="text-[10px] text-gray-400">{isRTL ? 'ج.م' : 'SAR'}</span>
             {distanceKm != null && (
               <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full ms-auto">
-                {distanceKm.toFixed(1)} كم
+                {distanceKm.toFixed(1)} ??
               </span>
             )}
           </div>
@@ -1025,7 +1107,7 @@ function MarketplaceCard({
               <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded-full border',
                 listing.listingType === 'emergency' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'
               )}>
-                {listing.listingType === 'emergency' ? '⚡ طارئ' : '🔥 تصفية'}
+                {listing.listingType === 'emergency' ? '🆘 طارئ' : '📦 عادي'}
               </span>
             )}
             {days != null && days <= 30 && (
@@ -1043,7 +1125,7 @@ function MarketplaceCard({
               score >= 40 ? 'bg-amber-100 text-amber-700' :
               'bg-gray-100 text-gray-500'
             )}>
-              ⭐ {score}
+              ? {score}
             </span>
           </div>
         </div>
@@ -1061,7 +1143,7 @@ function MarketplaceCard({
   )
 }
 
-// ── SELL TAB ──────────────────────────────────────────────────────────────────
+// -- SELL TAB ------------------------------------------------------------------
 
 function SellTab({
   isRTL, guardPublish, hasProfile, profileLoading, sellerProfile, onGoToProfile, autoOpenAdd, initialItemId, nearExpiryPreset,
@@ -1226,7 +1308,7 @@ function SellTab({
               icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50',
             },
             {
-              labelAr: 'إعلانات مؤقفة',
+              labelAr: 'إعلانات نشطة',
               labelEn: 'Paused Listings',
               value: pausedCount,
               icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50',
@@ -1267,7 +1349,7 @@ function SellTab({
             <h2 className="font-semibold text-gray-900 text-sm">{isRTL ? 'قوائم البيع' : 'My Listings'}</h2>
             <p className="text-[11px] text-gray-400 mt-0.5">
               {filteredListings.length !== (myListings?.total ?? 0)
-                ? `${filteredListings.length} من ${myListings?.total ?? 0}`
+                ? `${filteredListings.length} ?? ${myListings?.total ?? 0}`
                 : `${myListings?.total ?? 0} ${isRTL ? 'إعلان' : 'listings'}`}
             </p>
           </div>
@@ -1315,10 +1397,10 @@ function SellTab({
                 className="appearance-none ps-3 pe-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white text-gray-700"
                 dir={isRTL ? 'rtl' : 'ltr'}
               >
-                <option value="">النوع: الكل</option>
+                <option value="">الحالة: الكل</option>
                 <option value="normal">عادي</option>
                 <option value="clearance">🔥 تصفية</option>
-                <option value="emergency">⚡ طارئ</option>
+                <option value="emergency">🆘 طارئ</option>
               </select>
               <ChevronDown size={11} className="absolute inset-y-0 end-2 my-auto text-gray-400 pointer-events-none" />
             </div>
@@ -1386,7 +1468,7 @@ function SellTab({
   )
 }
 
-// ── Helpers for inventory item health ────────────────────────────────────────
+// -- Helpers for inventory item health ----------------------------------------
 function itemDaysLeft(item: InventoryItem) {
   if (!item.expiryDate) return null
   return Math.floor((new Date(item.expiryDate).getTime() - Date.now()) / 86_400_000)
@@ -1420,7 +1502,7 @@ function suggestListingType(item: InventoryItem): 'normal' | 'clearance' | 'emer
   return 'normal'
 }
 
-// ── Inline fix: link unlinked item to catalog ─────────────────────────────────
+// -- Inline fix: link unlinked item to catalog ---------------------------------
 function LinkProductModal({ item, isRTL, qc, onClose, onLinked }: {
   item: InventoryItem
   isRTL: boolean
@@ -1528,7 +1610,7 @@ function LinkProductModal({ item, isRTL, qc, onClose, onLinked }: {
   )
 }
 
-// ── Inline fix: update expired item's expiry date ─────────────────────────────
+// -- Inline fix: update expired item's expiry date -----------------------------
 function UpdateExpiryModal({ item, isRTL, qc, onClose, onUpdated }: {
   item: InventoryItem
   isRTL: boolean
@@ -1626,7 +1708,7 @@ function UpdateExpiryModal({ item, isRTL, qc, onClose, onUpdated }: {
   )
 }
 
-// ── Smart inventory picker ────────────────────────────────────────────────────
+// -- Smart inventory picker ----------------------------------------------------
 function InventoryPicker({ value, onChange, isRTL, qc }: {
   value: InventoryItem | null
   onChange: (item: InventoryItem | null) => void
@@ -1642,7 +1724,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
   const inputRef = useRef<HTMLInputElement>(null)
   const dropRef  = useRef<HTMLDivElement>(null)
 
-  // Debounce query → server call only fires 300ms after user stops typing
+  // Debounce query ? server call only fires 300ms after user stops typing
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(query.trim()), 300)
     return () => clearTimeout(t)
@@ -1692,7 +1774,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
     onChange(item); setOpen(false); setQuery('')
   }
 
-  // ── Selected item card ─────────────────────────────────────────────────────
+  // -- Selected item card -----------------------------------------------------
   if (value) {
     const issues  = getItemIssues(value)
     const hasBlock = issues.some(i => i.blocking)
@@ -1763,7 +1845,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
               </span>
             </div>
 
-            {/* EXPIRED → open update expiry modal */}
+            {/* EXPIRED ? open update expiry modal */}
             {issue.code === 'EXPIRED' && (
               <button type="button" onClick={() => setShowExpiryModal(true)}
                 className="mt-1 flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition-colors">
@@ -1772,7 +1854,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
               </button>
             )}
 
-            {/* UNLINKED → open link modal */}
+            {/* UNLINKED ? open link modal */}
             {issue.code === 'UNLINKED' && (
               <button type="button" onClick={() => setShowLinkModal(true)}
                 className="mt-1 flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition-colors">
@@ -1797,7 +1879,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
             <p className="text-xs text-amber-700">{isRTL ? issue.labelAr : issue.labelEn}</p>
             {(issue.code === 'NEAR_30' || issue.code === 'NEAR_60') && (
               <span className="text-[10px] ms-auto text-amber-600 font-medium">
-                {isRTL ? '→ فكّر في التصفية' : '→ Consider clearance'}
+                {isRTL ? '💡 فكر في التصفية' : '💡 Consider clearance'}
               </span>
             )}
           </div>
@@ -1828,7 +1910,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
 
   const showDrop = open && dropPos
 
-  // ── Search input ────────────────────────────────────────────────────────────
+  // -- Search input ------------------------------------------------------------
   return (
     <div>
       <div className="relative">
@@ -1913,7 +1995,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
                           : 'bg-emerald-50 text-emerald-700'
                     )}>
                       {item.quantity <= 0
-                        ? (isRTL ? '⚠ لا توجد كمية' : '⚠ Out of stock')
+                        ? (isRTL ? '❌ نفد المخزون' : '❌ Out of stock')
                         : (isRTL ? `${item.quantity} علبة` : `${item.quantity} units`)}
                     </span>
 
@@ -1951,7 +2033,7 @@ function InventoryPicker({ value, onChange, isRTL, qc }: {
   )
 }
 
-// ── Offer Builder ────────────────────────────────────────────────────────────
+// -- Offer Builder ------------------------------------------------------------
 type OfferMode = 'none' | 'discount' | 'bonus'
 
 function OfferBuilder({ isRTL, offerMode, onOfferMode, discountPct, onDiscountPct,
@@ -2060,7 +2142,7 @@ function OfferBuilder({ isRTL, offerMode, onOfferMode, discountPct, onDiscountPc
                        { d: 30, p: 15, c: 'bg-red-100 text-red-700 border-red-200' }]).map(({ d, p, c }) => (
                       <div key={d} className={clsx('border rounded-lg px-2 py-1 text-center min-w-[48px]', c)}>
                         <p className="text-sm font-bold leading-none">{p}%</p>
-                        <p className="text-[9px] opacity-70 mt-0.5">{isRTL ? `< ${d}ي` : `< ${d}d`}</p>
+                        <p className="text-[9px] opacity-70 mt-0.5">{isRTL ? `< ${d}?` : `< ${d}d`}</p>
                       </div>
                     ))}
                   </div>
@@ -2105,12 +2187,12 @@ function OfferBuilder({ isRTL, offerMode, onOfferMode, discountPct, onDiscountPc
 
           {bonusReqQty && bonusQty && (
             <div className="bg-white border-2 border-purple-200 rounded-xl p-3 flex items-center gap-3">
-              <span className="text-2xl shrink-0">🎁</span>
+              <span className="text-2xl shrink-0">??</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900">
                   {isRTL
-                    ? `اشترِ ${bonusReqQty} ${parseInt(bonusReqQty) > 1 ? 'علب' : 'علبة'} ← احصل على ${bonusQty} مجاناً`
-                    : `Buy ${bonusReqQty} → get ${bonusQty} FREE`}
+                    ? `اشتري ${bonusReqQty} ${parseInt(bonusReqQty) > 1 ? 'قطع' : 'قطعة'} · واحصل على ${bonusQty} مجاناً`
+                    : `Buy ${bonusReqQty} ? get ${bonusQty} FREE`}
                 </p>
                 {effectivePct && (
                   <p className="text-xs text-purple-500 mt-0.5">
@@ -2134,7 +2216,7 @@ function OfferBuilder({ isRTL, offerMode, onOfferMode, discountPct, onDiscountPc
   )
 }
 
-// ── Listing Success Modal ─────────────────────────────────────────────────────
+// -- Listing Success Modal -----------------------------------------------------
 function ListingSuccessModal({ isRTL, item, price, quantity, listingType, offerMode,
   discountPct, bonusReqQty, bonusQty, onClose, onAddAnother }: {
   isRTL: boolean
@@ -2155,7 +2237,7 @@ function ListingSuccessModal({ isRTL, item, price, quantity, listingType, offerM
   const TYPE_META = {
     normal:    { label: isRTL ? 'عادي'       : 'Normal',    emoji: '📦', cls: 'bg-gray-100 text-gray-700' },
     clearance: { label: isRTL ? 'تصفية'      : 'Clearance', emoji: '🔥', cls: 'bg-orange-100 text-orange-700' },
-    emergency: { label: isRTL ? 'متاح فوري'  : 'Emergency', emoji: '⚡', cls: 'bg-blue-100 text-blue-700' },
+    emergency: { label: isRTL ? 'طلب طارئ'  : 'Emergency', emoji: '🆘', cls: 'bg-blue-100 text-blue-700' },
   }
   const tm = TYPE_META[listingType]
 
@@ -2204,7 +2286,7 @@ function ListingSuccessModal({ isRTL, item, price, quantity, listingType, offerM
             <div className="bg-gray-50 rounded-xl p-2.5 text-center border border-gray-100">
               <p className="text-[10px] text-gray-400">{isRTL ? 'السعر' : 'Price'}</p>
               <p className="text-lg font-extrabold text-gray-900 leading-tight">{price}</p>
-              <p className="text-[10px] text-gray-400">{isRTL ? 'ر.س' : 'SAR'}</p>
+              <p className="text-[10px] text-gray-400">{isRTL ? 'ج.م' : 'SAR'}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-2.5 text-center border border-gray-100">
               <p className="text-[10px] text-gray-400">{isRTL ? 'الكمية' : 'Qty'}</p>
@@ -2221,11 +2303,11 @@ function ListingSuccessModal({ isRTL, item, price, quantity, listingType, offerM
           )}
           {offerMode === 'bonus' && bonusReqQty && bonusQty && (
             <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-3 py-2">
-              <span className="text-xl">🎁</span>
+              <span className="text-xl">??</span>
               <span className="text-xs text-purple-700 font-medium">
                 {isRTL
-                  ? `اشترِ ${bonusReqQty} ← احصل على ${bonusQty} مجاناً`
-                  : `Buy ${bonusReqQty} → get ${bonusQty} free`}
+                  ? `اشتري ${bonusReqQty} · واحصل على ${bonusQty} مجاناً`
+                  : `Buy ${bonusReqQty} ? get ${bonusQty} free`}
               </span>
             </div>
           )}
@@ -2247,7 +2329,7 @@ function ListingSuccessModal({ isRTL, item, price, quantity, listingType, offerM
   )
 }
 
-// ── Add Listing Form ──────────────────────────────────────────────────────────
+// -- Add Listing Form ----------------------------------------------------------
 function AddListingForm({ isRTL, onClose, onCreated, initialInventoryItemId }: {
   isRTL: boolean
   onClose: () => void
@@ -2422,7 +2504,7 @@ function AddListingForm({ isRTL, onClose, onCreated, initialInventoryItemId }: {
 
         <div className="p-5 space-y-4">
 
-          {/* ── Step 1: Pick product ── */}
+          {/* -- Step 1: Pick product -- */}
           <div>
             <label className={LABEL}>{isRTL ? 'المنتج' : 'Product'}</label>
             <InventoryPicker value={selectedItem} onChange={handleItemChange} isRTL={isRTL} qc={qc} />
@@ -2448,7 +2530,7 @@ function AddListingForm({ isRTL, onClose, onCreated, initialInventoryItemId }: {
             </div>
           )}
 
-          {/* ── Step 2: Details (only after item selected, no blocking issue) ── */}
+          {/* -- Step 2: Details (only after item selected, no blocking issue) -- */}
           {selectedItem && !hasLocalBlockingIssue && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2509,12 +2591,12 @@ function AddListingForm({ isRTL, onClose, onCreated, initialInventoryItemId }: {
                     className={clsx(INPUT, 'appearance-none')}>
                     <option value="normal">{isRTL ? '📦 عادي — منتج متاح للبيع' : '📦 Normal — available for sale'}</option>
                     <option value="clearance">🔥 {isRTL ? 'تصفية — قريب من الانتهاء' : 'Clearance — near expiry'}</option>
-                    <option value="emergency">⚡ {isRTL ? 'متاح فوري — كميات محدودة' : 'Emergency — limited qty'}</option>
+                    <option value="emergency">🆘 {isRTL ? 'طلب طارئ · كمية محدودة' : 'Emergency · limited qty'}</option>
                   </select>
                 </div>
               </div>
 
-              {/* ── Offer Builder ── */}
+              {/* -- Offer Builder -- */}
               <OfferBuilder
                 isRTL={isRTL}
                 offerMode={offerMode} onOfferMode={setOfferMode}
@@ -2562,7 +2644,7 @@ function AddListingForm({ isRTL, onClose, onCreated, initialInventoryItemId }: {
             <div className="flex gap-3 pt-2">
               <button onClick={() => handleItemChange(null)}
                 className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
-                {isRTL ? '← اختر منتجاً آخر' : '← Pick a different product'}
+                {isRTL ? '🔄 اختر منتجاً آخر' : '🔄 Pick a different product'}
               </button>
             </div>
           )}
@@ -2572,7 +2654,7 @@ function AddListingForm({ isRTL, onClose, onCreated, initialInventoryItemId }: {
   )
 }
 
-// ── Modern listings table (replaces basic card grid) ──────────────────────────
+// -- Modern listings table (replaces basic card grid) --------------------------
 function MyListingsTable({ listings, isRTL }: { listings: P2pListing[]; isRTL: boolean }) {
   const qc = useQueryClient()
 
@@ -2637,7 +2719,7 @@ function MyListingsTable({ listings, isRTL }: { listings: P2pListing[]; isRTL: b
   )
 }
 
-// ── VIEW LISTING MODAL ────────────────────────────────────────────────────────
+// -- VIEW LISTING MODAL --------------------------------------------------------
 
 function ViewListingModal({ listing, isRTL, onClose, statusCfg }: {
   listing: P2pListing
@@ -2651,7 +2733,7 @@ function ViewListingModal({ listing, isRTL, onClose, statusCfg }: {
   const { currency } = useCurrency()
   const productName = isRTL ? (listing.productNameAr || listing.productName) : listing.productName
   const typeLabels = { normal: { ar: 'عادي', en: 'Normal' }, clearance: { ar: 'تصفية', en: 'Clearance' }, emergency: { ar: 'طارئ', en: 'Emergency' } }
-  const typeIcons = { normal: null, clearance: '🔥', emergency: '⚡' }
+  const typeIcons = { normal: null, clearance: '??', emergency: '?' }
   const typeCls = { normal: 'bg-gray-100 text-gray-600', clearance: 'bg-orange-100 text-orange-700', emergency: 'bg-red-100 text-red-700' }
 
   return createPortal(
@@ -2764,7 +2846,7 @@ function ViewListingModal({ listing, isRTL, onClose, statusCfg }: {
   )
 }
 
-// ── EDIT LISTING MODAL ────────────────────────────────────────────────────────
+// -- EDIT LISTING MODAL --------------------------------------------------------
 
 function EditListingModal({ listing, isRTL, qc, onClose }: {
   listing: P2pListing
@@ -2855,7 +2937,7 @@ function EditListingModal({ listing, isRTL, qc, onClose }: {
               <select value={form.listingType} onChange={set('listingType')} className={inputCls}>
                 <option value="normal">{isRTL ? 'عادي' : 'Normal'}</option>
                 <option value="clearance">{isRTL ? '🔥 تصفية' : '🔥 Clearance'}</option>
-                <option value="emergency">{isRTL ? '⚡ طارئ' : '⚡ Emergency'}</option>
+                <option value="emergency">{isRTL ? '🆘 طارئ' : '🆘 Emergency'}</option>
               </select>
             </div>
           </div>
@@ -2931,7 +3013,7 @@ function EditListingModal({ listing, isRTL, qc, onClose }: {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 function MyListingRow({ listing, idx, isRTL, qc, statusCfg }: {
   listing: P2pListing; idx: number; isRTL: boolean
@@ -3077,7 +3159,7 @@ function MyListingRow({ listing, idx, isRTL, qc, statusCfg }: {
           return (
             <>
               <p className={clsx('text-sm font-semibold tabular-nums', isLoss ? 'text-red-500' : 'text-emerald-600')}>
-                {isLoss ? '−' : ''}{Math.abs(margin).toLocaleString('en-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {isLoss ? '-' : ''}{Math.abs(margin).toLocaleString('en-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className="text-[10px] text-gray-400">{isRTL ? 'الربح المقدر' : 'est. profit'}</p>
             </>
@@ -3184,7 +3266,7 @@ function MyListingRow({ listing, idx, isRTL, qc, statusCfg }: {
   )
 }
 
-// ── ORDERS TAB ────────────────────────────────────────────────────────────────
+// -- ORDERS TAB ----------------------------------------------------------------
 
 function OrdersTab({ isRTL }: { isRTL: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -3269,7 +3351,7 @@ function OrdersTab({ isRTL }: { isRTL: boolean }) {
           { labelAr: 'إجمالي الطلبات', value: data?.total ?? 0, icon: ShoppingCart, color: 'text-gray-600', bg: 'bg-gray-100' },
           { labelAr: 'تحتاج إجراءً', value: pendingForMe, icon: Clock, color: pendingForMe > 0 ? 'text-amber-600' : 'text-gray-400', bg: pendingForMe > 0 ? 'bg-amber-50' : 'bg-gray-50' },
           { labelAr: 'مكتملة', value: completed, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { labelAr: 'إيراداتي (ج.م)', value: revenue.toFixed(2), icon: DollarSign, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { labelAr: 'الإيرادات (ج.م)', value: revenue.toFixed(2), icon: DollarSign, color: 'text-purple-600', bg: 'bg-purple-50' },
         ].map((s, i) => (
           <div key={i} className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-3">
             <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', s.bg)}>
@@ -3430,7 +3512,7 @@ function OrdersTab({ isRTL }: { isRTL: boolean }) {
   )
 }
 
-// ── Order Row (table row with inline actions) ─────────────────────────────────
+// -- Order Row (table row with inline actions) ---------------------------------
 
 function OrderRow({
   order, isRTL, myTenantId, highlight, onRefresh,
@@ -3531,18 +3613,18 @@ function OrderRow({
               )}
               {order.listingType === 'clearance' && (
                 <span className="inline-block text-[9px] font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
-                  تصفية
+                  حسناً
                 </span>
               )}
               {order.listingType === 'emergency' && (
                 <span className="inline-block text-[9px] font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
-                  طارئ
+                  حسناً
                 </span>
               )}
               {/* Expiry */}
               {order.listingExpiryDate && (
                 <p className="text-[10px] text-gray-400">
-                  ينتهي: {new Date(order.listingExpiryDate).toLocaleDateString('ar-EG', { month: 'short', year: 'numeric' })}
+                  ينتهي: {new Date(order.listingExpiryDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                 </p>
               )}
             </div>
@@ -3563,6 +3645,13 @@ function OrderRow({
               </p>
               <p className="text-[10px] text-gray-400">{isSeller ? 'مشترٍ' : 'بائع'}</p>
             </div>
+            <CounterpartyContactActions
+              phone={isSeller ? order.buyerPhone : order.sellerPhone}
+              email={isSeller ? order.buyerEmail : order.sellerEmail}
+              whatsapp={isSeller ? order.buyerWhatsapp : order.sellerWhatsapp}
+              counterpartyName={counterparty ?? null}
+              orderShortId={order.id.slice(0, 8)}
+            />
           </div>
         </td>
 
@@ -3578,7 +3667,7 @@ function OrderRow({
             <OrderStatusBadge status={order.status} isRTL={isRTL} />
             {order.status === 'accepted' && countdown && !countdown.expired && (
               <span className={clsx('text-[10px] font-mono font-semibold tabular-nums', countdown.urgent ? 'text-red-500' : 'text-amber-500')}>
-                ⏱ {countdown.display}
+                ? {countdown.display}
               </span>
             )}
             {order.hasDispute && (
@@ -3592,7 +3681,7 @@ function OrderRow({
         {/* Date */}
         <td className="px-4 py-3.5 whitespace-nowrap">
           <p className="text-xs text-gray-600">
-            {new Date(order.createdAt).toLocaleDateString('ar-EG', { day: '2-digit', month: 'short' })}
+            {new Date(order.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
           </p>
           <p className="text-[10px] text-gray-400">
             {new Date(order.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
@@ -3615,7 +3704,7 @@ function OrderRow({
                     onClick={() => setShowReject(true)}
                     className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
                   >
-                    رفض
+                    قبول
                   </button>
                 </>
               )}
@@ -3756,7 +3845,7 @@ function OrderRow({
       {expanded && (
         <tr className="bg-white border-b border-gray-100">
           <td colSpan={7} className="px-5 py-4">
-            {/* ── ORDER TIMELINE ───────────────────────────────────────────── */}
+            {/* -- ORDER TIMELINE --------------------------------------------- */}
             {(() => {
               type NodeState = 'done' | 'active' | 'problem' | 'future' | 'rejected' | 'cancelled'
               const hrsSince = (ts?: string | null) =>
@@ -3796,13 +3885,13 @@ function OrderRow({
                   tag: urgency !== 'normal'
                     ? <span className={clsx('text-[9px] px-1.5 py-0.5 rounded-full font-bold',
                         urgency === 'critical' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')}>
-                        {urgency === 'critical' ? '🚨 حرج' : '⚡ عاجل'}
+                        {urgency === 'critical' ? '🚨 حرج' : '⚠️ بطيء'}
                       </span>
                     : undefined,
                 },
                 {
                   label: 'شُحن',  state: step3, ts: fmtTs(order.shippedAt),
-                  sub: step3 === 'problem' ? `${Math.floor(hrsSince(order.respondedAt))}س منذ القبول`
+                  sub: step3 === 'problem' ? `${Math.floor(hrsSince(order.respondedAt))}س بدون تأكيد`
                      : step3 === 'active'  ? 'بانتظار الشحن' : undefined,
                 },
                 {
@@ -3900,14 +3989,14 @@ function OrderRow({
               )
             })()}
 
-            {/* ── DETAIL FIELDS ────────────────────────────────────────────── */}
+            {/* -- DETAIL FIELDS ---------------------------------------------- */}
             <div className="flex flex-wrap gap-3 text-xs text-gray-600 pt-3 border-t border-gray-100" dir="rtl">
               <div>
                 <span className="text-gray-400">رقم الطلب: </span>
                 <span className="font-mono text-gray-500">{order.id.slice(0, 8)}…</span>
               </div>
               <div>
-                <span className="text-gray-400">السعر المتفق: </span>
+                <span className="text-gray-400">رقم الطلب: </span>
                 <span className="font-semibold text-gray-800">{Number(order.agreedPrice).toFixed(2)} ج.م</span>
               </div>
               {order.productStrength && (
@@ -3918,7 +4007,7 @@ function OrderRow({
               )}
               {order.notes && (
                 <div className="w-full">
-                  <span className="text-gray-400">ملاحظات: </span>
+                  <span className="text-gray-400">التركيز: </span>
                   <span>{order.notes}</span>
                 </div>
               )}
@@ -3944,10 +4033,15 @@ function OrderRow({
                   className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-medium"
                 >
                   <Receipt size={12} />
-                  📄 سند النقل
+                  مشكلة في الاستلام
                 </button>
               )}
             </div>
+            {order.status === 'completed' && isBuyer && (
+              <div className="mt-3 w-full max-w-md">
+                <P2pReviewInline orderId={order.id} sellerTenantId={order.sellerTenantId} />
+              </div>
+            )}
           </td>
         </tr>
       )}
@@ -3955,7 +4049,7 @@ function OrderRow({
   )
 }
 
-// ── QUICK START GUIDE ─────────────────────────────────────────────────────────
+// -- QUICK START GUIDE ---------------------------------------------------------
 
 function QuickStartGuide({
   isRTL, sellerProfile, onClose, onNavigate, onShowLegal,
@@ -3971,11 +4065,11 @@ function QuickStartGuide({
 
   const steps = [
     { done: true,                      icon: User,         labelAr: 'تسجيل الحساب',                          time: '',             ctaAr: '',               tab: '',        legal: false, accent: 'from-emerald-500 to-violet-500' },
-    { done: hasLegal,                  icon: Shield,       labelAr: 'الإقرار القانوني (كل 90 يوم)',           time: '٢ دقيقة',      ctaAr: 'أتمّ الإقرار',   tab: 'sell',   legal: true,  accent: 'from-blue-500 to-indigo-500'  },
-    { done: hasProfile && hasLocation, icon: MapPin,       labelAr: 'ملف البائع — الاسم والموقع',             time: '٣ دقائق',      ctaAr: 'أكمل ملفك',      tab: 'profile',legal: false, accent: 'from-violet-500 to-purple-500' },
-    { done: hasRequiredDocs,           icon: FileText,     labelAr: 'المستندات الرسمية',                      time: '٢ دقيقة',      ctaAr: 'ارفع المستندات', tab: 'profile',legal: false, accent: 'from-amber-500 to-orange-500'  },
-    { done: hasZones,                  icon: Truck,        labelAr: 'مناطق التوصيل',                          time: '٢ دقيقة',      ctaAr: 'أضف المناطق',    tab: 'profile',legal: false, accent: 'from-sky-500 to-cyan-500'      },
-    { done: isVerified,                icon: Award,        labelAr: 'شارة موثق ★',                            time: 'بعد المراجعة', ctaAr: '',               tab: '',        legal: false, accent: 'from-yellow-400 to-amber-500'  },
+    { done: hasLegal,                  icon: Shield,       labelAr: 'السجلات القانونية (آخر 90 يوم)',           time: '~ دقيقة',      ctaAr: 'ارفع المستندات',   tab: 'sell',   legal: true,  accent: 'from-blue-500 to-indigo-500'  },
+    { done: hasProfile && hasLocation, icon: MapPin,       labelAr: 'اسم الصيدلية · ساعات العمل',             time: '~ دقيقة',      ctaAr: 'أكمل البيانات',      tab: 'profile',legal: false, accent: 'from-violet-500 to-purple-500' },
+    { done: hasRequiredDocs,           icon: FileText,     labelAr: 'المستندات المطلوبة',                      time: '~ دقيقة',      ctaAr: 'ارفع المستندات', tab: 'profile',legal: false, accent: 'from-amber-500 to-orange-500'  },
+    { done: hasZones,                  icon: Truck,        labelAr: 'مناطق التوصيل',                          time: '~ دقيقة',      ctaAr: 'حدد المناطق',    tab: 'profile',legal: false, accent: 'from-sky-500 to-cyan-500'      },
+    { done: isVerified,                icon: Award,        labelAr: 'تاجر موثق ✓',                            time: 'بعد التحقيق', ctaAr: '',               tab: '',        legal: false, accent: 'from-yellow-400 to-amber-500'  },
   ]
 
   const completedCount = steps.filter(s => s.done).length
@@ -3986,7 +4080,7 @@ function QuickStartGuide({
     { icon: TrendingUp,  titleAr: 'ربح 20-40% من الفائض',        descAr: 'حوّل المخزون الزائد إلى أرباح حقيقية بدل أن يتلف' },
     { icon: DollarSign,  titleAr: 'تصفية المنتهي قبل انتهائه',   descAr: 'بع قبل 3-6 أشهر من الانتهاء بأسعار تنافسية' },
     { icon: Shield,      titleAr: 'مدفوعات آمنة ومضمونة',        descAr: 'مبلغك محفوظ مسبقاً قبل شحن أي طلب' },
-    { icon: Award,       titleAr: 'شارة موثق → 3× ظهور أكثر',   descAr: 'أولوية في نتائج البحث ومصداقية مرتفعة' },
+    { icon: Award,       titleAr: 'تاجر موثق · 3× طلبات أكثر',   descAr: 'المشترون يفضلون البائعين الموثقين' },
   ]
   const buyerBenefits = [
     { icon: TrendingDown, titleAr: 'وفّر 20-40% على المشتريات',  descAr: 'أسعار أقل من الموردين بفضل التداول المباشر' },
@@ -4000,7 +4094,7 @@ function QuickStartGuide({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-[460px] mx-4 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
 
-        {/* ═══════════════════════════════════ VIEW: WELCOME ═══════════════════ */}
+        {/* ----------------------------------- VIEW: WELCOME ------------------- */}
         {view === 'welcome' && (
           <>
             {/* Hero gradient */}
@@ -4035,7 +4129,7 @@ function QuickStartGuide({
                   {[
                     { val: '+٣٠٠٠', label: 'صيدلية' },
                     { val: '+٥٠ك', label: 'صفقة/شهر' },
-                    { val: '٤.٩★', label: 'تقييم متوسط' },
+                    { val: 'ج.م', label: 'العملة الرسمية' },
                   ].map(s => (
                     <div key={s.val} className="bg-white/10 border border-white/20 rounded-xl py-2 px-1">
                       <p className="text-white font-black text-base leading-none">{s.val}</p>
@@ -4122,7 +4216,7 @@ function QuickStartGuide({
           </>
         )}
 
-        {/* ═══════════════════════════════════ VIEW: SETUP ═════════════════════ */}
+        {/* ----------------------------------- VIEW: SETUP --------------------- */}
         {view === 'setup' && (
           <>
             {/* Header */}
@@ -4254,7 +4348,7 @@ function QuickStartGuide({
   )
 }
 
-// ── PROFILE TAB — full settings (Aumet-style + extras) ───────────────────────
+// -- PROFILE TAB · full settings (Aumet-style + extras) -----------------------
 
 const DOC_TYPES: Array<{
   key: keyof import('../../types/p2p').SellerProfile
@@ -4277,7 +4371,7 @@ const DOC_TYPES: Array<{
   {
     key: 'commercialRegUrl',
     docType: 'commercial_reg',
-    labelAr: 'السجل التجاري',
+    labelAr: 'ترخيص الصيدلية',
     labelEn: 'Commercial Register',
     descAr: 'وثيقة التسجيل التجاري الرسمية (مصر: وزارة التجارة — الخليج: سجل تجاري)',
     descEn: 'Official commercial registration document',
@@ -4315,7 +4409,7 @@ const DOC_TYPES: Array<{
     docType: 'municipal_permit',
     labelAr: 'رخصة البلدية (دول الخليج)',
     labelEn: 'Municipal Permit (GCC)',
-    descAr: 'مطلوب في السعودية والإمارات والكويت — رخصة النشاط التجاري من البلدية',
+    descAr: 'الترخيص الصادر من وزارة الصحة — يثبت حق مزاولة النشاط الصيدلاني',
     descEn: 'Required in KSA, UAE & Kuwait — municipal commercial activity permit',
     required: false,
   },
@@ -4324,7 +4418,7 @@ const DOC_TYPES: Array<{
     docType: 'vat_cert',
     labelAr: 'شهادة ضريبة القيمة المضافة',
     labelEn: 'VAT Registration Certificate',
-    descAr: 'مطلوب للشركات المسجلة ضريبياً في السعودية والإمارات',
+    descAr: 'البطاقة الوطنية أو جواز السفر لمالك الترخيص',
     descEn: 'Required for VAT-registered businesses in KSA & UAE',
     required: false,
   },
@@ -4405,7 +4499,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
     if (!ALLOWED_TYPES.includes(file.type)) {
       setUploadError(isRTL
-        ? 'صيغة غير مدعومة. الصيغ المسموح بها: PDF، JPG، PNG، WEBP'
+        ? 'اسحب ملفاً هنا. الصيغ المدعومة: PDF، JPG، PNG، WEBP'
         : 'Unsupported format. Allowed: PDF, JPG, PNG, WEBP')
       return
     }
@@ -4449,6 +4543,9 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
       region:      p?.region      ?? '',
       address:     p?.address     ?? '',
       gpsLocation: p?.gpsLocation ?? '',
+      phone:       p?.phone       ?? '',
+      email:       p?.email       ?? '',
+      whatsapp:    p?.whatsapp    ?? '',
       isVisible:   p?.isVisible   ?? true,
       deliveryZones: ([3, 5, 10] as const).map(r => {
         const ex = p?.deliveryZones?.find(z => z.radiusKm === r)
@@ -4528,7 +4625,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
   return (
     <div className="space-y-6">
 
-      {/* ── Verification banner + legal ack reset ── */}
+      {/* -- Verification banner + legal ack reset -- */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {sellerProfile?.legalName ? (
           <div className={clsx(
@@ -4544,7 +4641,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
               : <AlertCircle size={16} className="shrink-0" />}
             <span>
               {sellerProfile.verificationStatus === 'verified'
-                ? (isRTL ? 'حسابك موثق ✓ — إعلاناتك ظاهرة في السوق' : 'Account verified ✓ — your listings are visible')
+                ? (isRTL ? 'الحساب موثق ✓ · إعلاناتك ظاهرة' : 'Account verified ✓ · your listings are visible')
                 : sellerProfile.verificationStatus === 'rejected'
                   ? (isRTL ? `مرفوض: ${sellerProfile.rejectionReason}` : `Rejected: ${sellerProfile.rejectionReason}`)
                   : (isRTL ? 'في انتظار مراجعة الإدارة — سنُبلّغك عند الموافقة' : 'Pending admin review — we\'ll notify you on approval')}
@@ -4566,7 +4663,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
         </button>
       </div>
 
-      {/* ── Horizontal stepper ── */}
+      {/* -- Horizontal stepper -- */}
       <div className="w-full bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
 
         {/* Step nodes + connectors */}
@@ -4620,18 +4717,18 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
         <p className="text-xs text-gray-400 mt-4 text-center">
           {isRTL ? `الخطوة ${step + 1} من ${stepDefs.length}` : `Step ${step + 1} of ${stepDefs.length}`}
           {step === 5 && upsertMutation.isSuccess && (
-            <span className="text-emerald-600 font-semibold ms-2">{isRTL ? '— تم الحفظ ✓' : '— Saved ✓'}</span>
+            <span className="text-emerald-600 font-semibold ms-2">{isRTL ? '· تم الحفظ ✓' : '· Saved ✓'}</span>
           )}
         </p>
 
         <div className="border-t border-gray-100 my-5" />
 
-        {/* ── Step title ── */}
+        {/* -- Step title -- */}
         <div className="mb-5">
           <p className="text-sm font-bold text-gray-900">{isRTL ? stepDefs[step].titleAr : stepDefs[step].titleEn}</p>
         </div>
 
-        {/* ── Step 0: General Info ── */}
+        {/* -- Step 0: General Info -- */}
         {step === 0 && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4652,6 +4749,52 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
                   placeholder={isRTL ? 'القاهرة' : 'Cairo'} className={INPUT} />
               </div>
             </div>
+
+            {/* -- Contact channels (phone / email / WhatsApp) ----------------- */}
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <MessageCircle size={14} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-gray-900">
+                    {isRTL ? 'قنوات التواصل · مطلوبة للطلبات النشطة' : 'Contact channels · required for live orders'}
+                  </p>
+                  <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">
+                    {isRTL
+                      ? 'عندما تصلك طلبات عبر P2P، نحن بحاجة لقنوات تواصل سريعة لتنسيق التسليم وتأكيد التفاصيل مع المشترين. فبدون هذه البيانات لن تصل أي إخطارات فورية للترد عليها، وقد تفوتك فرص جيدة. يفضل WhatsApp لأنه الأسرع في الرد.'
+                      : 'Once a P2P order is accepted, your counterparty must reach you to confirm delivery slots, batch expiries, and resolve disputes. Without these numbers no official channel ties you to the other side until the full supplier-onboarding portal ships. WhatsApp cuts response times from hours to minutes.'}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={LABEL}>
+                    <span className="flex items-center gap-1.5"><Phone size={11} />{isRTL ? 'رقم الهاتف' : 'Phone'}</span>
+                  </label>
+                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="+201234567890" className={INPUT} dir="ltr" />
+                </div>
+                <div>
+                  <label className={LABEL}>
+                    <span className="flex items-center gap-1.5"><MessageCircle size={11} className="text-emerald-600" />WhatsApp</span>
+                  </label>
+                  <input value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
+                    placeholder="+201234567890" className={INPUT} dir="ltr" />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {isRTL ? 'صيغة E.164. يتم استخدام الهاتف إذا كان فارغاً.' : 'E.164 format. Falls back to phone if blank.'}
+                  </p>
+                </div>
+                <div>
+                  <label className={LABEL}>
+                    <span className="flex items-center gap-1.5"><Mail size={11} />{isRTL ? 'البريد الإلكتروني للعمل' : 'Business email'}</span>
+                  </label>
+                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="orders@pharmacy.com" className={INPUT} dir="ltr" />
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end">
               <button onClick={() => setStep(1)} disabled={!form.legalName.trim()}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
@@ -4661,7 +4804,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
           </div>
         )}
 
-        {/* ── Step 1: Location ── */}
+        {/* -- Step 1: Location -- */}
         {step === 1 && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4718,7 +4861,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
           </div>
         )}
 
-        {/* ── Step 2: Official Documents ── */}
+        {/* -- Step 2: Official Documents -- */}
         {step === 2 && (
           <div id="p2p-docs-section" className="space-y-4">
             {/* Doc progress bar */}
@@ -4775,7 +4918,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
                   <span className="font-semibold">{isRTL ? 'فشل الرفع: ' : 'Upload failed: '}</span>
                   {uploadError}
                 </div>
-                <button onClick={() => setUploadError(null)} className="shrink-0 text-red-400 hover:text-red-600">✕</button>
+                <button onClick={() => setUploadError(null)} className="shrink-0 text-red-400 hover:text-red-600">?</button>
               </div>
             )}
 
@@ -4817,7 +4960,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
                         {currentUrl && (
                           <p className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
                             <Check size={10} strokeWidth={3} />
-                            {currentUrl.split('/').pop()} — {isRTL ? 'تم الرفع ✓' : 'Uploaded ✓'}
+                            {currentUrl.split('/').pop()} · {isRTL ? 'تم الرفع ✓' : 'Uploaded ✓'}
                           </p>
                         )}
                       </div>
@@ -4877,7 +5020,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
           </div>
         )}
 
-        {/* ── Step 3: Delivery Zones ── */}
+        {/* -- Step 3: Delivery Zones -- */}
         {step === 3 && (
           <div id="p2p-delivery-zones" className="space-y-4">
             <div className="space-y-3">
@@ -4922,7 +5065,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
           </div>
         )}
 
-        {/* ── Step 4: Automation & Notifications ── */}
+        {/* -- Step 4: Automation & Notifications -- */}
         {step === 4 && (
           <div id="p2p-automation-section" className="space-y-5">
             <div>
@@ -4962,7 +5105,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
                   { k: 'autoListings', l: 'Auto-listing events' },
                   { k: 'priceAlerts', l: 'Price alerts' },
                   { k: 'expiryWarnings', l: 'Expiry warnings' },
-                  { k: 'aiRecommendations', l: '🤖 AI recommendations' },
+                  { k: 'aiRecommendations', l: '?? AI recommendations' },
                 ]).map(({ k, l }) => (
                   <label key={k} className="flex items-center gap-3 cursor-pointer px-3 py-2 rounded-xl hover:bg-gray-50">
                     <input type="checkbox"
@@ -4983,7 +5126,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
           </div>
         )}
 
-        {/* ── Step 5: Visibility + Save ── */}
+        {/* -- Step 5: Visibility + Save -- */}
         {step === 5 && (
           <div id="p2p-save-section" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -5044,7 +5187,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
   )
 }
 
-// ── INSIGHTS TAB (Phase 4 — AI Procurement + Market Intelligence) ────────────
+// -- INSIGHTS TAB (Phase 4 · AI Procurement + Market Intelligence) ------------
 
 function InsightsTab({ isRTL }: { isRTL: boolean }) {
   const [, setSearchParams] = useSearchParams()
@@ -5074,6 +5217,53 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
     [opportunities, procPage],
   )
   const totalPages = Math.ceil((opportunities?.length ?? 0) / PROC_PER_PAGE)
+
+  // -- Quick filter for opportunities (user-focused: best deal, low stock, nearest) --
+  const [oppFilter, setOppFilter] = useState<'all' | 'savings' | 'critical' | 'nearest' | 'p2p'>('all')
+  const filteredOpps = useMemo(() => {
+    const all = opportunities ?? []
+    switch (oppFilter) {
+      case 'savings':
+        return [...all]
+          .filter(o => (o.savingsPct ?? 0) > 0)
+          .sort((a, b) => (b.savingsPct ?? 0) - (a.savingsPct ?? 0))
+      case 'critical':
+        return all.filter(o => o.currentQty === 0 || o.currentQty < o.minThreshold * 0.5)
+      case 'nearest':
+        return [...all]
+          .filter(o => o.distanceKm != null)
+          .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999))
+      case 'p2p':
+        return all.filter(o => o.sourceType === 'p2p')
+      default:
+        return all
+    }
+  }, [opportunities, oppFilter])
+  const filteredTotal = filteredOpps.length
+  const filteredTotalPages = Math.ceil(filteredTotal / PROC_PER_PAGE)
+  const filteredPagedOpps = useMemo(
+    () => filteredOpps.slice(procPage * PROC_PER_PAGE, (procPage + 1) * PROC_PER_PAGE),
+    [filteredOpps, procPage],
+  )
+  useEffect(() => { setProcPage(0); setOrderState(null) }, [oppFilter])
+
+  // -- Estimated total savings (sum across all opportunities, not just current page) --
+  const potentialSavings = useMemo(() => {
+    let total = 0
+    for (const o of opportunities ?? []) {
+      if (o.p2pPrice == null || o.bestSupplierPrice == null) continue
+      const gap = Math.max(1, o.minThreshold - o.currentQty)
+      const diff = o.bestSupplierPrice - o.p2pPrice
+      if (diff > 0) total += diff * gap
+    }
+    return Math.round(total)
+  }, [opportunities])
+
+  const criticalCount = (opportunities ?? []).filter(
+    o => o.currentQty === 0 || o.currentQty < o.minThreshold * 0.5,
+  ).length
+  // pagedOpps is the unfiltered slice retained for backward references (unused below)
+  void pagedOpps; void totalPages
 
   const { data: intel, isLoading: loadingIntel } = useQuery({
     queryKey: ['p2p-market-intelligence'],
@@ -5108,7 +5298,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
   return (
     <div className="space-y-6">
 
-      {/* ── Revenue Impact Banner ── */}
+      {/* -- Revenue Impact Banner -- */}
       {(!loadingExpiry || !loadingOpp) && (urgentUnits > 0 || savingsOpps.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {urgentUnits > 0 && (
@@ -5157,7 +5347,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
         </div>
       )}
 
-      {/* ── Expiry Risk Summary (compact — full list is in Sell tab) ── */}
+      {/* -- Expiry Risk Summary (compact · full list is in Sell tab) -- */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
@@ -5192,7 +5382,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
           <div className="flex items-center gap-3 px-5 py-5">
             <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-gray-700">{isRTL ? 'مخزونك بأمان ✓' : 'All clear'}</p>
+              <p className="text-sm font-medium text-gray-700">{isRTL ? 'كل شيء تمام ✓' : 'All clear'}</p>
               <p className="text-xs text-gray-400 mt-0.5">{isRTL ? 'لا توجد منتجات قريبة الانتهاء' : 'No items expiring within 180 days'}</p>
             </div>
           </div>
@@ -5254,7 +5444,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
         )}
       </div>
 
-      {/* ── Procurement Opportunities ── */}
+      {/* -- Procurement Opportunities -- */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -5267,8 +5457,8 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
               </h2>
               <p className="text-xs text-gray-500">
                 {isRTL
-                  ? 'منتجات تحتاجها بسعر أقل من الموردين — اطلب مباشرة من هنا'
-                  : 'Items you need cheaper on P2P — order directly from here'}
+                  ? 'الأدوية التي تشتريها بالفعل بسعر أرخص بنسبة 5%+ · يتم اكتشافها تلقائياً واطلبها بنقرة واحدة'
+                  : 'Medicines you already buy, now =5% cheaper · auto-detected, order in one click'}
               </p>
             </div>
           </div>
@@ -5302,225 +5492,371 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
         )}
 
         {!loadingOpp && (opportunities?.length ?? 0) > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm" dir={isRTL ? 'rtl' : 'ltr'}>
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/80">
-                    <th className="text-start px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                      {isRTL ? 'المنتج' : 'Product'}
-                    </th>
-                    <th className="text-start px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'الكود' : 'Code'}
-                    </th>
-                    <th className="text-end px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'مخزوني' : 'My Stock'}
-                    </th>
-                    <th className="text-end px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'متاح' : 'Available'}
-                    </th>
-                    <th className="text-end px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'سعر P2P' : 'P2P Price'}
-                    </th>
-                    <th className="text-end px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'سعر المورد' : 'Supplier'}
-                    </th>
-                    <th className="text-end px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'التوفير' : 'Savings'}
-                    </th>
-                    <th className="text-start px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'البائع' : 'Seller'}
-                    </th>
-                    <th className="text-start px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {isRTL ? 'المصدر' : 'Source'}
-                    </th>
-                    <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap text-center">
-                      {isRTL ? 'إجراء' : 'Action'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {pagedOpps.map((opp) => {
-                    const code = opp.barcode ?? opp.sku ?? opp.productId.slice(0, 8)
+          <>
+            {/* -- Summary chips: total savings + critical count -- */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {potentialSavings > 0 && (
+                <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <DollarSign size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-emerald-700/70 font-semibold">
+                      {isRTL ? 'إجمالي الوفر المحتمل' : 'Total potential savings'}
+                    </p>
+                    <p className="text-base font-bold text-emerald-700 tabular-nums truncate">
+                      {potentialSavings.toLocaleString()} <span className="text-[10px] text-emerald-500">{currency}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+              {criticalCount > 0 && (
+                <div className="bg-gradient-to-br from-red-50 to-white border border-red-100 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center shrink-0">
+                    <AlertCircle size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-red-700/70 font-semibold">
+                      {isRTL ? 'منخفض جداً' : 'Critically low'}
+                    </p>
+                    <p className="text-base font-bold text-red-700 tabular-nums">
+                      {criticalCount} {isRTL ? 'صنف' : 'items'}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="bg-gradient-to-br from-violet-50 to-white border border-violet-100 rounded-xl px-4 py-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
+                  <Sparkles size={15} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide text-violet-700/70 font-semibold">
+                    {isRTL ? 'فرص مكتشفة' : 'Opportunities found'}
+                  </p>
+                  <p className="text-base font-bold text-violet-700 tabular-nums">
+                    {opportunities!.length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* -- Quick filter pills -- */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+                <Filter size={11} />
+                {isRTL ? 'تصفية:' : 'Filter:'}
+              </span>
+              {([
+                { id: 'all',      labelAr: 'الكل',           labelEn: 'All' },
+                { id: 'savings',  labelAr: 'أفضل وفر',     labelEn: 'Best savings' },
+                { id: 'critical', labelAr: 'مخزون حرج',     labelEn: 'Critical stock' },
+                { id: 'nearest',  labelAr: 'الأقرب',         labelEn: 'Nearest' },
+                { id: 'p2p',      labelAr: 'P2P فقط',         labelEn: 'P2P only' },
+              ] as const).map(f => {
+                const active = oppFilter === f.id
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => setOppFilter(f.id)}
+                    className={clsx(
+                      'inline-flex items-center text-xs px-3 py-1.5 rounded-full font-medium border transition-colors',
+                      active
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:text-emerald-700',
+                    )}
+                  >
+                    {isRTL ? f.labelAr : f.labelEn}
+                  </button>
+                )
+              })}
+              {oppFilter !== 'all' && (
+                <span className="text-[11px] text-gray-400 tabular-nums ms-1">
+                  {isRTL ? `${filteredTotal} نتيجة` : `${filteredTotal} results`}
+                </span>
+              )}
+            </div>
+
+            {/* -- Empty after filter -- */}
+            {filteredTotal === 0 ? (
+              <div className="py-10 text-center bg-white rounded-2xl border border-gray-200">
+                <p className="text-sm text-gray-500">
+                  {isRTL ? 'لا توجد فرص مطابقة لهذه التصفية' : 'No opportunities match this filter'}
+                </p>
+                <button
+                  onClick={() => setOppFilter('all')}
+                  className="mt-3 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                >
+                  {isRTL ? 'مسح التصفية' : 'Clear filter'}
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* -- Opportunity cards (mobile-first, scannable) -- */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {filteredPagedOpps.map((opp) => {
                     const name = isRTL ? (opp.productNameAr || opp.productName || '—') : (opp.productName || '—')
+                    const code = opp.barcode ?? opp.sku ?? opp.productId.slice(0, 8)
                     const hasSavings = (opp.savingsPct ?? 0) > 0
+                    const savingsAmount = (opp.bestSupplierPrice != null && opp.p2pPrice != null)
+                      ? Math.max(0, opp.bestSupplierPrice - opp.p2pPrice)
+                      : 0
+                    const gap = Math.max(0, opp.minThreshold - opp.currentQty)
+                    const isCritical = opp.currentQty === 0 || opp.currentQty < opp.minThreshold * 0.5
                     const isExpanded = orderState?.id === opp.p2pListingId
                     const isOrdered = orderedIds.has(opp.p2pListingId ?? '')
                     const isP2P = opp.sourceType === 'p2p'
 
                     return (
-                      <React.Fragment key={opp.p2pListingId ?? opp.productId}>
-                        <tr className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-start gap-1.5">
-                              {opp.listingType === 'clearance' && <Flame size={11} className="text-orange-500 shrink-0 mt-0.5" />}
-                              {opp.listingType === 'emergency' && <Zap size={11} className="text-red-500 shrink-0 mt-0.5" />}
-                              <div>
-                                <span className="text-sm font-medium text-gray-900 truncate max-w-[180px] block">{name}</span>
-                                {/* Rationale — why the AI picked this item */}
-                                <span className="text-[11px] text-gray-400 leading-tight block max-w-[min(220px,calc(100vw-32px))]">
-                                  {(() => {
-                                    const parts: string[] = []
-                                    const gap = opp.minThreshold - opp.currentQty
-                                    if (gap > 0) parts.push(isRTL ? `نقص ${gap} وحدة` : `${gap} units below min`)
-                                    if ((opp.savingsPct ?? 0) > 0) parts.push(isRTL ? `أوفر ${opp.savingsPct}% من مورّدك` : `${opp.savingsPct}% vs supplier`)
-                                    if (opp.distanceKm != null) parts.push(isRTL ? `${opp.distanceKm.toFixed(1)} كم` : `${opp.distanceKm.toFixed(1)} km away`)
-                                    if (opp.sourceType === 'supplier' && !opp.p2pListingId) parts.push(isRTL ? 'لا يوجد عرض P2P — اطلب من مورّدك' : 'no P2P yet — use supplier')
-                                    return parts.join(' · ')
-                                  })()}
+                      <div
+                        key={opp.p2pListingId ?? opp.productId}
+                        className={clsx(
+                          'bg-white rounded-2xl border p-4 flex flex-col gap-3 transition-shadow hover:shadow-md',
+                          isCritical ? 'border-red-200' : 'border-gray-200',
+                        )}
+                      >
+                        {/* Header: name + urgency + savings badge */}
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              {isCritical && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                  {isRTL ? 'حرج' : 'Critical'}
                                 </span>
-                              </div>
+                              )}
+                              {opp.listingType === 'clearance' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                                  <Flame size={9} />
+                                  {isRTL ? 'تصفية' : 'Clearance'}
+                                </span>
+                              )}
+                              {opp.listingType === 'emergency' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                                  <Zap size={9} />
+                                  {isRTL ? 'طارئ' : 'Emergency'}
+                                </span>
+                              )}
+                              <span className={clsx(
+                                'inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full',
+                                isP2P
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-gray-50 text-gray-600 border border-gray-200',
+                              )}>
+                                {isP2P ? <Store size={9} /> : <Truck size={9} />}
+                                {isP2P ? 'P2P' : (isRTL ? 'مورد' : 'Supplier')}
+                              </span>
                             </div>
-                          </td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className="text-xs font-mono text-gray-500">{code}</span>
-                          </td>
-                          <td className="px-4 py-3.5 text-end whitespace-nowrap">
-                            <span className={clsx('text-sm font-semibold tabular-nums', opp.currentQty === 0 ? 'text-red-600' : 'text-orange-600')}>
+                            <p className="text-sm font-bold text-gray-900 leading-snug truncate" title={name}>{name}</p>
+                            <p className="text-[11px] font-mono text-gray-400 mt-0.5">{code}</p>
+                          </div>
+                          {hasSavings && (
+                            <div className="text-center bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 shrink-0">
+                              <p className="text-[9px] uppercase tracking-wide text-emerald-700/70 font-semibold">
+                                {isRTL ? 'وفر' : 'Save'}
+                              </p>
+                              <p className="text-lg font-extrabold text-emerald-700 leading-none tabular-nums">
+                                {opp.savingsPct}%
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Rationale chips: what user needs to know in one glance */}
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                          {gap > 0 && (
+                            <span className="inline-flex items-center gap-1 text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">
+                              {isRTL ? `تحتاج ${gap} وحدة` : `Need ${gap} units`}
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-gray-500">
+                            {isRTL ? 'المتوفر:' : 'In stock:'}
+                            <span className={clsx('font-semibold tabular-nums', opp.currentQty === 0 ? 'text-red-600' : 'text-orange-600')}>
                               {opp.currentQty}
                             </span>
-                            <span className="text-xs text-gray-400">/{opp.minThreshold}</span>
-                          </td>
-                          <td className="px-4 py-3.5 text-end whitespace-nowrap">
-                            <span className="text-sm tabular-nums text-gray-700">{opp.availableQty ?? '—'}</span>
-                          </td>
-                          <td className="px-4 py-3.5 text-end whitespace-nowrap">
-                            {opp.p2pPrice != null ? (
-                              <span className="text-sm font-semibold tabular-nums text-emerald-700">
-                                {opp.p2pPrice} <span className="text-[10px] font-normal text-gray-400">{currency}</span>
-                              </span>
-                            ) : <span className="text-gray-400 text-xs">—</span>}
-                          </td>
-                          <td className="px-4 py-3.5 text-end whitespace-nowrap">
-                            {opp.bestSupplierPrice != null ? (
-                              <span className={clsx('text-sm tabular-nums', hasSavings ? 'line-through text-gray-400' : 'text-gray-700')}>
-                                {opp.bestSupplierPrice} <span className="text-[10px] font-normal text-gray-400">{currency}</span>
-                              </span>
-                            ) : <span className="text-gray-400 text-xs">—</span>}
-                          </td>
-                          <td className="px-4 py-3.5 text-end whitespace-nowrap">
-                            {hasSavings ? (
-                              <span className="inline-flex items-center text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                {isRTL ? `وفّر ${opp.savingsPct}%` : `${opp.savingsPct}% off`}
-                              </span>
-                            ) : <span className="text-gray-400 text-xs">—</span>}
-                          </td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            {opp.sellerName ? (
-                              <div>
-                                <p className="text-sm font-medium text-gray-800">{opp.sellerName}</p>
-                                <p className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
-                                  {opp.sellerCity && <><MapPin size={9} />{opp.sellerCity}</>}
-                                  {opp.distanceKm != null && <span>{opp.distanceKm.toFixed(1)} كم</span>}
-                                </p>
-                              </div>
-                            ) : <span className="text-gray-400 text-xs">—</span>}
-                          </td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className={clsx(
-                              'inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full border',
-                              isP2P
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-gray-100 text-gray-600 border-gray-200',
-                            )}>
-                              {isP2P ? <Store size={9} /> : <Truck size={9} />}
-                              {isP2P ? 'P2P' : (isRTL ? 'مورد' : 'Supplier')}
+                            <span className="text-gray-400">/{opp.minThreshold}</span>
+                          </span>
+                          {opp.distanceKm != null && (
+                            <span className="inline-flex items-center gap-1 text-gray-500">
+                              <MapPin size={9} />
+                              {opp.distanceKm.toFixed(1)} {isRTL ? '??' : 'km'}
                             </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                            {isOrdered ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                                <CheckCircle2 size={13} />{isRTL ? 'تم' : 'Done'}
-                              </span>
-                            ) : !isP2P ? (
-                              <span className="text-[11px] text-gray-400">{isRTL ? 'راجع الموردين' : 'See suppliers'}</span>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  if (isExpanded) { setOrderState(null); return }
-                                  setOrderState({ id: opp.p2pListingId!, qty: Math.max(1, opp.minThreshold - opp.currentQty) })
-                                }}
-                                className={clsx(
-                                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors',
-                                  isExpanded
-                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    : 'bg-violet-700 text-white hover:bg-violet-800',
+                          )}
+                        </div>
+
+                        {/* Price comparison row */}
+                        <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-emerald-700/70 font-semibold uppercase tracking-wide">
+                              {isRTL ? 'سعر P2P' : 'P2P price'}
+                            </p>
+                            {opp.p2pPrice != null ? (
+                              <p className="text-base font-bold text-emerald-700 tabular-nums leading-tight">
+                                {opp.p2pPrice} <span className="text-[10px] font-normal text-gray-400">{currency}</span>
+                              </p>
+                            ) : <p className="text-sm text-gray-400">…</p>}
+                          </div>
+                          {opp.bestSupplierPrice != null && (
+                            <>
+                              <ChevronLeft size={14} className={clsx('text-gray-300 shrink-0', isRTL ? '' : 'rotate-180')} />
+                              <div className="flex-1 min-w-0 text-end">
+                                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">
+                                  {isRTL ? 'موردك' : 'Your supplier'}
+                                </p>
+                                <p className={clsx(
+                                  'text-sm tabular-nums leading-tight',
+                                  hasSavings ? 'line-through text-gray-400' : 'text-gray-700 font-semibold',
+                                )}>
+                                  {opp.bestSupplierPrice} <span className="text-[10px] font-normal">{currency}</span>
+                                </p>
+                                {hasSavings && savingsAmount > 0 && gap > 0 && (
+                                  <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                                    {isRTL
+                                      ? `· ${(savingsAmount * gap).toFixed(0)} ${currency} وفر`
+                                      : `· ${(savingsAmount * gap).toFixed(0)} ${currency} saved`}
+                                  </p>
                                 )}
-                              >
-                                <ShoppingCart size={11} />
-                                {isExpanded ? (isRTL ? 'إلغاء' : 'Cancel') : (isRTL ? 'اطلب' : 'Order')}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                        {isExpanded && isP2P && (
-                          <tr className="bg-emerald-50/60">
-                            <td colSpan={10} className="px-6 py-3 border-b border-emerald-100">
-                              <div className="flex items-center gap-4 flex-wrap">
-                                <p className="text-sm font-medium text-gray-700 shrink-0">
-                                  {isRTL ? 'الكمية المطلوبة:' : 'Qty to order:'}
-                                </p>
-                                <input
-                                  type="number" min={1} max={opp.availableQty ?? 9999}
-                                  value={orderState!.qty}
-                                  onChange={e => setOrderState(s => s ? { ...s, qty: Math.max(1, parseInt(e.target.value) || 1) } : s)}
-                                  className="w-24 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                                />
-                                <p className="text-xs text-gray-500">
-                                  {isRTL
-                                    ? `متاح: ${opp.availableQty} — الإجمالي: ${((orderState?.qty ?? 1) * (opp.p2pPrice ?? 0)).toFixed(2)} ${currency}`
-                                    : `Available: ${opp.availableQty} — Total: ${((orderState?.qty ?? 1) * (opp.p2pPrice ?? 0)).toFixed(2)} ${currency}`}
-                                </p>
-                                <button
-                                  onClick={() => placeOrder({ id: opp.p2pListingId!, qty: orderState!.qty })}
-                                  disabled={orderPending}
-                                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors ms-auto"
-                                >
-                                  {orderPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                                  {isRTL ? 'تأكيد الطلب' : 'Confirm Order'}
-                                </button>
                               </div>
-                            </td>
-                          </tr>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Seller + action */}
+                        <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-50">
+                          {opp.sellerName ? (
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-gray-800 truncate">{opp.sellerName}</p>
+                              {opp.sellerCity && (
+                                <p className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
+                                  <MapPin size={9} />{opp.sellerCity}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-gray-400">
+                              {isRTL ? 'لا يوجد بائع' : 'No seller'}
+                            </p>
+                          )}
+
+                          {isOrdered ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shrink-0">
+                              <CheckCircle2 size={13} />{isRTL ? 'تم الطلب' : 'Ordered'}
+                            </span>
+                          ) : !isP2P ? (
+                            <button
+                              onClick={() => setSearchParams({ tab: 'orders' })}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl shrink-0 transition-colors"
+                            >
+                              <Truck size={11} />
+                              {isRTL ? 'اطلب من المورد' : 'Order from supplier'}
+                            </button>
+                          ) : !isExpanded ? (
+                            <button
+                              onClick={() => setOrderState({ id: opp.p2pListingId!, qty: Math.max(1, gap || 1) })}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition-colors shrink-0"
+                            >
+                              <ShoppingCart size={12} />
+                              {isRTL ? 'اطلب الآن' : 'Order now'}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {/* Inline quick-order panel */}
+                        {isExpanded && isP2P && (
+                          <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 -mt-1">
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                              <p className="text-xs font-semibold text-gray-700">
+                                {isRTL ? 'تأكيد الطلب' : 'Confirm order'}
+                              </p>
+                              <button
+                                onClick={() => setOrderState(null)}
+                                className="text-gray-400 hover:text-gray-700"
+                                aria-label="close"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2 mb-2.5">
+                              <button
+                                onClick={() => setOrderState(s => s ? { ...s, qty: Math.max(1, s.qty - 1) } : s)}
+                                className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 flex items-center justify-center"
+                                aria-label="decrease"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min={1}
+                                max={opp.availableQty ?? 9999}
+                                value={orderState!.qty}
+                                onChange={e => setOrderState(s => s ? { ...s, qty: Math.max(1, parseInt(e.target.value) || 1) } : s)}
+                                className="flex-1 text-center text-sm font-bold border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 tabular-nums"
+                              />
+                              <button
+                                onClick={() => setOrderState(s => s ? { ...s, qty: Math.min(opp.availableQty ?? 9999, s.qty + 1) } : s)}
+                                className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 flex items-center justify-center"
+                                aria-label="increase"
+                              >
+                                +
+                              </button>
+                              <span className="text-[11px] text-gray-500 shrink-0 ms-1">
+                                {isRTL ? `متاح ${opp.availableQty}` : `${opp.availableQty} avail`}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mb-2 text-xs">
+                              <span className="text-gray-500">{isRTL ? 'الإجمالي' : 'Total'}</span>
+                              <span className="font-bold text-emerald-700 tabular-nums">
+                                {((orderState?.qty ?? 1) * (opp.p2pPrice ?? 0)).toFixed(2)} {currency}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => placeOrder({ id: opp.p2pListingId!, qty: orderState!.qty })}
+                              disabled={orderPending}
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                            >
+                              {orderPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                              {isRTL ? 'تأكيد الطلب' : 'Confirm order'}
+                            </button>
+                          </div>
                         )}
-                      </React.Fragment>
+                      </div>
                     )
                   })}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
-                <p className="text-xs text-gray-500">
-                  {isRTL
-                    ? `${procPage * PROC_PER_PAGE + 1}–${Math.min((procPage + 1) * PROC_PER_PAGE, opportunities!.length)} من ${opportunities!.length}`
-                    : `${procPage * PROC_PER_PAGE + 1}–${Math.min((procPage + 1) * PROC_PER_PAGE, opportunities!.length)} of ${opportunities!.length}`}
-                </p>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => { setProcPage(p => p - 1); setOrderState(null) }} disabled={procPage === 0}
-                    className="p-1.5 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    <ChevronRight size={14} className={isRTL ? '' : 'rotate-180'} />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button key={i} onClick={() => { setProcPage(i); setOrderState(null) }}
-                      className={clsx('w-7 h-7 rounded-lg text-xs font-medium transition-colors',
-                        i === procPage ? 'bg-emerald-600 text-white' : 'hover:bg-gray-200 text-gray-600')}>
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button onClick={() => { setProcPage(p => p + 1); setOrderState(null) }} disabled={procPage === totalPages - 1}
-                    className="p-1.5 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    <ChevronLeft size={14} className={isRTL ? '' : 'rotate-180'} />
-                  </button>
                 </div>
-              </div>
+
+                {/* Pagination */}
+                {filteredTotalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl border border-gray-100">
+                    <p className="text-xs text-gray-500">
+                      {isRTL
+                        ? `${procPage * PROC_PER_PAGE + 1}–${Math.min((procPage + 1) * PROC_PER_PAGE, filteredTotal)} من ${filteredTotal}`
+                        : `${procPage * PROC_PER_PAGE + 1}–${Math.min((procPage + 1) * PROC_PER_PAGE, filteredTotal)} of ${filteredTotal}`}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { setProcPage(p => p - 1); setOrderState(null) }} disabled={procPage === 0}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                        <ChevronRight size={14} className={isRTL ? '' : 'rotate-180'} />
+                      </button>
+                      {Array.from({ length: filteredTotalPages }, (_, i) => (
+                        <button key={i} onClick={() => { setProcPage(i); setOrderState(null) }}
+                          className={clsx('w-7 h-7 rounded-lg text-xs font-medium transition-colors',
+                            i === procPage ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-600')}>
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button onClick={() => { setProcPage(p => p + 1); setOrderState(null) }} disabled={procPage === filteredTotalPages - 1}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                        <ChevronLeft size={14} className={isRTL ? '' : 'rotate-180'} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-          </div>
+          </>
         )}
       </div>
 
-      {/* ── Market Intelligence ── */}
+      {/* -- Market Intelligence -- */}
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
@@ -5629,7 +5965,7 @@ function InsightsTab({ isRTL }: { isRTL: boolean }) {
 }
 
 
-// ── EXPIRY ALERTS PANEL ───────────────────────────────────────────────────────
+// -- EXPIRY ALERTS PANEL -------------------------------------------------------
 
 function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
   const [, setSearchParams] = useSearchParams()
@@ -5643,7 +5979,7 @@ function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
     retry: 1,
   })
 
-  // urgency → left border color + dot color only (no background tinting)
+  // urgency ? left border color + dot color only (no background tinting)
   const urgencyDot: Record<ExpiryAlert['urgency'], string> = {
     critical: 'bg-red-500',
     high:     'bg-orange-400',
@@ -5803,7 +6139,7 @@ function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
         </div>
       )}
 
-      {/* ── Price History Section ── */}
+      {/* -- Price History Section -- */}
       <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
           <TrendingUp size={15} className="text-emerald-600" />
@@ -5832,12 +6168,12 @@ function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
         </div>
       </div>
 
-      {/* ── Expiry Clearance shortcut ── */}
+      {/* -- Expiry Clearance shortcut -- */}
       <button
         onClick={() => window.location.href = '/pharmacy/ai-center?tab=tasks&task=expiry_clearance'}
         className="w-full rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 flex items-center gap-4 hover:shadow-md hover:border-amber-300 transition-all group text-start"
       >
-        <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-lg">⏱️</div>
+        <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-lg">??</div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-amber-900">
             {isRTL ? 'تصفية المخزون قرب الانتهاء — متاح الآن' : 'Near-Expiry Clearance — Available Now'}
@@ -5849,7 +6185,7 @@ function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
           </p>
         </div>
         <span className="shrink-0 text-xs font-semibold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-lg group-hover:bg-amber-200 transition-colors whitespace-nowrap">
-          {isRTL ? 'افتح المهام ←' : 'Open Tasks →'}
+          {isRTL ? 'المهام المفتوحة ↓' : 'Open Tasks ↓'}
         </span>
       </button>
     </div>

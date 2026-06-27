@@ -9,7 +9,7 @@ import {
   Inbox, TrendingUp, AlertTriangle, Star,
   Plug, GitBranch, Upload, ListChecks, Bell,
   CheckCircle2, ShieldCheck, Store, Receipt, Clock,
-  Menu, X, FileText, RefreshCw, Layers,
+  Menu, X, FileText, RefreshCw, Layers, LineChart,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProfileStore } from '../../store/auth.store';
@@ -29,18 +29,21 @@ const PHARMACY_NAV: NavGroup[] = [
     labelKey: 'nav.inventory',
     icon: Package,
     items: [
+      { labelKey: 'nav.onboarding',        to: '/pharmacy/onboarding',       icon: Sparkles },
+      { labelKey: 'nav.migration',         to: '/pharmacy/migration',        icon: Upload },
       { labelKey: 'nav.inventory',         to: '/pharmacy/inventory',        icon: Package },
-      { labelKey: 'nav.products',          to: '/pharmacy/products',         icon: Layers },
       { labelKey: 'nav.supplier_catalog',  to: '/pharmacy/catalog',          icon: BookOpen },
       { labelKey: 'nav.catalog_requests',  to: '/pharmacy/catalog-requests', icon: GitBranch },
+      { labelKey: 'nav.price_intelligence', to: '/pharmacy/price-intelligence', icon: LineChart },
     ],
   },
   {
-    labelKey: 'nav.orders',
+    labelKey: 'nav.medicine_market',
     icon: ShoppingCart,
     items: [
       { labelKey: 'nav.orders',             to: '/pharmacy/orders',      icon: ShoppingCart },
       { labelKey: 'nav.preferred_suppliers',to: '/pharmacy/connections', icon: Star },
+      { labelKey: 'nav.marketplace',        to: '/pharmacy/marketplace', icon: Building2 },
     ],
   },
   {
@@ -157,7 +160,7 @@ function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean
           'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap',
           hasActive
             ? 'bg-emerald-50 text-emerald-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+            : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-700',
         )}
       >
         {t(group.labelKey)}
@@ -173,7 +176,7 @@ function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean
           'flex items-center gap-1.5 ps-3 pe-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
           hasActive
             ? 'bg-emerald-50 text-emerald-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+            : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-700',
         )}
       >
         {t(group.labelKey)}
@@ -235,7 +238,7 @@ function P2PExchangeLink() {
         onClick={() => setOpen(o => !o)}
         className={clsx(
           'flex items-center gap-1.5 ps-3 pe-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
-          isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+          isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-700',
         )}
       >
         {isRTL ? 'البيع للصيدليات' : 'P2P Exchange'}
@@ -299,7 +302,7 @@ function PosMenu() {
         onClick={() => setOpen(o => !o)}
         className={clsx(
           'flex items-center gap-1.5 ps-3 pe-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
-          isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+          isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-700',
         )}
       >
         {isRTL ? 'نقطة البيع' : 'POS'}
@@ -507,9 +510,9 @@ function MobileNavDrawer({
                 ))}
               </div>
 
-              {/* Orders */}
+              {/* Medicine Market */}
               <div className="pt-2">
-                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'الطلبات' : 'Orders'}</p>
+                <p className="px-4 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{isRTL ? 'سوق الأدوية' : 'Medicine Market'}</p>
                 {PHARMACY_NAV[1].items.map(i => (
                   <Link key={i.to} to={i.to} className={linkCls(location.pathname.startsWith(i.to))}>
                     <i.icon size={16} />{t(i.labelKey)}

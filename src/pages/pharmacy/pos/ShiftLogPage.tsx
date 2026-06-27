@@ -28,7 +28,7 @@ function durText(openedAt: string, closedAt: string | null) {
 function fmtDateTime(iso: string) {
   const d = new Date(iso)
   return {
-    date: d.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    date: d.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     time: d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
   }
 }
@@ -139,8 +139,8 @@ function exportCSV(shifts: PosShift[], currency: string) {
     return [
       i + 1,
       `"${s.cashierName ?? ''}"`,
-      new Date(s.openedAt).toLocaleString('ar-EG'),
-      s.closedAt ? new Date(s.closedAt).toLocaleString('ar-EG') : '',
+      new Date(s.openedAt).toLocaleString('en-US'),
+      s.closedAt ? new Date(s.closedAt).toLocaleString('en-US') : '',
       durText(s.openedAt, s.closedAt),
       Number(s.openingBalance).toFixed(2),
       s.closingBalance != null ? Number(s.closingBalance).toFixed(2) : '',

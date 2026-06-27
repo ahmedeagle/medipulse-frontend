@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -11,7 +11,7 @@ import { purchasesApi, type ProductSearchResult, type PurchaseInvoice, type OcrR
 import { getApiErrors } from '../../../api/errors'
 import { ProductSearchCombobox } from './ProductSearchCombobox'
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// --- Types ---------------------------------------------------------------------
 
 interface LineItem {
   _key: string
@@ -42,7 +42,7 @@ interface InvoiceHeader {
   notes: string
 }
 
-// ─── Calc ───────────────────────────────────────────────────────────────────────
+// --- Calc -----------------------------------------------------------------------
 
 function calcLineTotal(l: LineItem) {
   const base = l.purchaseQty * l.purchasePrice
@@ -84,7 +84,7 @@ const newLine = (): LineItem => ({
   priceWarning: null, priceWarningDismissed: false,
 })
 
-// ─── Main Page ──────────────────────────────────────────────────────────────────
+// --- Main Page ------------------------------------------------------------------
 
 // Confidence badge: green ≥80%, amber 60–79%, red <60%
 function ConfBadge({ conf }: { conf: number }) {
@@ -142,7 +142,7 @@ export default function PurchaseInvoiceCreatePage() {
           setHeader(h => ({ ...h, invoiceDate: d.toISOString().slice(0, 10) }))
         }
       }
-      // Pre-fill matched line items that have high confidence (≥60%)
+      // Pre-fill matched line items that have high confidence (=60%)
       const matchedLines = result.lineItems.filter(
         li => li.matchedProduct && li.matchedProduct.matchScore >= 60
       )
@@ -304,10 +304,10 @@ export default function PurchaseInvoiceCreatePage() {
 
   const warningCount = lines.filter(l => l.priceWarning && !l.priceWarningDismissed).length
 
-  // ─── Success screen (shown after confirm, PRD step 10) ─────────────────────
+  // --- Success screen (shown after confirm, PRD step 10) ---------------------
   if (successInvoice) {
     const lineCount = successInvoice.lines?.length ?? 0
-    const fmtMoney = (n: number) => Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 2 })
+    const fmtMoney = (n: number) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 })
     return (
       <div dir="rtl" className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm max-w-md w-full p-8 text-center">
@@ -327,12 +327,12 @@ export default function PurchaseInvoiceCreatePage() {
               <span className="font-medium text-gray-800">{successInvoice.supplierName}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">عدد الأصناف</span>
+              <span className="text-gray-500">رقم الأمر</span>
               <span className="font-medium text-gray-800">{lineCount} صنف</span>
             </div>
             <div className="flex justify-between text-sm border-t border-gray-200 pt-3 mt-1">
               <span className="text-gray-600 font-medium">الإجمالي</span>
-              <span className="font-bold text-gray-900 text-base">{fmtMoney(successInvoice.grandTotal)} ر.س</span>
+              <span className="font-bold text-gray-900 text-base">{fmtMoney(successInvoice.grandTotal)} ج.م</span>
             </div>
           </div>
 
@@ -362,7 +362,7 @@ export default function PurchaseInvoiceCreatePage() {
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 px-4 md:px-6 pt-1 pb-8">
 
-      {/* ─── Back nav ──────────────────────────────────────────────────────── */}
+      {/* --- Back nav -------------------------------------------------------- */}
       <div className="flex items-center gap-3 mb-4">
         <Link
           to="/pharmacy/purchases/invoices"
@@ -375,7 +375,7 @@ export default function PurchaseInvoiceCreatePage() {
         <span className="text-sm text-gray-500 font-medium">فاتورة شراء جديدة</span>
       </div>
 
-      {/* ─── Hero card ─────────────────────────────────────────────────────── */}
+      {/* --- Hero card ------------------------------------------------------- */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-5">
         <div className="flex items-start justify-between gap-5 p-6">
           {/* Icon + title + hint */}
@@ -399,7 +399,7 @@ export default function PurchaseInvoiceCreatePage() {
               {ocrState === 'loading' && (
                 <div className="mt-3 flex items-center gap-2 text-xs text-violet-700 bg-violet-50 border border-violet-100 rounded-xl px-3 py-2 max-w-xl">
                   <Loader2 size={13} className="animate-spin shrink-0 text-violet-500" />
-                  <span>جارٍ قراءة الفاتورة بالذكاء الاصطناعي…</span>
+                  <span>جاري قراءة الفاتورة بالذكاء الاصطناعي…</span>
                 </div>
               )}
               {/* OCR error */}
@@ -480,7 +480,7 @@ export default function PurchaseInvoiceCreatePage() {
               {saveMut.isPending && submitMode === 'draft'
                 ? <Loader2 size={14} className="animate-spin" />
                 : <Save size={14} />}
-              حفظ مسودة
+              مسح ضوئي
             </button>
             <button
               onClick={() => handleSubmit('confirm')}
@@ -490,13 +490,13 @@ export default function PurchaseInvoiceCreatePage() {
               {saveMut.isPending && submitMode === 'confirm'
                 ? <Loader2 size={14} className="animate-spin" />
                 : <PackageCheck size={14} />}
-              حفظ واستلام
+              مسح ضوئي
             </button>
           </div>
         </div>
       </div>
 
-      {/* ─── Error banner ──────────────────────────────────────────────────── */}
+      {/* --- Error banner ---------------------------------------------------- */}
       {saveMut.isError && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           <div className="flex items-center gap-2 font-medium mb-1">
@@ -546,12 +546,12 @@ export default function PurchaseInvoiceCreatePage() {
                     <th className="text-right px-2 py-2 font-semibold text-gray-500 w-20">دفعة</th>
                     <th className="text-right px-2 py-2 font-semibold text-gray-500 w-28">تاريخ الانتهاء</th>
                     <th className="text-right px-2 py-2 font-semibold text-gray-500 w-14">الكمية</th>
-                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-14">مجاني</th>
+                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-14">الكمية</th>
                     <th className="text-right px-2 py-2 font-semibold text-gray-500 w-20">سعر الشراء</th>
-                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-20">سعر البيع</th>
+                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-20">سعر الشراء</th>
                     <th className="text-right px-2 py-2 font-semibold text-gray-500 w-14">خصم%</th>
-                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-14">ضريبة%</th>
-                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-20">الإجمالي</th>
+                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-14">خصم%</th>
+                    <th className="text-right px-2 py-2 font-semibold text-gray-500 w-20">دفعة</th>
                     <th className="w-8"></th>
                   </tr>
                 </thead>
@@ -668,7 +668,7 @@ export default function PurchaseInvoiceCreatePage() {
                                 <span>
                                   سعر {line.priceWarning.direction === 'higher' ? 'أعلى' : 'أقل'} من المعتاد بنسبة{' '}
                                   <strong>{line.priceWarning.deviationPct}%</strong>
-                                  {' '}· متوسط تاريخي: {line.priceWarning.historicalAvg.toFixed(2)} ر.س
+                                  {' '}· متوسط السعر: {line.priceWarning.historicalAvg.toFixed(2)} ج.م
                                 </span>
                               </div>
                               <button
@@ -704,7 +704,7 @@ export default function PurchaseInvoiceCreatePage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
             <h3 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
               <Building2 size={15} className="text-emerald-600" />
-              بيانات المورد
+              مسح ضوئي
             </h3>
 
             <div className="space-y-2">
@@ -713,7 +713,7 @@ export default function PurchaseInvoiceCreatePage() {
                 <input
                   type="text"
                   list="suppliers-list"
-                  placeholder="ابحث أو أدخل اسماً جديداً…"
+                  placeholder="ابحث أو اكتب اسم المورد…"
                   value={header.supplierName}
                   onChange={e => {
                     const found = suppliers.find(s => s.name === e.target.value)
@@ -734,7 +734,7 @@ export default function PurchaseInvoiceCreatePage() {
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {supplierHistory.items.map(inv => (
                     <span key={inv.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-medium border border-emerald-100">
-                      {inv.poNumber} · {Number(inv.grandTotal).toLocaleString('ar-EG', { minimumFractionDigits: 0 })} ر.س · {new Date(inv.createdAt).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' })}
+                      {inv.poNumber} · {Number(inv.grandTotal).toLocaleString('en-US', { minimumFractionDigits: 0 })} ج.م · {new Date(inv.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                     </span>
                   ))}
                 </div>
@@ -763,7 +763,7 @@ export default function PurchaseInvoiceCreatePage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600">طريقة الدفع</label>
+              <label className="text-xs font-medium text-gray-600">تاريخ الفاتورة</label>
               <select
                 value={header.paymentMethod}
                 onChange={e => setHeader(h => ({ ...h, paymentMethod: e.target.value }))}
@@ -815,23 +815,23 @@ export default function PurchaseInvoiceCreatePage() {
             <h3 className="font-semibold text-gray-800 text-sm mb-3">ملخص الفاتورة</h3>
             <div className="flex justify-between text-sm text-gray-600">
               <span>المجموع الجزئي</span>
-              <span className="tabular-nums font-medium">{totals.subtotal.toFixed(2)} ر.س</span>
+              <span className="tabular-nums font-medium">{totals.subtotal.toFixed(2)} ج.م</span>
             </div>
             {totals.totalDiscount > 0 && (
               <div className="flex justify-between text-sm text-red-600">
                 <span>الخصم</span>
-                <span className="tabular-nums">- {totals.totalDiscount.toFixed(2)} ر.س</span>
+                <span className="tabular-nums">- {totals.totalDiscount.toFixed(2)} ج.م</span>
               </div>
             )}
             {totals.totalTax > 0 && (
               <div className="flex justify-between text-sm text-gray-600">
-                <span>الضريبة</span>
-                <span className="tabular-nums">{totals.totalTax.toFixed(2)} ر.س</span>
+                <span>الخصم</span>
+                <span className="tabular-nums">{totals.totalTax.toFixed(2)} ج.م</span>
               </div>
             )}
             <div className="border-t border-gray-100 pt-2 flex justify-between text-base font-bold text-gray-900">
               <span>الإجمالي</span>
-              <span className="tabular-nums text-emerald-700">{totals.grandTotal.toFixed(2)} ر.س</span>
+              <span className="tabular-nums text-emerald-700">{totals.grandTotal.toFixed(2)} ج.م</span>
             </div>
           </div>
 
@@ -842,14 +842,14 @@ export default function PurchaseInvoiceCreatePage() {
               disabled={saveMut.isPending || !header.supplierName}
               className="flex-1 py-3 text-sm rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 font-medium"
             >
-              {saveMut.isPending && submitMode === 'draft' ? 'جارٍ الحفظ…' : 'حفظ مسودة'}
+              {saveMut.isPending && submitMode === 'draft' ? 'جاري الحفظ…' : 'حفظ كمسودة'}
             </button>
             <button
               onClick={() => handleSubmit('confirm')}
               disabled={saveMut.isPending || !header.supplierName}
               className="flex-1 py-3 text-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50"
             >
-              {saveMut.isPending && submitMode === 'confirm' ? 'جارٍ الحفظ…' : 'حفظ واستلام'}
+              {saveMut.isPending && submitMode === 'confirm' ? 'جاري الحفظ…' : 'حفظ وتأكيد'}
             </button>
           </div>
         </div>

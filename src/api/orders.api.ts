@@ -9,6 +9,18 @@ export const ordersApi = {
 
   getOne: (id: string) => client.get(`/orders/${id}`),
 
+  // ── AI plan-context (real explainability, not generic copy) ───────────────
+  getAiContext: (id: string) => client.get<{
+    originDraftId:     string | null;
+    planSnapshot:      any | null;
+    supplierCity:      string | null;
+    buyerCity:         string | null;
+    sameCity:          boolean | null;
+    splitSource:       'p2p' | 'supplier' | null;
+    suggestedQuantity: number | null;
+    unitPriceAtDraft:  number | null;
+  }>(`/orders/${id}/ai-context`),
+
   // ── Create ────────────────────────────────────────────────────────────────
   create: (data: {
     supplierTenantId: string;

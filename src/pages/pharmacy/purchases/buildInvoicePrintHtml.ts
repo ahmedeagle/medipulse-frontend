@@ -9,9 +9,9 @@ const METHOD_AR: Record<string, string> = {
 };
 
 const fmtMoney = (n: number | string) =>
-  Number(n).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+  s ? new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 
 export function buildInvoicePrintHtml(inv: PurchaseInvoice): string {
   const lineRows = (inv.lines ?? []).map((l, i) => `
@@ -140,7 +140,7 @@ export function buildInvoicePrintHtml(inv: PurchaseInvoice): string {
 ${inv.notes ? `<div class="notes"><strong>ملاحظات:</strong> ${inv.notes}</div>` : ''}
 
 <div class="footer">
-  تم إنشاء هذه الفاتورة بواسطة نظام Medipulse — ${new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
+  تم إنشاء هذه الفاتورة بواسطة نظام Medipulse — ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
 </div>
 
 <script>

@@ -204,4 +204,110 @@ export const analyticsApi = {
     pageSize?: number
   }): Promise<PaginatedWithTotals<CategorySalesRow>> =>
     client.get('/analytics/sales/by-category', { params }).then(r => r.data),
+
+  getPriceHistory: (productId: string, days = 90, range?: { from?: string; to?: string }) =>
+    client.get<PriceIntelligenceResult>('/analytics/price-history', {
+      params: { productId, days, from: range?.from, to: range?.to },
+    }),
+
+  // ── Procurement / Supplier / P2P reports ─────────────────────────────────
+  getProcurementSummary: (params: {
+    dateFrom: string; dateTo: string;
+    channel?: 'all'|'invoices'|'orders'|'p2p';
+    supplierId?: string;
+  }): Promise<ProcurementSummary> =>
+    client.get('/analytics/procurement/summary', { params }).then(r => r.data),
+
+  getSupplierPerformance: (params: {
+    dateFrom: string; dateTo: string;
+    search?: string; page?: number; pageSize?: number;
+  }): Promise<Paginated<SupplierPerformanceRow> & { page: number; pageSize: number }> =>
+    client.get('/analytics/suppliers/performance', { params }).then(r => r.data),
+
+  getP2pActivity: (params: { dateFrom: string; dateTo: string }): Promise<P2pActivityReport> =>
+    client.get('/analytics/p2p/activity', { params }).then(r => r.data),
 };
+
+export interface ProcurementSummary {
+  totals: {
+    totalSpend: number;
+    totalCount: number;
+    avgOrderValue: number;
+    byChannel: {
+      invoices: { total: number; count: number };
+      orders:   { total: number; count: number };
+      p2p:      { total: number; count: number };
+    };
+    p2pSavings: number;
+  };
+  trend: Array<{ month: string; channel: 'invoices'|'orders'|'p2p'; total: number }>;
+  topSuppliers: Array<{ supplierId: string; supplierName: string; totalSpend: number; orderCount: number }>;
+}
+
+export interface SupplierPerformanceRow {
+  supplierId: string;
+  supplierName: string;
+  poCount: number;
+  poSpend: number;
+  invoiceCount: number;
+  invoiceSpend: number;
+  totalSpend: number;
+  deliveredCount: number;
+  rejectedCount: number;
+  disputedCount: number;
+  fillRatePct: number | null;
+  rejectionRatePct: number | null;
+  avgLeadDays: number | null;
+  paidRatePct: number | null;
+  lastOrderAt: string | null;
+}
+
+export interface P2pActivityReport {
+  buyer: {
+    totalOrders: number; completedOrders: number; cancelledOrders: number;
+    rejectedOrders: number; uniquePeers: number;
+    totalSpend: number; settledSpend: number;
+  };
+  seller: {
+    totalOrders: number; completedOrders: number; uniquePeers: number;
+    totalRevenue: number; settledRevenue: number;
+  };
+  netPosition: number;
+  trend: Array<{ day: string; buyOrders: number; sellOrders: number; buyValue: number; sellValue: number }>;
+  topPeers: Array<{ peerId: string; peerName: string; tradeCount: number; tradeValue: number; asBuyer: number; asSeller: number }>;
+  listings: { total: number; active: number; sold: number };
+}
+
+export interface PriceIntelligenceSeries {
+  supplierId: string;
+  supplierName: string;
+  isMarketplace?: boolean;
+  points: Array<{ date: string; price: number }>;
+}
+
+export interface PriceIntelligenceResult {
+  productId: string;
+  days: number;
+  series: PriceIntelligenceSeries[];
+  supplierBreakdown: Array<{
+    supplierId: string;
+    supplierName: string;
+    isMarketplace?: boolean;
+    latestPrice: number;
+    minPrice: number;
+    maxPrice: number;
+    avgPrice: number;
+  }>;
+  /** Historical minimum across the window (may include expired promos). */
+  bestPrice: number | null;
+  /** Lowest price *currently* available (suppliers + marketplace). */
+  bestPriceNow: number | null;
+  /** Lowest active P2P marketplace listing for this product, if any. */
+  marketplaceBestPrice: number | null;
+  avgPrice: number | null;
+  lastPricePaid: number | null;
+  overpaymentWarning: boolean;
+  overpaymentPct: number;
+  /** Resolved tenant threshold (default 15). */
+  overpaymentThresholdPct: number;
+}

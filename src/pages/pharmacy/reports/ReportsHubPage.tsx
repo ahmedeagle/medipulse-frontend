@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   TrendingUp, Package, Clock, BarChart2,
   ChevronLeft, Sparkles, Zap, ArrowUpRight, Shield, DollarSign, Layers,
+  ShoppingBag, Truck, Users,
 } from 'lucide-react'
 import { AiReportAssistant } from './components/AiReportAssistant'
 import { ReportHistory } from './components/ReportHistory'
@@ -57,6 +58,24 @@ const DOMAINS = [
     icon: Layers, color: 'text-cyan-600', leftBorder: 'border-l-cyan-400',
     route: '/pharmacy/reports/profitability-by-category', tag: 'ربحية',
   },
+  {
+    key: 'procurement-spend', label: 'الإنفاق على المشتريات',
+    desc: 'تحليل موحد لكل قنوات الشراء — فواتير الموردين، طلبيات الشبكة، صفقات P2P، مع التوفير المحقق',
+    icon: ShoppingBag, color: 'text-violet-600', leftBorder: 'border-l-violet-500',
+    route: '/pharmacy/reports/procurement-spend', tag: 'مشتريات',
+  },
+  {
+    key: 'supplier-performance', label: 'أداء الموردين',
+    desc: 'بطاقة أداء لكل مورد — نسبة التوريد، الرفض، زمن التوصيل، السداد، وإجمالي الإنفاق',
+    icon: Truck, color: 'text-blue-600', leftBorder: 'border-l-blue-500',
+    route: '/pharmacy/reports/supplier-performance', tag: 'موردين',
+  },
+  {
+    key: 'p2p-activity', label: 'نشاط شبكة P2P',
+    desc: 'حركة الند-للند: شراء، بيع، صافي المركز، الصيدليات الشريكة والصفقات النشطة',
+    icon: Users, color: 'text-emerald-600', leftBorder: 'border-l-emerald-500',
+    route: '/pharmacy/reports/p2p-activity', tag: 'P2P',
+  },
 ]
 
 const QUICK = [
@@ -67,6 +86,9 @@ const QUICK = [
   { label: 'الأرباح والخسائر', route: '/pharmacy/reports/profit-loss',       icon: DollarSign,  color: 'text-emerald-700', bg: 'bg-emerald-50' },
   { label: 'ربحية المنتجات',  route: '/pharmacy/reports/profitability-by-product',  icon: TrendingUp, color: 'text-teal-600',    bg: 'bg-teal-50' },
   { label: 'ربحية الفئات',    route: '/pharmacy/reports/profitability-by-category', icon: Layers,     color: 'text-cyan-600',    bg: 'bg-cyan-50' },
+  { label: 'إنفاق المشتريات', route: '/pharmacy/reports/procurement-spend',          icon: ShoppingBag, color: 'text-violet-600', bg: 'bg-violet-50' },
+  { label: 'أداء الموردين',   route: '/pharmacy/reports/supplier-performance',       icon: Truck,       color: 'text-blue-600',   bg: 'bg-blue-50' },
+  { label: 'نشاط P2P',        route: '/pharmacy/reports/p2p-activity',               icon: Users,       color: 'text-emerald-600',bg: 'bg-emerald-50' },
 ]
 
 export default function ReportsHubPage() {
@@ -123,7 +145,7 @@ export default function ReportsHubPage() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-sm font-semibold text-gray-700">التقارير المتاحة</h2>
-          <span className="text-xs text-gray-400">— 8 تقارير مفصلة لمتابعة صيدليتك</span>
+          <span className="text-xs text-gray-400">— 11 تقرير مفصل لمتابعة صيدليتك</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {DOMAINS.map(d => (

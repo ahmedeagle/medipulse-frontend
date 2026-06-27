@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, createContext, useContext } from 'react'
+import { useState, useMemo, useRef, useEffect, createContext, useContext } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -9,15 +9,19 @@ import {
   AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft,
   AlertCircle, Info, Loader2, X, Edit3,
   Store, Eye, RefreshCw, Activity, Ban, Zap, Settings,
-  ShieldAlert, Banknote, PartyPopper, ExternalLink,
+  ShieldAlert, Banknote, PartyPopper, ExternalLink, Wallet,
 } from 'lucide-react'
 import {
   aiCenterApi,
   type Approval, type ApprovalPriority, type DashboardWidget,
   type ConfidenceLabel, type ApprovalEvent, type Agent,
   type AgentDefinition,
+  type TokenUsageBreakdownRow,
 } from '../../api/ai-center.api'
+import { inventoryApi } from '../../api/inventory.api'
 import { posApi } from '../../api/pos.api'
+import { supplierApi } from '../../api/supplier.api'
+import { procurementApi } from '../../api/procurement.api'
 import { useInfiniteList, InfiniteScrollSentinel } from '../../hooks/useInfiniteList'
 import { TabBar } from '../../components/ui/TabBar'
 
@@ -104,7 +108,7 @@ const formatRelative = (iso: string): string => {
   if (h < 24)      return `قبل ${h} س`
   const d = Math.floor(h / 24)
   if (d < 30)      return `قبل ${d} يوم`
-  return new Date(iso).toLocaleDateString('ar-EG')
+  return new Date(iso).toLocaleDateString('en-US')
 }
 
 function approvalActionDescription(approval: Approval): string {
@@ -118,11 +122,19 @@ function approvalActionDescription(approval: Approval): string {
   }
   if (approval.subjectType === 'recommendation') {
     const recType = (p.recType as string | undefined) ?? ''
-    switch (recType) {
+    // Some legacy recommendations don't set recType but include `rulesTriggered`
+    // or `suggestedReorderQty` — treat them as a reorder so the user sees the
+    // real supplier-search behaviour instead of the vague default.
+    const looksLikeReorder = !recType && (
+      (Array.isArray(p.rulesTriggered) && p.rulesTriggered.includes('reorder')) ||
+      p.suggestedReorderQty != null
+    )
+    const effective = looksLikeReorder ? 'reorder' : recType
+    switch (effective) {
       case 'reorder': {
         const qty      = p.suggestedReorderQty ?? p.deficit ?? '؟'
-        const supplier = p.supplierName ?? 'أفضل مورد متاح'
-        return `سيتم إنشاء مسودة طلب شراء من ${supplier} بكمية ${qty} وحدة.\n\nستجدها في صفحة المشتريات بانتظار مراجعتك النهائية قبل الإرسال للمورد.`
+        const product  = p.productName ?? 'هذا المنتج'
+        return `سيبحث النظام عن أفضل مصدر لـ«${product}» بكمية ${qty} وحدة، بالترتيب:\n• البورصة الدوائية (P2P) إن وفّرت سعرًا أفضل\n• كتالوج الموردين المعتمدين لديك\n\n‏عند العثور على مصدر: تُنشَأ مسودة طلب شراء تلقائيًّا بانتظار موافقتك النهائية.\n‏إن لم يُعثر على مصدر: ستتلقّى تنبيهًا واضحًا بإضافة هذا المنتج إلى كتالوج أحد مورديك.`
       }
       case 'smart_procurement': {
         const price = p.p2pPrice ? `${Number(p.p2pPrice).toFixed(2)} جنيه` : '؟'
@@ -135,7 +147,7 @@ function approvalActionDescription(approval: Approval): string {
         return `سيتم إدراج المنتج تلقائياً في البورصة الدوائية بخصم ${disc}%.\n\nستجده تحت "قوائم البيع" في صفحة P2P.`
       }
       case 'expired_quarantine':
-        return 'سيتم تصفير كمية هذا المنتج فوراً وعزله من المخزون النشط.\n\nتأكد أن هذا الإجراء صحيح — لا يمكن التراجع عنه.'
+        return 'سيتم فورًا:\n• تصفير كمية هذا المنتج وعزله من المخزون النشط.\n• تسجيل خسارة بتكلفة الوحدة في الدفاتر المحاسبية.\n• إضافته إلى سجل إتلاف الدواء المنتهي للتدقيق لاحقًا.\n\n‏تبقّى تحت تصرّفك اتّخاذ خطوة تالية يدويًا:\n• فتح إجراء إرجاع للمورد إن سمحت سياسته\n• عرضه للإتلاف عبر جهة إتلاف دواء معتمدة\n\n‏تأكد أن الإجراء صحيح — لا يمكن التراجع عن تصفير الكمية.'
       case 'price_comparison':
         return 'سيتم تسجيل ملاحظة بمقارنة الأسعار بين الموردين.\n\nلا يوجد إجراء تلقائي — يمكنك فتح كتالوج الموردين لمقارنة الأسعار يدوياً.'
       case 'alternative':
@@ -145,18 +157,27 @@ function approvalActionDescription(approval: Approval): string {
       case 'forecast_alert':
         return 'سيتم تسجيل تنبيه توقعات الطلب.\n\nلا يوجد إجراء تلقائي — راجع تحليلات التوقعات لمزيد من التفاصيل.'
       case 'reorder_schedule':
-        return 'سيتم تسجيل تذكير بموعد إعادة الطلب المقرر.\n\nتوجّه إلى لوحة المشتريات لمتابعة الجدول الزمني.'
+        return 'سيتم تسجيل تذكير بموعد إعادة الطلب المقرر.\n\nتوجّه إلى فواتير الشراء لمتابعة الجدول الزمني.'
       case 'insufficient_data':
         return 'سيتم تسجيل إشعار بنقص البيانات التاريخية.\n\nمع تراكم بيانات المبيعات (28 يوماً+) ستصبح التوصيات أكثر دقة.'
       default:
-        return 'سيقوم النظام بتسجيل ملاحظة بهذه التوصية.\n\nراجع لوحة التحليلات لمزيد من التفاصيل.'
+        return 'ستُسجَّل موافقتك على هذه التوصية دون تنفيذ تلقائي.\n\n‏لم يربط الذكاء إجراءً تلقائياً بهذا النوع بعد — ستظهر التوصية في سجل التوصيات لتراجعها يدوياً من تبويب التحليلات.'
     }
   }
   if (approval.subjectType === 'procurement_draft') {
     const qty      = p.quantity ?? '؟'
     const supplier = p.supplierName ?? 'المورد'
     const price    = p.unitPrice ? `بسعر ${Number(p.unitPrice).toFixed(2)} ${p.currency ?? 'EGP'} للوحدة` : ''
-    return `سيتم تأكيد طلب شراء ${qty} وحدة من ${supplier} ${price}.\n\nسيُرسل الطلب مباشرةً بعد موافقتك — ستجده في صفحة المشتريات.`
+    return `سيتم إنشاء طلب شراء داخلي لـ ${qty} وحدة من ${supplier} ${price}.\n\nسيظهر الطلب في صفحة «المشتريات» بحالة «بانتظار الإرسال» — راجع تفاصيله وأرسله للمورد عبر القناة المتفق عليها (واتساب/بريد/منصة المورد).`
+  }
+  if (approval.subjectType === 'procurement_basket') {
+    const items    = Array.isArray(p.items) ? p.items : []
+    const supplier = p.supplierName ?? 'المورد'
+    const subtotal = Number(p.subtotal ?? 0).toFixed(2)
+    const currency = p.currency ?? 'EGP'
+    const lines    = items.slice(0, 5).map((it: any) => `• ${it.productName} × ${it.quantity}`).join('\n')
+    const more     = items.length > 5 ? `\nو‌${items.length - 5} أصناف أخرى…` : ''
+    return `سيتم إنشاء طلب شراء واحد مدمج يشمل ${items.length} منتجات من ${supplier} بإجمالي ${subtotal} ${currency} (قبل الضريبة):\n\n${lines}${more}\n\nسيظهر الطلب في صفحة «المشتريات» بحالة «بانتظار الإرسال» — راجع التفاصيل ثم أرسله للمورد عبر القناة المتفق عليها (واتساب/بريد/منصة المورد) لتأكيد الشحنة الواحدة.`
   }
   if (approval.subjectType === 'inventory_item') {
     const name = p.suggestedProductName ?? 'المنتج المقترح'
@@ -220,7 +241,7 @@ function executionNav(approval: Approval, executionResult: any): ExecNav | null 
   if (executionResult.draftId) return {
     message:   'تم إنشاء مسودة طلب الشراء بنجاح ✓',
     linkLabel: 'عرض في صفحة المشتريات',
-    linkHref:  '/pharmacy/procurement',
+    linkHref:  '/pharmacy/purchases/invoices',
   }
   if (approval.subjectType === 'expiry_liquidation' && executionResult.listingId) return {
     message:   'تم نشر عرض التصفية في سوق التبادل — صيدليات قريبة تلقّت إشعاراً ✓',
@@ -241,7 +262,7 @@ function executionNav(approval: Approval, executionResult: any): ExecNav | null 
     if (executionResult.action === 'reorder') return {
       message:   `"${(approval.payload as any)?.productName ?? 'المنتج'}" غير متوفر في البورصة حالياً — أنشئ طلب شراء`,
       linkLabel: 'أنشئ طلب شراء',
-      linkHref:  '/pharmacy/procurement',
+      linkHref:  '/pharmacy/purchases/invoices',
     }
   }
   if (executionResult.listingId) return {
@@ -267,7 +288,12 @@ function executionNav(approval: Approval, executionResult: any): ExecNav | null 
   if (approval.subjectType === 'procurement_draft') return {
     message:   'تم تأكيد طلب الشراء بنجاح ✓',
     linkLabel: 'عرض في صفحة المشتريات',
-    linkHref:  '/pharmacy/procurement',
+    linkHref:  '/pharmacy/purchases/invoices',
+  }
+  if (approval.subjectType === 'procurement_basket') return {
+    message:   'تم إنشاء طلب شراء مدمج بنجاح — جميع الأصناف في فاتورة واحدة ✓',
+    linkLabel: 'عرض في صفحة المشتريات',
+    linkHref:  '/pharmacy/purchases/invoices',
   }
   if (approval.subjectType === 'inventory_item') return {
     message:   'تم ربط الصنف بالمنتج في الكتالوج الموحد ✓',
@@ -308,8 +334,8 @@ function executionNav(approval: Approval, executionResult: any): ExecNav | null 
     const isProc = recType === 'reorder_schedule' || recType === 'forecast_alert'
     return {
       message:   'تم تسجيل ملاحظتك ✓\n\nهذه التوصية ذات طابع استشاري — لا إجراء تلقائي مطلوب.',
-      linkLabel: isProc ? 'عرض لوحة المشتريات' : 'عرض التحليلات',
-      linkHref:  isProc ? '/pharmacy/procurement' : '/pharmacy/analytics',
+      linkLabel: isProc ? 'عرض فواتير الشراء' : 'عرض التحليلات',
+      linkHref:  isProc ? '/pharmacy/purchases/invoices' : '/pharmacy/analytics',
     }
   }
   if (executionResult.note === 'rec_not_found') return {
@@ -565,7 +591,7 @@ function MissedRevenueWidget() {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-rose-900">
           إيراد ضائع هذا الأسبوع: {data.topMissedProducts.length > 0
-            ? data.totalEstimatedLoss.toLocaleString('ar-EG', { maximumFractionDigits: 0 }) + ' ج.م'
+            ? data.totalEstimatedLoss.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' ج.م'
             : `${data.totalMissedEntries} طلب لم يُلَبَّ`}
         </p>
         <p className="text-[11px] text-rose-700/80 mt-0.5">
@@ -576,6 +602,142 @@ function MissedRevenueWidget() {
       </div>
       <ChevronLeft size={14} className="text-rose-300 group-hover:text-rose-500 rtl:rotate-180 shrink-0" />
     </button>
+  )
+}
+
+// ─── Financial Health Cards (Sprint 3c) ──────────────────────────────────────
+
+function FinancialHealthCards() {
+  const navigate = useNavigate()
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['financial-health-snapshot'],
+    queryFn: () => supplierApi.getFinancialHealthSnapshot().then((r) => r.data),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  })
+
+  const { data: atRisk } = useQuery({
+    queryKey: ['market-at-risk-products'],
+    queryFn: () => supplierApi.getAtRiskProducts().then((r) => r.data),
+    staleTime: 10 * 60_000,
+    retry: 1,
+  })
+
+  if (isLoading) return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {[1,2,3,4].map(i => (
+        <div key={i} className="bg-white rounded-2xl border border-gray-200 p-4 animate-pulse">
+          <div className="h-3 bg-gray-100 rounded w-2/3 mb-3" />
+          <div className="h-7 bg-gray-100 rounded w-1/2" />
+        </div>
+      ))}
+    </div>
+  )
+
+  if (isError || !data) return (
+    <div className="flex items-center justify-between px-4 py-3 rounded-2xl border border-gray-200 bg-white text-sm text-gray-500">
+      <span>تعذّر تحميل الصحة المالية</span>
+      <button onClick={() => refetch()} className="text-xs text-teal-700 hover:text-teal-900 font-medium">إعادة المحاولة</button>
+    </div>
+  )
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">الصحة المالية والمخزون</h3>
+        <button
+          onClick={() => navigate('/pharmacy/price-intelligence')}
+          className="text-xs text-teal-700 hover:text-teal-900 font-medium"
+        >
+          ذكاء الأسعار ←
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Total inventory value */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-4">
+          <p className="text-[11px] text-gray-500 mb-1">قيمة المخزون الكلي</p>
+          <p className="text-xl font-bold text-gray-900 tabular-nums">
+            {data.totalInventoryValue.toLocaleString('en-US', { maximumFractionDigits: 0 })} ج.م
+          </p>
+        </div>
+
+        {/* Dead stock */}
+        <div className={`rounded-2xl border p-4 ${data.deadStockPct > 30 ? 'border-red-200 bg-red-50' : 'bg-white border-gray-200'}`}>
+          <p className="text-[11px] text-gray-500 mb-1">مخزون راكد</p>
+          <p className={`text-xl font-bold tabular-nums ${data.deadStockPct > 30 ? 'text-red-700' : 'text-gray-900'}`}>
+            {data.deadStockPct.toFixed(1)}%
+          </p>
+          <p className="text-[10px] text-gray-400 mt-0.5">{data.deadStockSkus} صنف</p>
+          {data.deadStockPct > 30 && (
+            <p className="text-[10px] text-red-600 mt-1 font-medium">⚠ يتجاوز الحد المقبول 30%</p>
+          )}
+        </div>
+
+        {/* Near expiry */}
+        <div className={`rounded-2xl border p-4 ${data.nearExpirySkus > 0 ? 'border-amber-200 bg-amber-50' : 'bg-white border-gray-200'}`}>
+          <p className="text-[11px] text-gray-500 mb-1">سينتهي خلال 30 يوم</p>
+          <p className={`text-xl font-bold tabular-nums ${data.nearExpirySkus > 0 ? 'text-amber-700' : 'text-gray-900'}`}>
+            {data.nearExpiryValue.toLocaleString('en-US', { maximumFractionDigits: 0 })} ج.م
+          </p>
+          <p className="text-[10px] text-gray-400 mt-0.5">{data.nearExpirySkus} صنف</p>
+        </div>
+
+        {/* Credit utilization */}
+        <div className={`rounded-2xl border p-4 ${data.cashRisk ? 'border-red-200 bg-red-50' : 'bg-white border-gray-200'}`}>
+          <p className="text-[11px] text-gray-500 mb-1">استخدام الائتمان</p>
+          <p className={`text-xl font-bold tabular-nums ${data.cashRisk ? 'text-red-700' : 'text-gray-900'}`}>
+            {data.utilizationRate.toFixed(0)}%
+          </p>
+          <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${data.utilizationRate > 90 ? 'bg-red-500' : data.utilizationRate > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+              style={{ width: `${Math.min(100, data.utilizationRate)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Alerts */}
+      {data.alerts.length > 0 && (
+        <div className="px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 flex items-start gap-2 text-xs text-amber-800">
+          <AlertTriangle size={13} className="shrink-0 mt-0.5 text-amber-600" />
+          <ul className="space-y-0.5">
+            {data.alerts.map((a, i) => <li key={i}>• {a}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Market at-risk products */}
+      {atRisk && atRisk.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              <h4 className="text-sm font-semibold text-gray-800">أدوية يقل المعروض منها في السوق</h4>
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+              عدد الموردين الذين يوفّرون هذه الأدوية منخفض حالياً. يُنصح بالشراء مبكراً قبل نفادها أو ارتفاع سعرها.
+            </p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {atRisk.slice(0, 5).map((item) => (
+              <div key={item.productId} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                <p className="text-xs text-gray-700 font-medium truncate">{item.productName ?? 'منتج غير معروف'}</p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    item.status === 'red' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    متوفر لدى {Math.round(item.availabilityRate * 100)}% من الموردين
+                  </span>
+                  <span className="text-[10px] text-gray-400">{item.activeSuppliers}/{item.totalSuppliers} مورد</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -639,7 +801,7 @@ function DashboardTab() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-red-900">
-              قد تخسر {data.expiryRiskEgp.toLocaleString('ar-EG')} جنيه من مخزون سينتهي قريباً
+              قد تخسر {data.expiryRiskEgp.toLocaleString('en-US')} جنيه من مخزون سينتهي قريباً
             </p>
             <p className="text-[11px] text-red-700 mt-0.5">
               قيمة المخزون الذي سينتهي خلال 180 يوماً — عرضه في P2P أو بيعه بخصم يقلل الخسارة
@@ -654,32 +816,29 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* KPI widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* KPI widgets — unified emerald style, matching Inventory dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {data.widgets.map(w => {
           const Icon = WIDGET_ICON[w.iconKey] ?? Sparkles
           return (
             <button
               key={w.key}
               onClick={() => navigate(w.deepLink)}
-              className={`text-start p-4 rounded-2xl border border-gray-200 bg-white hover:shadow-md ${SEVERITY_HOVER[w.severity]} transition-all group`}
+              className="text-start p-5 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
             >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${SEVERITY_ICON_BG[w.severity]}`}>
-                  <Icon size={18} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-2xl font-bold text-gray-900 leading-tight tabular-nums">{w.count.toLocaleString('ar-EG')}</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5 leading-tight">{w.titleAr}</div>
-                </div>
-                <ChevronLeft size={14} className="text-gray-300 group-hover:text-gray-500 rtl:rotate-180 shrink-0" />
+              <div className="flex-1 min-w-0 text-start">
+                <p className="text-3xl font-bold text-gray-900 leading-none tabular-nums">{w.count.toLocaleString('en-US')}</p>
+                <p className="font-semibold text-gray-800 text-sm mt-1.5">{w.titleAr}</p>
+                {w.count === 0 && w.emptyMessageAr && (
+                  <p className="text-[11px] text-emerald-600 mt-1 leading-relaxed flex items-center gap-1">
+                    <CheckCircle2 size={10} />
+                    {w.emptyMessageAr}
+                  </p>
+                )}
               </div>
-              {w.count === 0 && w.emptyMessageAr && (
-                <div className="text-[10px] text-emerald-600 mt-2.5 flex items-center gap-1">
-                  <CheckCircle2 size={10} />
-                  {w.emptyMessageAr}
-                </div>
-              )}
+              <div className="shrink-0 w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+                <Icon size={20} className="text-emerald-600" />
+              </div>
             </button>
           )
         })}
@@ -687,6 +846,9 @@ function DashboardTab() {
 
       {/* Missed revenue insight widget */}
       <MissedRevenueWidget />
+
+      {/* Financial health + market availability snapshot */}
+      <FinancialHealthCards />
 
       {/* Top pending approvals preview */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
@@ -750,6 +912,12 @@ function ApprovalsTab() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const qc = useQueryClient()
   const { toast, confirm } = useActions()
+  const detailRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focusId && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [focusId])
 
   const list = useQuery({
     queryKey: ['ai-center', 'approvals', statusFilter],
@@ -905,10 +1073,12 @@ function ApprovalsTab() {
       </div>
 
       {/* Detail */}
-      <ApprovalDetail
-        approval={focused ?? null}
-        onClose={() => setSearchParams({ tab: 'approvals' })}
-      />
+      <div ref={detailRef}>
+        <ApprovalDetail
+          approval={focused ?? null}
+          onClose={() => setSearchParams({ tab: 'approvals' })}
+        />
+      </div>
     </div>
   )
 }
@@ -948,12 +1118,62 @@ function ApprovalRow({
           {approval.subjectType === 'recommendation' && (
             <RecommendationTypeBadge title={approval.title} />
           )}
+          {Array.isArray((approval.payload as any)?.alternatives) && (approval.payload as any).alternatives.length > 0 && (
+            <Tooltip text="وكلاء متعددون رصدوا نفس الحاجة لهذا المنتج — مدمجة في بطاقة واحدة">
+              <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200 text-[10px] font-semibold cursor-help">
+                <Sparkles size={9} />
+                +{(approval.payload as any).alternatives.length} مصدر
+              </span>
+            </Tooltip>
+          )}
           {approval.status === 'executed' && approval.executionResult?.failed && (
             <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 text-[10px] font-semibold">
               <AlertOctagon size={10} />
               فشل التنفيذ
             </span>
           )}
+          {(() => {
+            // P4 — quick verdict badges so users see finance/delay/overpay risk in the list view.
+            const v = (approval.payload as any)?.planVerdicts as PlanVerdicts | null | undefined
+            if (!v) return null
+            const badges: JSX.Element[] = []
+            if (v.financialStatus?.recommendation === 'delay_recommended') {
+              badges.push(
+                <Tooltip key="fin" text="محرّك القرار يرى أن السيولة محدودة — راجع التقييم المالي قبل الاعتماد.">
+                  <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 text-[10px] font-semibold cursor-help">
+                    <Banknote size={9} /> ائتمان ضيق
+                  </span>
+                </Tooltip>,
+              )
+            } else if (v.financialStatus?.recommendation === 'approve_with_caution') {
+              badges.push(
+                <Tooltip key="fin" text="الوضع المالي مقبول لكن مع ضغط على الائتمان.">
+                  <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-semibold cursor-help">
+                    <Banknote size={9} /> حذر مالي
+                  </span>
+                </Tooltip>,
+              )
+            }
+            if (v.delayRecommendation && v.delayRecommendation.confidence !== 'low') {
+              badges.push(
+                <Tooltip key="delay" text={v.delayRecommendation.humanReason}>
+                  <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-semibold cursor-help">
+                    <Clock size={9} /> تأجيل {v.delayRecommendation.recommendedDelayDays}ي
+                  </span>
+                </Tooltip>,
+              )
+            }
+            if (v.overpaymentRecommendation && v.overpaymentRecommendation.overpaymentPct >= v.overpaymentRecommendation.thresholdPct) {
+              badges.push(
+                <Tooltip key="over" text={v.overpaymentRecommendation.humanReason}>
+                  <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-200 text-[10px] font-semibold cursor-help">
+                    <AlertTriangle size={9} /> +{v.overpaymentRecommendation.overpaymentPct.toFixed(0)}٪
+                  </span>
+                </Tooltip>,
+              )
+            }
+            return badges.length > 0 ? <>{badges}</> : null
+          })()}
         </div>
         <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{approval.summary}</div>
         {approval.status === 'executed' && approval.executionResult?.failed && (
@@ -972,6 +1192,241 @@ function ApprovalRow({
         </div>
       </div>
     </li>
+  )
+}
+
+// ─── Alternatives panel ──────────────────────────────────────────────────────
+// When multiple agents detect the SAME business need (e.g. low_stock + the
+// inventory expert's reorder recommendation + a smart-procurement p2p match
+// for the same product), the backend collapses them onto one approval and
+// merges the others into `payload.alternatives[]`. We render them here so
+// the pharmacist sees every angle in one place — instead of three duplicate
+// task cards. Visual idiom matches FinancialStatusBar / DelayRecommendation:
+// rounded-xl, soft colour palette, RTL Arabic copy.
+
+const AGENT_LABEL_AR: Record<string, string> = {
+  inventory_expert:        'خبير المخزون',
+  low_stock_replenishment: 'تنبيه الحد الأدنى',
+  smart_procurement:       'فرص الشراء الذكية',
+  dead_stock_expert:       'تحليل المخزون الراكد',
+  expiry_liquidation:      'تصفية الانتهاء',
+  purchase_expert:         'محرّك الشراء',
+}
+
+// ─── P4: Plan Verdicts Panel (credit-aware gating + delay + overpayment) ──
+// Renders verdicts produced by ProcurementOrchestrator and attached by
+// agent-bridge.service.ts to `payload.planVerdicts`. When the draft predates
+// the Decision Engine (legacy cheapest-only path), planVerdicts is null and
+// the panel returns null — no visual noise.
+
+interface PlanVerdicts {
+  financialStatus: {
+    creditAvailable:           number
+    creditLimit:               number
+    utilizationBeforePurchase: number
+    utilizationAfterPurchase:  number
+    cashRisk:                  'low' | 'medium' | 'high'
+    recommendation:            'approve_now' | 'approve_with_caution' | 'delay_recommended'
+  } | null
+  delayRecommendation: {
+    recommendedDelayDays: number
+    reasonCode:           string
+    humanReason:          string
+    projectedInflow:      number
+    daysToCoverCost:      number | null
+    confidence:           'low' | 'medium' | 'high'
+  } | null
+  overpaymentRecommendation: {
+    overpaymentPct:               number
+    thresholdPct:                 number
+    effectiveUnitPrice:           number
+    marketAvgUnitPrice:           number
+    bestAlternativeUnitPrice:     number | null
+    bestAlternativeIsMarketplace: boolean
+    humanReason:                  string
+    confidence:                   'low' | 'medium' | 'high'
+  } | null
+  riskScore:         number | null
+  planConfidence:    number | null
+  signalFreshnessAt: string | null
+}
+
+function PlanVerdictsPanel({ approval }: { approval: Approval }) {
+  const v = (approval.payload as any)?.planVerdicts as PlanVerdicts | null
+  if (!v) return null
+
+  const fin       = v.financialStatus
+  const delay     = v.delayRecommendation
+  const overpay   = v.overpaymentRecommendation
+  const fresh     = v.signalFreshnessAt ? new Date(v.signalFreshnessAt) : null
+  const staleMins = fresh ? Math.round((Date.now() - fresh.getTime()) / 60_000) : null
+  const isStale   = staleMins != null && staleMins > 30
+
+  const finTone =
+    fin?.recommendation === 'delay_recommended'    ? 'red'
+  : fin?.recommendation === 'approve_with_caution' ? 'amber'
+  :                                                   'emerald'
+  const finCls: Record<string, { box: string; text: string; bar: string }> = {
+    red:     { box: 'bg-red-50 border-red-200',         text: 'text-red-900',     bar: 'bg-red-500'     },
+    amber:   { box: 'bg-amber-50 border-amber-200',     text: 'text-amber-900',   bar: 'bg-amber-500'   },
+    emerald: { box: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-900', bar: 'bg-emerald-500' },
+  }
+  const cls = finCls[finTone]
+  const verdictAr: Record<string, string> = {
+    approve_now:           'الوضع المالي يسمح بالاعتماد الآن',
+    approve_with_caution:  'اعتمد بحذر — ضغط على الائتمان',
+    delay_recommended:     'يُنصح بالتأجيل — السيولة محدودة',
+  }
+  const confidenceAr = (c: 'low' | 'medium' | 'high') =>
+    c === 'high' ? 'عالية' : c === 'medium' ? 'متوسطة' : 'منخفضة'
+
+  return (
+    <div className="space-y-2">
+      {fin && (
+        <div className={`rounded-xl border ${cls.box} p-3.5`}>
+          <div className={`flex items-center gap-1.5 ${cls.text} font-medium text-xs mb-2`}>
+            <Banknote size={13} />
+            التقييم المالي
+          </div>
+          <div className={`${cls.text} text-xs leading-relaxed mb-2`}>{verdictAr[fin.recommendation]}</div>
+          <div className="flex items-center justify-between text-[11px] mb-1">
+            <span className={`${cls.text} opacity-80`}>استخدام الائتمان</span>
+            <span className={`${cls.text} font-semibold tabular-nums`}>
+              {fin.utilizationBeforePurchase}٪ → {fin.utilizationAfterPurchase}٪
+            </span>
+          </div>
+          <div className="h-1.5 bg-white/60 rounded-full overflow-hidden">
+            <div className={`h-full ${cls.bar} transition-all`} style={{ width: `${Math.min(100, fin.utilizationAfterPurchase)}%` }} />
+          </div>
+          {fin.creditLimit > 0 && (
+            <div className={`mt-2 text-[10px] ${cls.text} opacity-70 tabular-nums`}>
+              المتاح: {fin.creditAvailable.toLocaleString('en-US')} / {fin.creditLimit.toLocaleString('en-US')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {delay && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+          <div className="flex items-center gap-1.5 text-amber-900 font-medium text-xs mb-1.5">
+            <Clock size={13} />
+            هل نؤجّل؟ — اقتراح محرّك القرار
+          </div>
+          <p className="text-amber-900/90 text-xs leading-relaxed mb-2">{delay.humanReason}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-amber-900/80">
+            <span>تأجيل مقترح: <b className="text-amber-900">{delay.recommendedDelayDays} يوم</b></span>
+            {delay.projectedInflow > 0 && (
+              <span>تدفقات نقدية مُتوقَّعة: <b className="text-amber-900 tabular-nums">{delay.projectedInflow.toLocaleString('en-US')}</b></span>
+            )}
+            {delay.daysToCoverCost != null && (
+              <span>تغطية التكلفة خلال: <b className="text-amber-900">{delay.daysToCoverCost} يوم</b></span>
+            )}
+            <span className="opacity-70">ثقة: {confidenceAr(delay.confidence)}</span>
+          </div>
+        </div>
+      )}
+
+      {overpay && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-3.5">
+          <div className="flex items-center gap-1.5 text-orange-900 font-medium text-xs mb-1.5">
+            <AlertTriangle size={13} />
+            دفع زائد محتمل
+          </div>
+          <p className="text-orange-900/90 text-xs leading-relaxed mb-2">{overpay.humanReason}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-orange-900/80 tabular-nums">
+            <span>السعر الحالي: <b>{overpay.effectiveUnitPrice.toFixed(2)}</b></span>
+            <span>متوسط السوق: <b>{overpay.marketAvgUnitPrice.toFixed(2)}</b></span>
+            <span className="text-orange-900 font-semibold">+{overpay.overpaymentPct.toFixed(1)}٪</span>
+            {overpay.bestAlternativeUnitPrice != null && (
+              <span>أفضل بديل: <b>{overpay.bestAlternativeUnitPrice.toFixed(2)}</b>{overpay.bestAlternativeIsMarketplace ? ' (P2P)' : ''}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {(v.riskScore != null || isStale) && (
+        <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-500">
+          {v.riskScore != null && (
+            <span className={`px-2 py-0.5 rounded-full border ${v.riskScore >= 70 ? 'bg-red-50 border-red-200 text-red-700' : v.riskScore >= 40 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+              مخاطرة الخطة: {v.riskScore}/100
+            </span>
+          )}
+          {isStale && <RecomputePlanChip staleMins={staleMins!} />}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Stale-signal chip with an inline "recompute" button. Re-runs the
+ * procurement orchestrator against current prices/stock and invalidates
+ * both the cart query and the approvals list so the user immediately sees
+ * a refreshed plan without leaving the AI Center.
+ */
+function RecomputePlanChip({ staleMins }: { staleMins: number }) {
+  const qc = useQueryClient()
+  const { toast } = useActions()
+  const recompute = useMutation({
+    mutationFn: () => procurementApi.recomputeCart().then(r => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['procurement-cart'] })
+      qc.invalidateQueries({ queryKey: ['ai-center'] })
+      qc.invalidateQueries({ queryKey: ['approvals'] })
+      const n = (data as any)?.recomputedProducts ?? 0
+      if (n > 0) toast('success', `تم تحديث الخطة لـ ${n} منتج${n === 1 ? '' : 'ات'} بالأسعار والمخزون الحالي`)
+      else        toast('info',    'الخطة محدَّثة بالفعل — لا توجد إشارات قديمة')
+    },
+    onError: (e: any) => toast('error', e?.message ?? 'تعذّرت إعادة الاحتساب'),
+  })
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); recompute.mutate() }}
+      disabled={recompute.isPending}
+      title="إعادة احتساب الخطة بالأسعار والمخزون الحاليين"
+      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 disabled:opacity-60 transition-colors text-[10px] font-medium"
+    >
+      {recompute.isPending
+        ? <Loader2 size={9} className="animate-spin" />
+        : <RefreshCw size={9} />}
+      <span>الإشارات قديمة (منذ {staleMins} د) — إعادة احتساب</span>
+    </button>
+  )
+}
+
+function AlternativesPanel({ approval }: { approval: Approval }) {
+  const alts = (approval.payload as any)?.alternatives as Array<{
+    agentCode: string; title: string; summary: string; confidence: number
+  }> | undefined
+  if (!alts?.length) return null
+
+  return (
+    <div className="rounded-xl border border-sky-200 bg-sky-50 p-3.5 space-y-2.5">
+      <div className="flex items-center gap-1.5 text-sky-900 font-medium text-xs">
+        <Sparkles size={13} className="opacity-80" />
+        وكلاء آخرون رصدوا نفس الحاجة ({alts.length})
+      </div>
+      <p className="text-[11px] text-sky-900/70 leading-relaxed">
+        النظام جمع الإشارات المتداخلة في بطاقة واحدة لتجنّب التكرار. كل بديل أدناه يمثّل زاوية مختلفة لنفس المشكلة — راجع لاتخاذ قرار مدروس.
+      </p>
+      <ul className="space-y-2">
+        {alts.map((a, i) => (
+          <li key={i} className="rounded-lg bg-white border border-sky-200 px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold text-sky-900">
+                {AGENT_LABEL_AR[a.agentCode] ?? a.agentCode}
+              </span>
+              <span className="text-[10px] text-sky-700/70">
+                ثقة {Math.round((a.confidence ?? 0) * 100)}%
+              </span>
+            </div>
+            <div className="text-[11px] text-gray-800 mt-1 line-clamp-1">{a.title}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{a.summary}</div>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -1170,6 +1625,10 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
           )}
         </div>
 
+        <PlanVerdictsPanel approval={approval} />
+
+        <AlternativesPanel approval={approval} />
+
         {Object.keys(approval.payload ?? {}).length > 0 && (
           <details className="rounded-xl border border-gray-200 overflow-hidden">
             <summary className="px-3.5 py-2.5 text-xs font-medium text-gray-700 bg-gray-50 cursor-pointer flex items-center gap-1.5">
@@ -1324,6 +1783,7 @@ function subjectTypeLabelAr(t: string): string {
   switch (t) {
     case 'recommendation':      return 'توصية مخزون'
     case 'procurement_draft':   return 'طلب شراء'
+    case 'procurement_basket':  return 'سلة شراء (متعدد المنتجات)'
     case 'inventory_item':      return 'ربط منتج'
     case 'smart_procurement':   return 'فرصة شراء ذكية P2P'
     case 'listing_suggestion':  return 'اقتراح إدراج P2P'
@@ -1386,6 +1846,13 @@ function AgentsTab() {
     <div className="space-y-6">
       <TokenBudgetBanner usage={usage.data} loading={usage.isLoading} />
 
+      <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-2.5 text-xs text-gray-600">
+        <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+        <span>
+          <strong className="text-gray-800">مبدأ أساسي:</strong> لا يُنفَّذ أي إجراء دون موافقتك الصريحة — كل مساعد يقترح فقط، وأنت من يقرر دائماً.
+        </span>
+      </div>
+
       {[1, 2, 3].map(phase => groups[phase] && (
         <div key={phase}>
           <div className="flex items-center gap-2 mb-3">
@@ -1446,9 +1913,6 @@ function AgentsTab() {
                           ))}
                         </div>
                       )}
-                      <div className="mt-2.5 text-[10px] text-gray-500">
-                        🔒 لا يستطيع تنفيذ أي قرار دون موافقتك
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1679,7 +2143,7 @@ function TokenBudgetBanner({
   }
   if (!usage) return null
 
-  const fmt = (n: number) => n.toLocaleString('ar-EG')
+  const fmt = (n: number) => n.toLocaleString('en-US')
   const danger  = usage.percent >= 90
   const warn    = usage.percent >= 70 && !danger
   const ok      = !warn && !danger
@@ -1764,17 +2228,30 @@ function AuditTab() {
     queryKey: ['ai-center', 'audit', 'ai-stats', effectiveDays],
     queryFn:  () => aiCenterApi.aiRunStats(effectiveDays),
   })
+
+  // P7: AI cost visibility — per-feature usage today (procurement / chat / etc).
+  // 60s staleTime: the underlying ai_token_usage row is updated post every
+  // AI call, but we don't need second-by-second resolution on a budget card.
+  const budget = useQuery({
+    queryKey: ['ai-center', 'audit', 'token-budget'],
+    queryFn:  () => aiCenterApi.tokenUsageBreakdown(),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  })
   const runs = useInfiniteList<any>({
     queryKey: ['ai-center', 'audit', 'ai-runs'],
     fetchPage: ({ limit, offset }) => aiCenterApi.aiRuns(limit, offset),
     enabled:  view === 'runs',
   })
 
-  const fmtNum = (n: number) => n.toLocaleString('ar-EG')
+  const fmtNum = (n: number) => n.toLocaleString('en-US')
   const fmtMs  = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)} ث` : `${n} مللي`
 
   return (
     <div className="space-y-5">
+      {/* ── P7: AI Budget Today (cost control widget) ─────────────────── */}
+      <AiBudgetWidget data={budget.data} isLoading={budget.isLoading} />
+
       {/* AI generation stats banner */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
@@ -1790,11 +2267,11 @@ function AuditTab() {
               <button
                 onClick={() => setPeriod(7)}
                 className={`px-3 py-1 rounded-md text-xs font-medium ${period === 7 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
-              >آخر ٧ أيام</button>
+              >آخر 7 أيام</button>
               <button
                 onClick={() => setPeriod(30)}
                 className={`px-3 py-1 rounded-md text-xs font-medium ${period === 30 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
-              >آخر ٣٠ يوم</button>
+              >آخر 30 يوم</button>
               <button
                 onClick={() => setPeriod('custom')}
                 className={`px-3 py-1 rounded-md text-xs font-medium ${period === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}
@@ -1834,13 +2311,14 @@ function AuditTab() {
             </div>
           ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 p-4">
-            <StatCard label="إجمالي العمليات" value={fmtNum(stats.data.totalRuns)}        icon={Activity}     tone="violet" />
+            <StatCard label="إجمالي الاستدعاءات" value={fmtNum(stats.data.totalRuns)}        icon={Activity}     tone="violet"
+              hint={`عدد استدعاءات الذكاء الاصطناعي (LLM) خلال آخر ${days} يوم — ليس عدد الموافقات أو التوصيات.`} />
             <StatCard label="ناجحة"          value={fmtNum(stats.data.success)}          icon={CheckCircle2} tone="emerald" />
             <StatCard label="فشلت"           value={fmtNum(stats.data.failed)}           icon={XCircle}      tone="red" />
             <StatCard label="مُحجوبة"         value={fmtNum(stats.data.blocked)}          icon={Ban}          tone="amber"
               hint="استدعاءات منعتها بوابة الأمان (محتوى مرفوض، أو تجاوز حدود الاستهلاك)." />
             <StatCard label="متوسط الزمن"     value={fmtMs(stats.data.avgLatencyMs)}      icon={Clock}        tone="sky"
-              hint={`P95: ${fmtMs(stats.data.p95LatencyMs)} — أبطأ ٥٪ من الاستدعاءات.`} />
+              hint={`P95: ${fmtMs(stats.data.p95LatencyMs)} — أبطأ 5٪ من الاستدعاءات.`} />
             <StatCard label="رموز مُنتَجة"    value={fmtNum(stats.data.totalOutputTokens)} icon={Zap}          tone="fuchsia"
               hint={`المُدخَلة: ${fmtNum(stats.data.totalInputTokens)} — إجمالي رموز الإخراج هو ما يُحاسَب عليه عادةً.`} />
           </div>
@@ -1926,7 +2404,7 @@ function AuditTab() {
                       <div className="text-gray-500 text-[11px] mt-0.5 italic">«{ev.note}»</div>
                     )}
                     <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
-                      <span>{new Date(ev.createdAt).toLocaleString('ar-EG')}</span>
+                      <span>{new Date(ev.createdAt).toLocaleString('en-US')}</span>
                       <span>·</span>
                       <span className="font-mono text-gray-300">#{ev.approvalId.slice(0, 8)}</span>
                     </div>
@@ -1970,7 +2448,7 @@ function AuditTab() {
                   {runs.items.map(r => (
                     <tr key={r.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
-                        {new Date(r.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                        {new Date(r.createdAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                       <td className="px-4 py-2.5">
                         <RunStatusBadge status={r.status} />
@@ -1989,7 +2467,7 @@ function AuditTab() {
                       <td className="px-4 py-2.5 text-gray-700 tabular-nums">
                         {r.outputsBlocked > 0
                           ? <span className="text-amber-700 font-medium">{r.outputsBlocked}</span>
-                          : <span className="text-gray-300">٠</span>}
+                          : <span className="text-gray-300">0</span>}
                       </td>
                     </tr>
                   ))}
@@ -2003,6 +2481,138 @@ function AuditTab() {
             </div>
           )
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P7: AI Budget Today widget
+// Shows per-feature token usage vs daily cap + estimated USD cost. Critical
+// for cost-control: without this, runaway AI spend is invisible until billing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FEATURE_LABELS_AR: Record<string, string> = {
+  procurement: 'المشتريات الذكية',
+  chat:        'المساعد المحادثي',
+  migration:   'هجرة البيانات',
+  whatsapp:    'واتساب',
+  generic:     'متفرقات',
+}
+
+function AiBudgetWidget({
+  data,
+  isLoading,
+}: {
+  data:      TokenUsageBreakdownRow[] | undefined
+  isLoading: boolean
+}) {
+  const fmtNum = (n: number) => n.toLocaleString('en-US')
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <SkeletonRows />
+      </div>
+    )
+  }
+  if (!data || data.length === 0) return null
+
+  const totalCostUsd      = data.reduce((s, r) => s + r.totalCostUsd, 0)
+  const totalCalls        = data.reduce((s, r) => s + r.calls,        0)
+  const totalOutputTokens = data.reduce((s, r) => s + r.outputTokens, 0)
+  const anyOverLimit      = data.some(r => r.percent >= 100)
+  const anyNearLimit      = data.some(r => r.percent >= 80 && r.percent < 100)
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Wallet size={18} className="text-emerald-600" />
+          <h2 className="text-base font-semibold text-gray-900">تكلفة الذكاء الاصطناعي اليوم</h2>
+          <span className="text-xs text-gray-500 mr-2">
+            (يُعاد ضبط الحدود تلقائياً عند منتصف الليل UTC)
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-xs">
+          <div className="text-right">
+            <div className="text-gray-500">إجمالي الاستدعاءات</div>
+            <div className="font-semibold text-gray-900">{fmtNum(totalCalls)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-gray-500">رموز الإخراج</div>
+            <div className="font-semibold text-gray-900">{fmtNum(totalOutputTokens)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-gray-500">التكلفة التقديرية</div>
+            <div className="font-semibold text-emerald-700">${totalCostUsd.toFixed(4)}</div>
+          </div>
+        </div>
+      </div>
+
+      {anyOverLimit && (
+        <div className="px-5 py-2.5 bg-red-50 border-b border-red-100 flex items-start gap-2 text-xs text-red-800">
+          <AlertOctagon size={14} className="mt-0.5 shrink-0" />
+          <span>
+            تم تجاوز حد الاستهلاك اليومي في أحد المسارات — سيستخدم النظام القواعد فقط (بدون LLM)
+            حتى منتصف الليل UTC. لرفع الحد عدّل المتغير
+            <code className="bg-red-100 px-1 mx-1 rounded">AI_DAILY_OUTPUT_TOKEN_CAP</code>.
+          </span>
+        </div>
+      )}
+      {!anyOverLimit && anyNearLimit && (
+        <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-100 flex items-start gap-2 text-xs text-amber-800">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>اقتراب من حد الاستهلاك اليومي في أحد المسارات (≥80٪) — راقب الاستخدام.</span>
+        </div>
+      )}
+
+      <div className="divide-y divide-gray-100">
+        {data.map(row => {
+          const tone =
+            row.percent >= 100 ? 'red'
+          : row.percent >= 80  ? 'amber'
+          : row.percent >= 50  ? 'emerald'
+          :                      'emerald'
+          const barColor =
+            row.percent >= 100 ? 'bg-red-500'
+          : row.percent >= 80  ? 'bg-amber-500'
+          :                      'bg-emerald-500'
+          const label = FEATURE_LABELS_AR[row.feature] ?? row.feature
+          return (
+            <div key={row.feature} className="px-5 py-3">
+              <div className="flex items-center justify-between mb-1.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900">{label}</span>
+                  <span className="text-gray-400">({row.feature})</span>
+                </div>
+                <div className="flex items-center gap-3 text-gray-600">
+                  <span>{fmtNum(row.calls)} استدعاء</span>
+                  <span>{fmtNum(row.outputTokens)} / {fmtNum(row.cap)} رمز</span>
+                  <span className={`font-semibold ${tone === 'red' ? 'text-red-700' : tone === 'amber' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    {row.percent}٪
+                  </span>
+                  <span className="text-gray-900 font-semibold tabular-nums w-20 text-left">
+                    ${row.totalCostUsd.toFixed(4)}
+                  </span>
+                </div>
+              </div>
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${barColor} transition-all`}
+                  style={{ width: `${Math.min(100, row.percent)}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="px-5 py-2.5 border-t border-gray-100 bg-gray-50 text-[11px] text-gray-500 leading-relaxed">
+        التكلفة تقديرية بناءً على أسعار OpenAI الافتراضية (gpt-4o-mini).
+        لإعدادات أدقّ لكل نموذج استخدم المتغيرات
+        <code className="bg-white border border-gray-200 px-1 mx-1 rounded">AI_PRICE_&lt;MODEL&gt;_INPUT_PER_MTOK</code>
+        و
+        <code className="bg-white border border-gray-200 px-1 mx-1 rounded">AI_PRICE_&lt;MODEL&gt;_OUTPUT_PER_MTOK</code>.
       </div>
     </div>
   )
@@ -2377,13 +2987,102 @@ function ModifyForm({
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// CATALOG LINK PANEL — inline list of inventory items with linkStatus=suggested
+// ═════════════════════════════════════════════════════════════════════════════
+
+function CatalogLinkPanel({ items }: { items: { isLoading: boolean; isFetching?: boolean; data: any } }) {
+  const navigate = useNavigate()
+
+  // Treat first load (no data yet, even before isLoading flips) as a loading
+  // state — prevents the empty «everything is linked» screen from flashing on
+  // tab switch while the query is enabling itself.
+  if (items.isLoading || (!items.data && items.isFetching)) return <SkeletonRows />
+
+  const rows: any[] = items.data?.data ?? []
+
+  if (rows.length === 0) {
+    return (
+      <div className="py-12 px-6 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+          <CheckCircle2 size={22} className="text-emerald-600" />
+        </div>
+        <p className="font-semibold text-gray-900 text-sm mb-1">جميع منتجاتك مُربوطة بالكتالوج المركزي</p>
+        <p className="text-xs text-gray-500 max-w-[340px] mx-auto leading-relaxed">
+          عند إضافة منتجات جديدة، يبحث الذكاء عن مطابق في الكتالوج المركزي تلقائياً.
+          نتائج المطابقة المقترحة تظهر هنا للمراجعة.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="px-4 py-2.5 bg-violet-50 border-b border-violet-100 text-xs text-violet-800 flex items-center gap-2">
+        <Sparkles size={12} />
+        اقترح الذكاء مطابقة لـ {rows.length} منتج — راجع كل اقتراح وأكّده أو ابحث عن بديل
+      </div>
+      <ul className="divide-y divide-gray-100 max-h-[calc(100vh-26rem)] overflow-y-auto">
+        {rows.map((item: any) => {
+          const nameAr = item.product?.nameAr || item.product?.name || '—'
+          const nameEn = item.product?.name || ''
+          const score  = typeof item.matchScore === 'number' ? Math.round(item.matchScore * 100) : null
+          const scoreCls =
+            score === null    ? 'bg-gray-100 text-gray-500' :
+            score >= 80       ? 'bg-emerald-100 text-emerald-700' :
+            score >= 60       ? 'bg-amber-100 text-amber-700' :
+                                'bg-red-100 text-red-700'
+          return (
+            <li
+              key={item.id}
+              className="px-4 py-3.5 flex items-center gap-3 hover:bg-gray-50 cursor-pointer"
+              onClick={() => navigate(`/pharmacy/inventory?linkStatus=suggested&highlight=${item.id}`)}
+            >
+              <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+                <LinkIcon size={16} className="text-violet-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-gray-900 text-sm truncate">{nameAr}</div>
+                {nameEn && nameEn !== nameAr && (
+                  <div className="text-[11px] text-gray-400 truncate" dir="ltr">{nameEn}</div>
+                )}
+              </div>
+              {score !== null && (
+                <Tooltip text={`درجة المطابقة المقترحة من الذكاء: ${score}% — كلما ارتفعت، زادت الثقة بالاقتراح`}>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold cursor-help ${scoreCls}`}>
+                    {score}%
+                  </span>
+                </Tooltip>
+              )}
+              <button
+                onClick={e => { e.stopPropagation(); navigate(`/pharmacy/inventory?linkStatus=suggested&highlight=${item.id}`) }}
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-semibold"
+              >
+                راجع الاقتراح
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="px-4 py-2.5 border-t border-gray-100 text-center">
+        <button
+          onClick={() => navigate('/pharmacy/inventory?linkStatus=suggested')}
+          className="text-xs text-violet-600 hover:text-violet-800 font-medium inline-flex items-center gap-1"
+        >
+          <ExternalLink size={11} /> فتح صفحة المخزون لعرض الكل
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // TASKS TAB — PRD §10: same approvals, grouped by *task type* so the user can
 // pick a single workstream ("today I'll handle purchase drafts") instead of
 // scanning a mixed list. Visual: 3 colored cards as filters → single filtered
 // list of approvals.
 // ═════════════════════════════════════════════════════════════════════════════
 
-type TaskKind = 'purchase' | 'linking' | 'risk' | 'p2p' | 'p2p_monitor' | 'pos_integrity' | 'expiry_clearance' | 'low_stock' | 'dead_stock'
+type TaskKind = 'purchase' | 'catalog_link' | 'linking' | 'risk' | 'p2p' | 'p2p_monitor' | 'pos_integrity' | 'expiry_clearance' | 'low_stock' | 'dead_stock'
 
 const TASK_DEFS: Array<{
   key:        TaskKind
@@ -2413,9 +3112,18 @@ const TASK_DEFS: Array<{
     toneActive: 'border-emerald-500 bg-white',
   },
   {
+    key: 'catalog_link',
+    labelAr: 'ربط بالكتالوج المركزي',
+    hintAr:  'منتجات صيدليتك التي اقترح الذكاء مطابقتها بالكتالوج — راجع وأكّد',
+    subjectType: '__catalog_link__',
+    icon: LinkIcon,
+    tone:       'border-gray-200 bg-white hover:bg-gray-50',
+    toneActive: 'border-emerald-500 bg-white',
+  },
+  {
     key: 'linking',
-    labelAr: 'مهام ربط منتجات',
-    hintAr:  'أصناف يبدو أنها نفس المنتج وتحتاج تأكيدك',
+    labelAr: 'كشف التكرار',
+    hintAr:  'أصناف في المخزون يبدو أنها نفس المنتج المُكرَّر — أكّد الدمج أو تجاهل',
     subjectType: 'inventory_item',
     icon: LinkIcon,
     tone:       'border-gray-200 bg-white hover:bg-gray-50',
@@ -2423,8 +3131,8 @@ const TASK_DEFS: Array<{
   },
   {
     key: 'risk',
-    labelAr: 'تنبيهات نفاد ومخاطر',
-    hintAr:  'منتجات مهددة بالنفاد قريباً',
+    labelAr: 'توصيات الذكاء الاصطناعي',
+    hintAr:  'تحليل شامل من محرك الذكاء: نفاد وشيك، مخزون راكد، اقتراحات إعادة طلب — كلها في مكان واحد',
     subjectType: 'recommendation',
     icon: AlertOctagon,
     tone:       'border-gray-200 bg-white hover:bg-gray-50',
@@ -2450,8 +3158,8 @@ const TASK_DEFS: Array<{
   },
   {
     key: 'expiry_clearance',
-    labelAr: 'تصفية قريبة الانتهاء',
-    hintAr:  'منتجات تنتهي قريباً — أدرجها للبيع بخصم ذكي واسترد قيمتها قبل الهلاك',
+    labelAr: 'إدراج قريبة الانتهاء للبيع',
+    hintAr:  'مهام إدراج: منتجات اقترح الذكاء نشرها في البورصة بخصم ذكي قبل انتهاء صلاحيتها',
     subjectType: 'expiry_liquidation',
     icon: Package,
     tone:       'border-gray-200 bg-white hover:bg-gray-50',
@@ -2459,8 +3167,8 @@ const TASK_DEFS: Array<{
   },
   {
     key: 'low_stock',
-    labelAr: 'نقص مخزون',
-    hintAr:  'منتجات وصل مخزونها للحد الأدنى — قرّر: شراء من البورصة أو طلب من المورد',
+    labelAr: 'نقص مخزون (حد أدنى)',
+    hintAr:  'أصناف تجاوزت حد التنبيه — النظام يقترح الشراء من البورصة أو من المورد المعتاد',
     subjectType: 'low_stock',
     icon: AlertCircle,
     tone:       'border-gray-200 bg-white hover:bg-gray-50',
@@ -2468,8 +3176,8 @@ const TASK_DEFS: Array<{
   },
   {
     key: 'dead_stock',
-    labelAr: 'مخزون راكد',
-    hintAr:  'منتجات لا تتحرك — أدرجها في السوق بخصم لتسييل رأس المال المجمّد',
+    labelAr: 'تسييل المخزون الراكد',
+    hintAr:  'تحليل متخصص للأصناف التي لم تتحرك لأشهر — اقتراحات إدراج في البورصة بخصم لاسترداد رأس المال',
     subjectType: 'dead_stock_clearance',
     icon: Archive,
     tone:       'border-gray-200 bg-white hover:bg-gray-50',
@@ -2482,6 +3190,12 @@ function TasksTab() {
   const focusId   = searchParams.get('id')
   const taskParam = (searchParams.get('task') as TaskKind | null) ?? 'purchase'
   const setTask = (k: TaskKind) => setSearchParams({ tab: 'tasks', task: k })
+  const detailRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focusId && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [focusId])
 
   const def = TASK_DEFS.find(d => d.key === taskParam) ?? TASK_DEFS[0]
 
@@ -2498,24 +3212,73 @@ function TasksTab() {
     refetchInterval: 30_000,
   })
 
+  const catalogLinkCount = useQuery({
+    queryKey: ['inventory', 'suggested-count'],
+    queryFn:  () => inventoryApi.getSuggestedCount(),
+    refetchInterval: 30_000,
+  })
+
   const counts: Record<TaskKind, number> = useMemo(() => {
-    const c: Record<TaskKind, number> = { purchase: 0, linking: 0, risk: 0, p2p: 0, p2p_monitor: 0, pos_integrity: 0, expiry_clearance: 0, low_stock: 0, dead_stock: 0 }
+    const c: Record<TaskKind, number> = { purchase: 0, catalog_link: 0, linking: 0, risk: 0, p2p: 0, p2p_monitor: 0, pos_integrity: 0, expiry_clearance: 0, low_stock: 0, dead_stock: 0 }
     for (const a of allPending.data?.data ?? []) {
+      // Supplier baskets are still "purchase" tasks — the bridge just
+      // consolidated several drafts into one approval for the same supplier.
+      if (a.subjectType === 'procurement_basket') { c.purchase++; continue }
       const t = TASK_DEFS.find(d => d.subjectType === a.subjectType)?.key
       if (t) c[t]++
     }
+    c.catalog_link = catalogLinkCount.data ?? 0
     return c
-  }, [allPending.data])
+  }, [allPending.data, catalogLinkCount.data])
+
+  const isCatalogLink = def.key === 'catalog_link'
+
+  // For catalog_link: fetch inventory items with linkStatus=suggested directly
+  const catalogLinkItems = useQuery({
+    queryKey: ['inventory', 'suggested-items'],
+    queryFn:  () => inventoryApi.getAll({ linkStatus: 'suggested', limit: 50 }).then(r => r.data),
+    enabled:  isCatalogLink,
+    refetchInterval: 30_000,
+  })
 
   const list = useQuery({
     queryKey: ['ai-center', 'approvals', 'pending+modified', def.subjectType],
     queryFn:  async () => {
-      const [p, m] = await Promise.all([
-        aiCenterApi.listApprovals({ status: 'pending',  subjectType: def.subjectType }),
-        aiCenterApi.listApprovals({ status: 'modified', subjectType: def.subjectType }),
-      ])
-      return { ...p, data: [...p.data, ...m.data], total: p.total + m.total }
+      if (isCatalogLink) return { data: [], total: 0 }
+      // For the purchase task, fetch BOTH legacy single-product drafts and
+      // the new supplier-basket approvals so the consolidated PO shows up
+      // in the same list as ungrouped drafts.
+      const isPurchase = def.subjectType === 'procurement_draft'
+      const types = isPurchase ? ['procurement_draft', 'procurement_basket'] : [def.subjectType]
+      const results = await Promise.all(
+        types.flatMap(st => [
+          aiCenterApi.listApprovals({ status: 'pending',  subjectType: st }),
+          aiCenterApi.listApprovals({ status: 'modified', subjectType: st }),
+        ])
+      )
+      const data  = results.flatMap(r => r.data)
+      const total = results.reduce((sum, r) => sum + r.total, 0)
+      // Client-side safety dedupe: in case the bridge cron hasn't yet rolled
+      // up several `procurement_draft` approvals into a basket, hide the
+      // singles for any supplier that ALREADY has a `procurement_basket`
+      // approval — the basket supersedes them.
+      if (isPurchase) {
+        const supplierIdsWithBasket = new Set(
+          data
+            .filter(a => a.subjectType === 'procurement_basket')
+            .map(a => (a.payload as any)?.supplierId)
+            .filter(Boolean),
+        )
+        const filtered = data.filter(a => {
+          if (a.subjectType !== 'procurement_draft') return true
+          const sid = (a.payload as any)?.supplierId
+          return !sid || !supplierIdsWithBasket.has(sid)
+        })
+        return { ...results[0], data: filtered, total: filtered.length }
+      }
+      return { ...results[0], data, total }
     },
+    enabled: !isCatalogLink,
     refetchInterval: 30_000,
   })
 
@@ -2524,7 +3287,7 @@ function TasksTab() {
 
   return (
     <div className="space-y-5">
-      {/* Task selector cards */}
+      {/* Task selector cards — unified emerald icon style */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {TASK_DEFS.map(d => {
           const Icon = d.icon
@@ -2534,19 +3297,21 @@ function TasksTab() {
             <button
               key={d.key}
               onClick={() => setTask(d.key)}
-              className={`text-start p-4 rounded-2xl border transition ${active ? d.toneActive : d.tone}`}
+              className={`text-start p-4 rounded-2xl border transition-all ${
+                active
+                  ? 'border-emerald-400 bg-emerald-50/40 ring-2 ring-emerald-100'
+                  : 'border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm'
+              }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                  active ? 'bg-white shadow-sm' : 'bg-white/70'
-                }`}>
-                  <Icon size={20} className="text-gray-700" />
+                <div className="w-11 h-11 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                  <Icon size={20} className="text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="font-semibold text-gray-900 text-sm">{d.labelAr}</h3>
                     <span className={`min-w-[22px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center ${
-                      n > 0 ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'
+                      n > 0 ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500'
                     }`}>
                       {n}
                     </span>
@@ -2571,7 +3336,9 @@ function TasksTab() {
                 : ' — بانتظار قرارك'}
             </span>
           </div>
-          {list.isLoading ? (
+          {isCatalogLink ? (
+            <CatalogLinkPanel items={catalogLinkItems} />
+          ) : list.isLoading ? (
             <SkeletonRows />
           ) : (list.data?.data.length ?? 0) === 0 ? (
             def.key === 'p2p' ? (
@@ -2613,27 +3380,28 @@ function TasksTab() {
                 <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-3">
                   <LinkIcon size={22} className="text-violet-600" />
                 </div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">جميع منتجاتك مُربوطة بالكتالوج الموحّد</p>
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا يوجد تكرار مكتشف الآن</p>
                 <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
-                  عند إضافة أصناف جديدة للمخزون، يحاول النظام ربطها تلقائياً بكتالوج الأدوية.
-                  إن وجد أصنافاً متشابهة تحتاج تأكيدك — للدمج أو الإبقاء منفصلة — ستظهر هنا لتقرر بنفسك.
+                  يكتشف النظام الأصناف المتكررة في مخزونك — يعني منتجين متشابهين مُدخَلَين بأسماء مختلفة.
+                  عند اكتشاف أي تكرار، تظهر هنا للتأكيد: دمج أو إبقاء منفصلَين.
                 </p>
               </div>
             ) : def.key === 'risk' ? (
               <div className="py-12 px-6 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
-                  <AlertOctagon size={22} className="text-red-600" />
+                  <Sparkles size={22} className="text-violet-600" />
                 </div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد تنبيهات مخزون الآن</p>
-                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
-                  يراقب النظام مستويات مخزونك يومياً. حين يصل صنف لحد التنبيه أو يقترب موعد انتهاء صلاحيته،
-                  يُرسل تنبيهاً هنا في الوقت المناسب حتى لا يفاجئك نفاد أو خسارة.
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد توصيات من محرك الذكاء الآن</p>
+                <p className="text-xs text-gray-500 mb-4 max-w-[360px] mx-auto leading-relaxed">
+                  محرك الذكاء يحلّل مخزونك مرة يومياً ويُنشئ هنا توصيات شاملة: نفاد وشيك، مخزون راكد، اقتراح إعادة طلب.
+                  للتنبيهات الفورية عند تجاوز الحد الأدنى، راجع تبويب "نقص مخزون".
+                  ولإدراج المنتجات الراكدة يدوياً، راجع تبويب "تسييل المخزون الراكد".
                 </p>
                 <a
                   href="/pharmacy/inventory"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-colors"
                 >
-                  <AlertOctagon size={13} /> تفقّد حدود التنبيه في المخزون
+                  <AlertOctagon size={13} /> تفقّد مستويات المخزون
                 </a>
               </div>
             ) : def.key === 'p2p_monitor' ? (
@@ -2662,25 +3430,57 @@ function TasksTab() {
               />
             )
           ) : (
-            <ul className="divide-y divide-gray-100 max-h-[calc(100vh-26rem)] overflow-y-auto">
-              {list.data!.data.map(a => (
-                <ApprovalRow
-                  key={a.id}
-                  approval={a}
-                  selected={false}
-                  focused={focusId === a.id}
-                  onToggleSelect={() => {}}
-                  onFocus={() => setSearchParams({ tab: 'tasks', task: taskParam, id: a.id })}
-                  showCheckbox={false}
-                />
-              ))}
-            </ul>
+            <>
+              {def.key === 'risk' && (
+                <div className="px-4 py-2.5 bg-violet-50 border-b border-violet-100 text-xs text-violet-800 flex items-start gap-2">
+                  <Info size={13} className="shrink-0 mt-0.5" />
+                  <span>
+                    هذه توصيات محرك الذكاء الشامل: قد تشمل مخاطر نفاد، مخزون راكد، واقتراحات إعادة طلب.
+                    التنبيهات الفورية عند تجاوز الحد الأدنى موجودة في <strong>نقص مخزون</strong>.
+                    تسييل الراكد في <strong>تسييل المخزون الراكد</strong>.
+                  </span>
+                </div>
+              )}
+              {def.key === 'expiry_clearance' && (
+                <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-800 flex items-start gap-2">
+                  <Info size={13} className="shrink-0 mt-0.5" />
+                  <span>
+                    هذه مهام إدراج للبيع في البورصة — الذكاء يقترح نشر منتجاتك القريبة من الانتهاء بخصم لاسترداد قيمتها.
+                    تنبيهات الاقتراب من الانتهاء (إشعارات) موجودة في جرس الإشعارات.
+                  </span>
+                </div>
+              )}
+              {def.key === 'dead_stock' && (
+                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-xs text-gray-600 flex items-start gap-2">
+                  <Info size={13} className="shrink-0 mt-0.5" />
+                  <span>
+                    تحليل متخصص يعمل مرة يومياً: يكتشف الأصناف التي لم تُباع لأشهر ويقترح إدراجها في البورصة.
+                    مختلف عن "توصيات الذكاء" أعلاه — هذا تحليل راكد فقط، بمنهجية منفصلة.
+                  </span>
+                </div>
+              )}
+              <ul className="divide-y divide-gray-100 max-h-[calc(100vh-26rem)] overflow-y-auto">
+                {list.data!.data.map(a => (
+                  <ApprovalRow
+                    key={a.id}
+                    approval={a}
+                    selected={false}
+                    focused={focusId === a.id}
+                    onToggleSelect={() => {}}
+                    onFocus={() => setSearchParams({ tab: 'tasks', task: taskParam, id: a.id })}
+                    showCheckbox={false}
+                  />
+                ))}
+              </ul>
+            </>
           )}
         </div>
-        <ApprovalDetail
-          approval={focused ?? null}
-          onClose={() => setSearchParams({ tab: 'tasks', task: taskParam })}
-        />
+        <div ref={detailRef}>
+          <ApprovalDetail
+            approval={focused ?? null}
+            onClose={() => setSearchParams({ tab: 'tasks', task: taskParam })}
+          />
+        </div>
       </div>
     </div>
   )

@@ -43,7 +43,7 @@ function expiryWarning(date: string | null) {
   const days = Math.floor((new Date(date).getTime() - Date.now()) / 86400000)
   if (days < 0)  return { label: 'منتهي الصلاحية', cls: 'text-red-600 bg-red-50' }
   if (days < 30) return { label: `ينتهي خلال ${days} يوم`, cls: 'text-amber-600 bg-amber-50' }
-  if (days < 90) return { label: new Date(date).toLocaleDateString('ar-EG', { month: 'short', year: 'numeric' }), cls: 'text-gray-500 bg-gray-50' }
+  if (days < 90) return { label: new Date(date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), cls: 'text-gray-500 bg-gray-50' }
   return null
 }
 
@@ -209,19 +209,19 @@ function CloseShiftModal({ shift, onClose, onConfirm, isPending }: {
             <div className="bg-gray-50 rounded-xl px-4 py-3">
               <p className="text-[11px] text-gray-400 mb-1">بدأت</p>
               <p className="text-xs font-semibold text-gray-700">
-                {new Date(shift.openedAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                {new Date(shift.openedAt).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </p>
               <p className="text-[10px] text-gray-400 mt-0.5">
-                {new Date(shift.openedAt).toLocaleDateString('ar-EG', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {new Date(shift.openedAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl px-4 py-3">
               <p className="text-[11px] text-gray-400 mb-1">تنتهي</p>
               <p className="text-xs font-semibold text-gray-700">
-                {new Date().toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                {new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </p>
               <p className="text-[10px] text-gray-400 mt-0.5">
-                {new Date().toLocaleDateString('ar-EG', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
               </p>
             </div>
           </div>
@@ -1216,7 +1216,7 @@ export default function PosPage() {
                             )}
                             {p.expiryDate && !warn && (
                               <span className="text-[11px] text-gray-400">
-                                ينتهي {new Date(p.expiryDate).toLocaleDateString('ar-EG', { month: 'short', year: 'numeric' })}
+                                ينتهي {new Date(p.expiryDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                               </span>
                             )}
                           </div>
@@ -1510,7 +1510,7 @@ export default function PosPage() {
                         <td className="px-4 py-3">
                           <span className="text-xs text-gray-500">
                             {item.expiryDate
-                              ? new Date(item.expiryDate).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' })
+                              ? new Date(item.expiryDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
                               : '—'}
                           </span>
                         </td>

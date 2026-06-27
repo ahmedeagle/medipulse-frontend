@@ -15,11 +15,11 @@ interface Props {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function formatPrice(n: number, currency = 'EGP'): string {
-  return `${n.toLocaleString('ar-EG', { maximumFractionDigits: 1 })} ${currency}`
+  return `${n.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${currency}`
 }
 
 function pctChange(first: number, last: number): number {

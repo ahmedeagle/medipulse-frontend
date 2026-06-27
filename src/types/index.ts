@@ -120,6 +120,12 @@ export interface Order {
   id: string;
   pharmacyTenant?: Tenant;
   supplierTenant?: Tenant;
+  /** Direct-contact channels resolved from supplier_profiles for the Orders screen CTAs. */
+  supplierContact?: {
+    phone: string | null;
+    email: string | null;
+    whatsapp: string | null;
+  };
   status: 'pending' | 'accepted' | 'shipped' | 'delivered' | 'cancelled';
   notes?: string;
   totalAmount: number;
