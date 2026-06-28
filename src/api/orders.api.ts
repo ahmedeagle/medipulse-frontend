@@ -33,6 +33,10 @@ export const ordersApi = {
   updateStatus: (id: string, status: string, reason?: string) =>
     client.patch(`/orders/${id}/status`, { status, reason }),
 
+  // ── Edit line quantities (pharmacy, before supplier acts) ─────────────────
+  updateItems: (id: string, items: { orderItemId: string; quantity: number }[]) =>
+    client.patch(`/orders/${id}/items`, { items }),
+
   // ── Approval (pharmacy director) ──────────────────────────────────────────
   approve: (id: string) => client.post(`/orders/${id}/approve`),
 

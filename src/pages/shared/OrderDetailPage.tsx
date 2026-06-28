@@ -276,6 +276,8 @@ export default function OrderDetailPage() {
   const [showCancel, setShowCancel] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editQty, setEditQty] = useState<Record<string, number>>({});
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: order, isLoading } = useQuery({
@@ -325,6 +327,16 @@ export default function OrderDetailPage() {
     },
   });
 
+  const editItemsMutation = useMutation({
+    mutationFn: (items: { orderItemId: string; quantity: number }[]) => ordersApi.updateItems(id!, items),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['order', id] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      setEditMode(false);
+      setEditQty({});
+    },
+  });
+
   if (isLoading || !order) return <Spinner />;
 
   const isPharmacy = role === 'pharmacy_admin';
@@ -354,6 +366,30 @@ export default function OrderDetailPage() {
 
   // Pharmacy can cancel only before the supplier has acted on the order.
   const canCancel = isPharmacy && ['draft', 'pending_approval', 'submitted'].includes(order.status);
+
+  // Pharmacy can edit quantities only before the supplier has acted.
+  const canEdit = isPharmacy && ['draft', 'pending_approval', 'submitted'].includes(order.status);
+
+  // Live-recomputed totals while editing (mirrors backend math with stored VAT rate).
+  const editVatRate = order.vatRate != null ? Number(order.vatRate) : 0;
+  const qtyOf = (item: any) => (editMode && editQty[item.id] != null ? editQty[item.id] : item.quantity);
+  const editSubtotal = (order.items ?? []).reduce((s: number, i: any) => s + Number(i.unitPrice) * qtyOf(i), 0);
+  const editVat = Math.round(editSubtotal * editVatRate * 100) / 100;
+  const editTotal = Math.round((editSubtotal + editVat) * 100) / 100;
+  const editKeptCount = (order.items ?? []).filter((i: any) => qtyOf(i) > 0).length;
+
+  const startEdit = () => {
+    const seed: Record<string, number> = {};
+    (order.items ?? []).forEach((i: any) => { seed[i.id] = i.quantity; });
+    setEditQty(seed);
+    setEditMode(true);
+  };
+  const cancelEdit = () => { setEditMode(false); setEditQty({}); };
+  const setQty = (itemId: string, q: number) => setEditQty((prev) => ({ ...prev, [itemId]: Math.max(0, Math.floor(q || 0)) }));
+  const saveEdit = () => {
+    const items = (order.items ?? []).map((i: any) => ({ orderItemId: i.id, quantity: qtyOf(i) }));
+    editItemsMutation.mutate(items);
+  };
 
   // Direct-contact dispatch text (WhatsApp / email) — lets the pharmacist reach
   // the supplier outside the platform while the order is still being arranged.
@@ -622,10 +658,45 @@ export default function OrderDetailPage() {
 
           {/* Items */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-              <Package size={15} className="text-gray-400" />
-              <span className="font-semibold text-gray-800 text-sm">الأصناف</span>
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Package size={15} className="text-gray-400" />
+                <span className="font-semibold text-gray-800 text-sm">الأصناف</span>
+              </div>
+              {canEdit && (
+                editMode ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={cancelEdit}
+                      disabled={editItemsMutation.isPending}
+                      className="px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                    >
+                      تراجع
+                    </button>
+                    <button
+                      onClick={saveEdit}
+                      disabled={editItemsMutation.isPending || editKeptCount === 0}
+                      className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50"
+                    >
+                      حفظ التعديلات
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={startEdit}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg"
+                  >
+                    <RotateCcw size={13} /> تعديل الأصناف
+                  </button>
+                )
+              )}
             </div>
+            {editMode && (
+              <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-amber-800 flex items-start gap-1.5">
+                <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+                يمكنك تعديل الكميات قبل أن يتصرّف الموزّع. اضبط الكمية على صفر لحذف الصنف. الأسعار تُحدّدها قائمة الموزّع.
+              </div>
+            )}
             <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500">
@@ -640,10 +711,12 @@ export default function OrderDetailPage() {
               <tbody className="divide-y divide-gray-100">
                 {(order.items ?? []).map((item: any) => {
                   const code = item.product?.sku ?? item.product?.barcode ?? null;
-                  const lineSubtotal = Number(item.unitPrice) * item.quantity;
+                  const liveQty = qtyOf(item);
+                  const lineSubtotal = Number(item.unitPrice) * liveQty;
                   const lineVat = order.vatRate != null ? lineSubtotal * Number(order.vatRate) : 0;
+                  const removed = editMode && liveQty <= 0;
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50 align-top">
+                    <tr key={item.id} className={clsx('hover:bg-gray-50 align-top', removed && 'opacity-40')}>
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900">{item.product?.name ?? item.productId}</p>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
@@ -671,7 +744,26 @@ export default function OrderDetailPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center text-gray-700 tabular-nums">{item.quantity}</td>
+                      <td className="px-4 py-3 text-center text-gray-700 tabular-nums">
+                        {editMode ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <input
+                              type="number"
+                              min={0}
+                              value={liveQty}
+                              onChange={(e) => setQty(item.id, Number(e.target.value))}
+                              className="w-16 text-center border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                            <button
+                              onClick={() => setQty(item.id, removed ? item.quantity : 0)}
+                              title={removed ? 'استرجاع الصنف' : 'حذف الصنف'}
+                              className={clsx('p-1 rounded-lg', removed ? 'text-emerald-600 hover:bg-emerald-50' : 'text-red-500 hover:bg-red-50')}
+                            >
+                              {removed ? <RotateCcw size={13} /> : <Ban size={13} />}
+                            </button>
+                          </div>
+                        ) : item.quantity}
+                      </td>
                       <td className="px-4 py-3 text-center text-gray-700 tabular-nums">{fmtMoney(item.unitPrice)} {cur}</td>
                       <td className="px-4 py-3 text-center text-gray-500 tabular-nums">{fmtMoney(lineVat)} {cur}</td>
                       <td className="px-4 py-3 text-left font-medium text-gray-900 tabular-nums">{fmtMoney(lineSubtotal)} {cur}</td>
@@ -685,16 +777,19 @@ export default function OrderDetailPage() {
             <div className="border-t border-gray-200 bg-gray-50 px-5 py-3 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">المجموع الفرعي</span>
-                <span className="text-gray-800 tabular-nums">{fmtMoney(subtotal)} {cur}</span>
+                <span className="text-gray-800 tabular-nums">{fmtMoney(editMode ? editSubtotal : subtotal)} {cur}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">ضريبة القيمة المضافة{vatPct != null ? ` (${vatPct}%)` : ''}</span>
-                <span className="text-gray-800 tabular-nums">{fmtMoney(order.vatAmount)} {cur}</span>
+                <span className="text-gray-800 tabular-nums">{fmtMoney(editMode ? editVat : order.vatAmount)} {cur}</span>
               </div>
               <div className="flex items-center justify-between text-sm pt-1.5 border-t border-gray-200">
                 <span className="font-semibold text-gray-900">الإجمالي</span>
-                <span className="font-bold text-gray-900 tabular-nums">{fmtMoney(order.totalAmount)} {cur}</span>
+                <span className="font-bold text-gray-900 tabular-nums">{fmtMoney(editMode ? editTotal : order.totalAmount)} {cur}</span>
               </div>
+              {editMode && (
+                <p className="text-[11px] text-emerald-700 pt-1">القيم المعروضة بعد التعديل — اضغط «حفظ التعديلات» للتأكيد.</p>
+              )}
               <p className="text-[11px] text-gray-400 pt-1">
                 <Truck size={11} className="inline -mt-0.5 ml-1" />
                 التوصيل: حسب اتفاقك مع الموزّع — غير محتسب ضمن الإجمالي
