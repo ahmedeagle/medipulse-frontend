@@ -54,6 +54,7 @@ export function ManualCartDrawer({ open, onClose }: ManualCartDrawerProps) {
   const clearSupplier = useManualCart((s) => s.clearSupplier)
 
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [successOrder, setSuccessOrder] = useState<CreatedOrder | null>(null)
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null)
   const [bulkRunning, setBulkRunning] = useState(false)
@@ -157,9 +158,21 @@ export function ManualCartDrawer({ open, onClose }: ManualCartDrawerProps) {
                 <PackageX size={28} className="text-gray-400" />
               </div>
               <p className="text-sm font-semibold text-gray-600 mb-1">السلة فارغة</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 mb-5">
                 اضغط «أضف للسلة» على أي منتج لإضافته من موزّعه.
               </p>
+              <button
+                onClick={() => { onClose(); navigate('/pharmacy/marketplace') }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors"
+              >
+                <Store size={15} /> تصفّح الموزّعين والسوق
+              </button>
+              <button
+                onClick={() => { onClose(); navigate('/pharmacy/catalog') }}
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 rounded-lg"
+              >
+                <ArrowRight size={13} /> أو استعرض قائمة المنتجات
+              </button>
             </div>
           ) : (
             groupList.map((group) => (

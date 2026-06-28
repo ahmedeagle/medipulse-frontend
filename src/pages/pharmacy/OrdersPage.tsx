@@ -5,7 +5,7 @@ import {
   Plus, Search, ShoppingBag, Truck, CheckCircle2, Clock,
   XCircle, AlertCircle, Sparkles, Building2, Mail, MessageCircle, Phone,
   TrendingUp, RefreshCw, ChevronLeft, Trash2, Loader2,
-  MapPin, PauseCircle, Ban, AlertTriangle, PackageCheck, Send, Repeat,
+  MapPin, PauseCircle, Ban, AlertTriangle, PackageCheck, Send, Repeat, Eye,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { ordersApi } from '../../api/orders.api'
@@ -489,9 +489,10 @@ export default function PharmacyOrdersPage() {
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); navigate(`/pharmacy/orders/${o.id}`) }}
-                            className="text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                            title="فتح صفحة تفاصيل الطلب"
+                            className="text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                           >
-                            تفاصيل
+                            <Eye size={12} /> عرض التفاصيل
                           </button>
                         </div>
                       </td>

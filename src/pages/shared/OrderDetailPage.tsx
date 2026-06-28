@@ -278,6 +278,7 @@ export default function OrderDetailPage() {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editQty, setEditQty] = useState<Record<string, number>>({});
+  const [opError, setOpError] = useState<string | null>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: order, isLoading } = useQuery({
@@ -308,15 +309,20 @@ export default function OrderDetailPage() {
       ordersApi.updateStatus(id!, status, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['order', id] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
       setPendingAction(null);
       setActionReason('');
       setShowCancel(false);
+      setOpError(null);
     },
+    onError: (e: any) =>
+      setOpError(e?.response?.data?.message || 'تعذّر تنفيذ الإجراء. حاول مجدداً.'),
   });
 
   const approveMutation = useMutation({
     mutationFn: () => ordersApi.approve(id!),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['order', id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['order', id] }); setOpError(null); },
+    onError: (e: any) => setOpError(e?.response?.data?.message || 'تعذّر اعتماد الطلب.'),
   });
 
   const commentMutation = useMutation({
@@ -334,7 +340,10 @@ export default function OrderDetailPage() {
       qc.invalidateQueries({ queryKey: ['orders'] });
       setEditMode(false);
       setEditQty({});
+      setOpError(null);
     },
+    onError: (e: any) =>
+      setOpError(e?.response?.data?.message || 'تعذّر حفظ تعديل الأصناف.'),
   });
 
   if (isLoading || !order) return <Spinner />;
@@ -405,12 +414,15 @@ export default function OrderDetailPage() {
     `الإجمالي: ${fmtMoney(order.totalAmount)} ${cur}`,
   ].join('\n');
   const supplierName = order.supplierTenant?.name ?? 'المورد';
+  const mailSubject = `أمر شراء ${order.id.slice(0, 8).toUpperCase()}`;
+  // Always offer WhatsApp + email dispatch (generic recipient when the supplier
+  // has not registered contact details yet). Phone needs a real number.
   const mailtoHref = contact?.email
-    ? `mailto:${contact.email}?subject=${encodeURIComponent(`أمر شراء ${order.id.slice(0, 8).toUpperCase()}`)}&body=${encodeURIComponent(dispatchBody)}`
-    : null;
+    ? `mailto:${contact.email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(dispatchBody)}`
+    : `mailto:?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(dispatchBody)}`;
   const whatsappHref = contact?.whatsapp
     ? `https://wa.me/${String(contact.whatsapp).replace(/[^\d]/g, '')}?text=${encodeURIComponent(dispatchBody)}`
-    : null;
+    : `https://wa.me/?text=${encodeURIComponent(dispatchBody)}`;
   const telHref = contact?.phone ? `tel:${contact.phone}` : null;
 
   const actionLabel: Record<string, { label: string; color: string; status?: string }> = {
@@ -467,7 +479,7 @@ export default function OrderDetailPage() {
   };
 
   return (
-    <div className="space-y-5 max-w-5xl" dir="rtl">
+    <div className="space-y-5 w-full" dir="rtl">
       {/* Hero header — matches the reports/catalog card style */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div className="flex items-start justify-between gap-4 p-5">
@@ -534,6 +546,15 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Operation error banner */}
+      {opError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-red-700">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span className="flex-1">{opError}</span>
+          <button onClick={() => setOpError(null)} className="text-red-400 hover:text-red-600 text-xs">إغلاق</button>
+        </div>
+      )}
 
       {/* Cancel-reason modal */}
       {showCancel && (
@@ -694,7 +715,7 @@ export default function OrderDetailPage() {
             {editMode && (
               <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-amber-800 flex items-start gap-1.5">
                 <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-                يمكنك تعديل الكميات قبل أن يتصرّف الموزّع. اضبط الكمية على صفر لحذف الصنف. الأسعار تُحدّدها قائمة الموزّع.
+                عدّل الكميات أو اضغط «حذف» لإزالة صنف قبل أن يتصرّف الموزّع. الأسعار تُحدّدها قائمة الموزّع. لإضافة صنف جديد، أضِفه من السوق إلى السلة وأنشئ طلبًا.
               </div>
             )}
             <div className="overflow-x-auto">
@@ -716,9 +737,16 @@ export default function OrderDetailPage() {
                   const lineVat = order.vatRate != null ? lineSubtotal * Number(order.vatRate) : 0;
                   const removed = editMode && liveQty <= 0;
                   return (
-                    <tr key={item.id} className={clsx('hover:bg-gray-50 align-top', removed && 'opacity-40')}>
+                    <tr key={item.id} className={clsx('hover:bg-gray-50 align-top', removed && 'opacity-50 bg-red-50/40')}>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{item.product?.name ?? item.productId}</p>
+                        <div className="flex items-center gap-2">
+                          <p className={clsx('font-medium', removed ? 'text-red-600 line-through' : 'text-gray-900')}>{item.product?.name ?? item.productId}</p>
+                          {removed && (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-semibold">
+                              <Ban size={9} /> سيُحذف
+                            </span>
+                          )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                           {code && (
                             <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
@@ -757,9 +785,14 @@ export default function OrderDetailPage() {
                             <button
                               onClick={() => setQty(item.id, removed ? item.quantity : 0)}
                               title={removed ? 'استرجاع الصنف' : 'حذف الصنف'}
-                              className={clsx('p-1 rounded-lg', removed ? 'text-emerald-600 hover:bg-emerald-50' : 'text-red-500 hover:bg-red-50')}
+                              className={clsx(
+                                'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border',
+                                removed
+                                  ? 'text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                                  : 'text-red-600 border-red-200 hover:bg-red-50',
+                              )}
                             >
-                              {removed ? <RotateCcw size={13} /> : <Ban size={13} />}
+                              {removed ? <><RotateCcw size={13} /> استرجاع</> : <><Ban size={13} /> حذف</>}
                             </button>
                           </div>
                         ) : item.quantity}
@@ -863,8 +896,8 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Contact supplier CTA (pharmacy side) */}
-          {isPharmacy && (telHref || whatsappHref || mailtoHref) && (
+          {/* Contact supplier CTA (pharmacy side) — always available */}
+          {isPharmacy && (
             <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <MessageCircle size={14} className="text-emerald-500" />
@@ -872,6 +905,7 @@ export default function OrderDetailPage() {
               </div>
               <p className="text-[11px] text-gray-400 leading-relaxed">
                 للتنسيق المباشر حول التسليم أو التوفّر أو السعر — تواصل مع الموزّع عبر القناة المناسبة.
+                {!telHref && !contact?.whatsapp && !contact?.email && ' (لم يسجّل الموزّع وسيلة تواصل بعد — ستفتح رسالة جاهزة لإرسالها لأي رقم.)'}
               </p>
               <div className="grid grid-cols-1 gap-2">
                 {whatsappHref && (
