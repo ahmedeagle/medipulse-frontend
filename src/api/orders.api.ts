@@ -34,8 +34,17 @@ export const ordersApi = {
     client.patch(`/orders/${id}/status`, { status, reason }),
 
   // ── Edit line quantities (pharmacy, before supplier acts) ─────────────────
-  updateItems: (id: string, items: { orderItemId: string; quantity: number }[]) =>
-    client.patch(`/orders/${id}/items`, { items }),
+  updateItems: (
+    id: string,
+    items: { orderItemId?: string; productId?: string; quantity: number }[],
+  ) => client.patch(`/orders/${id}/items`, { items }),
+
+  // Search the order supplier's catalogue to add new products to the order.
+  searchSupplierCatalog: (id: string, search?: string) =>
+    client.get<Array<{ productId: string; name: string; nameAr: string | null; price: number; currency: string; stock: number }>>(
+      `/orders/${id}/supplier-catalog`,
+      { params: search ? { search } : undefined },
+    ),
 
   // ── Approval (pharmacy director) ──────────────────────────────────────────
   approve: (id: string) => client.post(`/orders/${id}/approve`),

@@ -7,7 +7,7 @@ import {
   ArrowLeft, MessageSquare, Send, CheckCircle, XCircle, AlertTriangle,
   Package, FileText, RotateCcw, PauseCircle, Download, Clock,
   Phone, Mail, MessageCircle, Truck, Tag, Receipt, Ban, Store, Building2,
-  Sparkles, Loader2,
+  Sparkles, Loader2, Plus, Search,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { ordersApi } from '../../api/orders.api';
@@ -278,6 +278,10 @@ export default function OrderDetailPage() {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editQty, setEditQty] = useState<Record<string, number>>({});
+  // Products being ADDED to the order this edit session (priced from supplier).
+  const [adds, setAdds] = useState<Array<{ productId: string; name: string; nameAr: string | null; price: number; currency: string; quantity: number }>>([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState('');
   const [opError, setOpError] = useState<string | null>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
@@ -334,16 +338,27 @@ export default function OrderDetailPage() {
   });
 
   const editItemsMutation = useMutation({
-    mutationFn: (items: { orderItemId: string; quantity: number }[]) => ordersApi.updateItems(id!, items),
+    mutationFn: (items: { orderItemId?: string; productId?: string; quantity: number }[]) => ordersApi.updateItems(id!, items),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['order', id] });
       qc.invalidateQueries({ queryKey: ['orders'] });
       setEditMode(false);
       setEditQty({});
+      setAdds([]);
+      setShowPicker(false);
+      setCatalogSearch('');
       setOpError(null);
     },
     onError: (e: any) =>
       setOpError(e?.response?.data?.message || 'تعذّر حفظ تعديل الأصناف.'),
+  });
+
+  // Supplier catalogue search — only runs while the picker is open in edit mode.
+  const { data: catalogResults = [], isFetching: catalogLoading } = useQuery({
+    queryKey: ['order-supplier-catalog', id, catalogSearch],
+    queryFn: () => ordersApi.searchSupplierCatalog(id!, catalogSearch).then((r) => r.data),
+    enabled: !!id && editMode && showPicker,
+    staleTime: 30_000,
   });
 
   if (isLoading || !order) return <Spinner />;
@@ -383,21 +398,34 @@ export default function OrderDetailPage() {
   // Live-recomputed totals while editing (mirrors backend math with stored VAT rate).
   const editVatRate = order.vatRate != null ? Number(order.vatRate) : 0;
   const qtyOf = (item: any) => (editMode && editQty[item.id] != null ? editQty[item.id] : item.quantity);
-  const editSubtotal = (order.items ?? []).reduce((s: number, i: any) => s + Number(i.unitPrice) * qtyOf(i), 0);
+  const addsSubtotal = adds.reduce((s, a) => s + a.price * a.quantity, 0);
+  const editSubtotal = (order.items ?? []).reduce((s: number, i: any) => s + Number(i.unitPrice) * qtyOf(i), 0) + addsSubtotal;
   const editVat = Math.round(editSubtotal * editVatRate * 100) / 100;
   const editTotal = Math.round((editSubtotal + editVat) * 100) / 100;
-  const editKeptCount = (order.items ?? []).filter((i: any) => qtyOf(i) > 0).length;
+  const editKeptCount = (order.items ?? []).filter((i: any) => qtyOf(i) > 0).length + adds.length;
 
   const startEdit = () => {
     const seed: Record<string, number> = {};
     (order.items ?? []).forEach((i: any) => { seed[i.id] = i.quantity; });
     setEditQty(seed);
+    setAdds([]);
     setEditMode(true);
   };
-  const cancelEdit = () => { setEditMode(false); setEditQty({}); };
+  const cancelEdit = () => { setEditMode(false); setEditQty({}); setAdds([]); setShowPicker(false); setCatalogSearch(''); };
   const setQty = (itemId: string, q: number) => setEditQty((prev) => ({ ...prev, [itemId]: Math.max(0, Math.floor(q || 0)) }));
+  const addProduct = (p: { productId: string; name: string; nameAr: string | null; price: number; currency: string }) => {
+    setAdds((prev) => prev.some((a) => a.productId === p.productId) ? prev : [...prev, { ...p, quantity: 1 }]);
+    setShowPicker(false);
+    setCatalogSearch('');
+  };
+  const setAddQty = (productId: string, q: number) =>
+    setAdds((prev) => prev.map((a) => a.productId === productId ? { ...a, quantity: Math.max(1, Math.floor(q || 1)) } : a));
+  const removeAdd = (productId: string) => setAdds((prev) => prev.filter((a) => a.productId !== productId));
   const saveEdit = () => {
-    const items = (order.items ?? []).map((i: any) => ({ orderItemId: i.id, quantity: qtyOf(i) }));
+    const items = [
+      ...(order.items ?? []).map((i: any) => ({ orderItemId: i.id, quantity: qtyOf(i) })),
+      ...adds.map((a) => ({ productId: a.productId, quantity: a.quantity })),
+    ];
     editItemsMutation.mutate(items);
   };
 
@@ -728,7 +756,7 @@ export default function OrderDetailPage() {
             {editMode && (
               <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-amber-800 flex items-start gap-1.5">
                 <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-                عدّل الكميات أو اضغط «حذف» لإزالة صنف قبل أن يتصرّف الموزّع. الأسعار تُحدّدها قائمة الموزّع. لإضافة صنف جديد، أضِفه من السوق إلى السلة وأنشئ طلبًا.
+                عدّل الكميات، اضغط «حذف» لإزالة صنف، أو «إضافة صنف» لإضافة منتج جديد من نفس الموزّع — كل ذلك قبل أن يتصرّف الموزّع. الأسعار تُحدّدها قائمة الموزّع تلقائياً.
               </div>
             )}
             <div className="overflow-x-auto">
@@ -816,9 +844,111 @@ export default function OrderDetailPage() {
                     </tr>
                   );
                 })}
+                {/* Newly added products (this edit session) */}
+                {editMode && adds.map((a) => {
+                  const lineSubtotal = a.price * a.quantity;
+                  const lineVat = order.vatRate != null ? lineSubtotal * Number(order.vatRate) : 0;
+                  return (
+                    <tr key={`add-${a.productId}`} className="bg-emerald-50/50 align-top">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900">{a.nameAr || a.name}</p>
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-semibold">
+                            <Plus size={9} /> صنف جديد
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center text-gray-700 tabular-nums">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <input
+                            type="number"
+                            min={1}
+                            value={a.quantity}
+                            onChange={(e) => setAddQty(a.productId, Number(e.target.value))}
+                            className="w-16 text-center border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <button
+                            onClick={() => removeAdd(a.productId)}
+                            title="إزالة الصنف المضاف"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <Ban size={13} /> إزالة
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center text-gray-700 tabular-nums">{fmtMoney(a.price)} {cur}</td>
+                      <td className="px-4 py-3 text-center text-gray-500 tabular-nums">{fmtMoney(lineVat)} {cur}</td>
+                      <td className="px-4 py-3 text-left font-medium text-gray-900 tabular-nums">{fmtMoney(lineSubtotal)} {cur}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             </div>
+            {/* Add-product picker (edit mode) */}
+            {editMode && (
+              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+                {!showPicker ? (
+                  <button
+                    onClick={() => setShowPicker(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                  >
+                    <Plus size={14} /> إضافة صنف من قائمة الموزّع
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1 max-w-md">
+                        <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          autoFocus
+                          value={catalogSearch}
+                          onChange={(e) => setCatalogSearch(e.target.value)}
+                          placeholder="ابحث باسم المنتج أو الكود…"
+                          className="w-full pr-9 pl-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          style={{ paddingRight: '2.25rem' }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => { setShowPicker(false); setCatalogSearch(''); }}
+                        className="px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg"
+                      >
+                        إغلاق
+                      </button>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white divide-y divide-gray-100">
+                      {catalogLoading ? (
+                        <div className="px-3 py-4 text-center text-xs text-gray-400">جارٍ البحث…</div>
+                      ) : catalogResults.length === 0 ? (
+                        <div className="px-3 py-4 text-center text-xs text-gray-400">
+                          {catalogSearch ? 'لا توجد أصناف مطابقة لدى هذا الموزّع.' : 'لا توجد أصناف إضافية متاحة من هذا الموزّع.'}
+                        </div>
+                      ) : (
+                        catalogResults.map((p) => {
+                          const added = adds.some((a) => a.productId === p.productId);
+                          return (
+                            <button
+                              key={p.productId}
+                              onClick={() => addProduct(p)}
+                              disabled={added}
+                              className="w-full flex items-center justify-between gap-3 px-3 py-2 text-right hover:bg-emerald-50 disabled:opacity-40 disabled:hover:bg-white"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{p.nameAr || p.name}</p>
+                                <p className="text-[11px] text-gray-400 tabular-nums">{fmtMoney(p.price)} {currencyLabel(p.currency)} · المخزون: {p.stock}</p>
+                              </div>
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 shrink-0">
+                                {added ? <>أُضيف</> : <><Plus size={13} /> إضافة</>}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Financial breakdown */}
             <div className="border-t border-gray-200 bg-gray-50 px-5 py-3 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
