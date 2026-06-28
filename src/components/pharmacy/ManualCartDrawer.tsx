@@ -37,6 +37,11 @@ interface CreatedOrder {
   itemCount: number
 }
 
+interface BulkResult {
+  orders: CreatedOrder[]
+  failed: { supplierName: string; error: string }[]
+}
+
 interface ManualCartDrawerProps {
   open: boolean
   onClose: () => void
@@ -48,11 +53,59 @@ export function ManualCartDrawer({ open, onClose }: ManualCartDrawerProps) {
   const removeItem = useManualCart((s) => s.removeItem)
   const clearSupplier = useManualCart((s) => s.clearSupplier)
 
+  const qc = useQueryClient()
   const [successOrder, setSuccessOrder] = useState<CreatedOrder | null>(null)
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null)
+  const [bulkRunning, setBulkRunning] = useState(false)
+  const [bulkDone, setBulkDone] = useState(0)
 
   const groupList = Object.values(groups)
   const totalItems = manualCartItemCount(groups)
   const grandTotal = manualCartTotal(groups)
+
+  // Full-cart checkout — creates one independent order per supplier group in a
+  // single action. Runs sequentially so each supplier's success/failure is
+  // attributed cleanly and successful groups are cleared as they complete.
+  const runBulkCheckout = async () => {
+    if (bulkRunning) return
+    setBulkRunning(true)
+    setBulkDone(0)
+    const snapshot = Object.values(groups)
+    const orders: CreatedOrder[] = []
+    const failed: { supplierName: string; error: string }[] = []
+    for (const group of snapshot) {
+      try {
+        const res = await ordersApi.create({
+          supplierTenantId: group.supplierTenantId,
+          items: group.items.map((i) => ({
+            productId: i.productId,
+            quantity: i.qty,
+            unitPrice: i.unitPrice,
+          })),
+          allowDuplicate: true,
+        })
+        const order = res?.data ?? {}
+        orders.push({
+          id: order.id,
+          status: order.status ?? 'pending',
+          totalAmount: order.totalAmount ?? groupSubtotal(group),
+          currency: order.currency,
+          supplierName: group.supplierName,
+          itemCount: group.items.length,
+        })
+        clearSupplier(group.supplierTenantId)
+      } catch (err: any) {
+        failed.push({
+          supplierName: group.supplierName,
+          error: err?.response?.data?.message ?? err?.message ?? 'خطأ غير معروف',
+        })
+      }
+      setBulkDone((n) => n + 1)
+    }
+    qc.invalidateQueries({ queryKey: ['orders'] })
+    setBulkRunning(false)
+    setBulkResult({ orders, failed })
+  }
 
   if (!open) return null
 
@@ -124,16 +177,42 @@ export function ManualCartDrawer({ open, onClose }: ManualCartDrawerProps) {
 
         {/* Footer grand total */}
         {groupList.length > 0 && (
-          <div className="border-t border-gray-200 bg-white px-4 py-3">
+          <div className="border-t border-gray-200 bg-white px-4 py-3 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">الإجمالي الكلي</span>
               <span className="text-lg font-bold text-gray-900 tabular-nums">
                 {grandTotal.toFixed(2)} ج.م
               </span>
             </div>
-            <p className="text-[11px] text-gray-400 mt-1 text-center">
-              أكّد كل موزّع على حدة من الزر بداخله
-            </p>
+            {groupList.length >= 2 ? (
+              <>
+                <button
+                  type="button"
+                  onClick={runBulkCheckout}
+                  disabled={bulkRunning}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-colors"
+                >
+                  {bulkRunning ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      جارٍ إنشاء الطلبات… ({bulkDone}/{groupList.length})
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} />
+                      أكّد كل الطلبات ({groupList.length} موزّع)
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-gray-400 text-center">
+                  سيُنشأ طلب مستقل لكل موزّع — أو أكّد موزّعاً واحداً من الزر بداخله
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-gray-400 text-center">
+                أكّد الموزّع من الزر بداخله
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -146,6 +225,18 @@ export function ManualCartDrawer({ open, onClose }: ManualCartDrawerProps) {
           onClose={() => {
             setSuccessOrder(null)
             onClose()
+          }}
+        />
+      )}
+
+      {/* Bulk (full-cart) success summary */}
+      {bulkResult && (
+        <MultiOrderSuccessDialog
+          result={bulkResult}
+          onClose={() => {
+            const hadFailures = bulkResult.failed.length > 0
+            setBulkResult(null)
+            if (!hadFailures) onClose()
           }}
         />
       )}
@@ -260,6 +351,117 @@ function OrderSuccessDialog({
               متابعة التسوّق
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Multi-order (full-cart) success summary ──────────────────────────────────
+
+function MultiOrderSuccessDialog({
+  result,
+  onClose,
+}: {
+  result: BulkResult
+  onClose: () => void
+}) {
+  const navigate = useNavigate()
+  const total = result.orders.reduce((s, o) => s + Number(o.totalAmount || 0), 0)
+  const allOk = result.failed.length === 0
+
+  const goToOrders = () => {
+    onClose()
+    navigate('/pharmacy/orders')
+  }
+  const openOrder = (id: string) => {
+    onClose()
+    navigate(`/pharmacy/orders/${id}`)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" dir="rtl">
+      <div className="absolute inset-0 bg-black/50 animate-in fade-in duration-200" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Banner */}
+        <div
+          className={
+            allOk
+              ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 pt-7 pb-6 text-center'
+              : 'bg-gradient-to-br from-amber-500 to-amber-600 px-6 pt-7 pb-6 text-center'
+          }
+        >
+          <div className="w-16 h-16 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-3">
+            {allOk ? (
+              <PartyPopper size={30} className="text-white" />
+            ) : (
+              <AlertTriangle size={30} className="text-white" />
+            )}
+          </div>
+          <h2 className="text-lg font-bold text-white">
+            {result.orders.length > 0
+              ? `تم إنشاء ${result.orders.length} طلب بنجاح!`
+              : 'لم يتم إنشاء أي طلب'}
+          </h2>
+          <p className="text-white/90 text-xs mt-1">
+            {result.orders.length > 0 && `الإجمالي ${total.toFixed(2)} ج.م`}
+            {!allOk && ` · فشل ${result.failed.length} موزّع`}
+          </p>
+        </div>
+
+        {/* List */}
+        <div className="px-5 py-4 max-h-60 overflow-y-auto space-y-2">
+          {result.orders.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => openOrder(o.id)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors text-right"
+            >
+              <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 shrink-0">
+                <CheckCircle2 size={14} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-xs font-semibold text-gray-800 truncate">{o.supplierName}</span>
+                <span className="block text-[11px] text-gray-500 tabular-nums">
+                  {o.itemCount} صنف · {Number(o.totalAmount).toFixed(2)} ج.م · #{o.id.slice(0, 8).toUpperCase()}
+                </span>
+              </span>
+              <ArrowRight size={13} className="text-gray-400 rtl:rotate-180 shrink-0" />
+            </button>
+          ))}
+          {result.failed.map((f, idx) => (
+            <div
+              key={`fail-${idx}`}
+              className="flex items-center gap-3 p-2.5 rounded-xl border border-red-100 bg-red-50"
+            >
+              <span className="p-1.5 rounded-lg bg-red-100 text-red-600 shrink-0">
+                <AlertTriangle size={14} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-xs font-semibold text-gray-800 truncate">{f.supplierName}</span>
+                <span className="block text-[11px] text-red-600">{f.error}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="px-5 pb-5 flex gap-2">
+          <button
+            type="button"
+            onClick={goToOrders}
+            className="flex-1 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition-colors"
+          >
+            كل الطلبات
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 px-3 border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold text-sm rounded-xl transition-colors"
+          >
+            {allOk ? 'إغلاق' : 'إغلاق والمحاولة لاحقاً'}
+          </button>
         </div>
       </div>
     </div>
