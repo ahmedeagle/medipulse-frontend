@@ -202,7 +202,6 @@ export default function PharmacyOrdersPage() {
   const navigate = useNavigate()
 
   const [showCreate, setShowCreate] = useState(false)
-  const [viewOrder, setViewOrder] = useState<Order | null>(null)
 
   // Filters
   const [qInput, setQInput] = useState('')
@@ -458,7 +457,7 @@ export default function PharmacyOrdersPage() {
                   return (
                     <tr
                       key={o.id}
-                      onClick={() => setViewOrder(o)}
+                      onClick={() => navigate(`/pharmacy/orders/${o.id}`)}
                       className="hover:bg-emerald-50/30 cursor-pointer transition-colors"
                     >
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{shortId(o.id)}</td>
@@ -489,7 +488,7 @@ export default function PharmacyOrdersPage() {
                             إعادة
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); setViewOrder(o) }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/pharmacy/orders/${o.id}`) }}
                             className="text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-2.5 py-1.5 rounded-lg transition-colors"
                           >
                             تفاصيل
@@ -514,15 +513,6 @@ export default function PharmacyOrdersPage() {
         />
       </div>
 
-      {/* Order details drawer */}
-      {viewOrder && (
-        <OrderDetailDrawer
-          order={viewOrder}
-          onClose={() => setViewOrder(null)}
-          onReorder={(o) => reorderMutation.mutate(o)}
-          reordering={reorderingId === viewOrder.id}
-        />
-      )}
 
       {/* Create modal */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="إنشاء أمر شراء يدوي" size="lg">
@@ -773,6 +763,9 @@ const ACTION_TONE_CLS: Record<LifecycleAction['tone'], string> = {
   gray:    'bg-white hover:bg-gray-50 text-gray-700 border-gray-200',
 }
 
+// @deprecated — order details are now a unified FULL PAGE at /pharmacy/orders/:id
+// (src/pages/shared/OrderDetailPage.tsx). This drawer is no longer rendered; the
+// list navigates to the page. Kept temporarily for reference; safe to delete.
 function OrderDetailDrawer({ order, onClose, onReorder, reordering }: {
   order: Order;
   onClose: () => void;

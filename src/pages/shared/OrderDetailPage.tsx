@@ -7,6 +7,7 @@ import {
   ArrowLeft, MessageSquare, Send, CheckCircle, XCircle, AlertTriangle,
   Package, FileText, RotateCcw, PauseCircle, Download, Clock,
   Phone, Mail, MessageCircle, Truck, Tag, Receipt, Ban, Store, Building2,
+  Sparkles, Loader2,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { ordersApi } from '../../api/orders.api';
@@ -290,6 +291,16 @@ export default function OrderDetailPage() {
     refetchInterval: 15_000,
   });
 
+  // Real AI plan-context (geography + explainability) — backend resolves the
+  // upstream ProcurementDraft and returns planSnapshot / split / city data.
+  // Manual orders return null fields → we render an honest fallback.
+  const { data: aiCtx, isLoading: aiCtxLoading } = useQuery({
+    queryKey: ['order-ai-context', id],
+    queryFn: () => ordersApi.getAiContext(id!).then((r) => r.data),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ status, reason }: { status: string; reason?: string }) =>
       ordersApi.updateStatus(id!, status, reason),
@@ -327,6 +338,19 @@ export default function OrderDetailPage() {
     ? Number(order.subtotalAmount)
     : (order.items ?? []).reduce((s: number, i: any) => s + Number(i.unitPrice) * i.quantity, 0);
   const contact = (order as any).supplierContact ?? null;
+
+  // Heuristic origin (mirrors OrdersPage): AI smart plan vs supplier basket vs manual.
+  const orderNotes = (order.notes ?? '').toString();
+  const isAiOrder = orderNotes.includes('خطة شراء ذكية') || orderNotes.includes('Smart plan')
+    || orderNotes.includes('Supplier basket') || orderNotes.includes('سلة شراء');
+
+  // AI explainability derived from the real planSnapshot.
+  const plan = (aiCtx?.planSnapshot ?? null) as any;
+  const aiReasonText: string | null = plan?.explainability?.selectedPlanReason ?? null;
+  const aiComputed = plan?.explainability?.computedSignals ?? null;
+  const aiFinImpact = plan?.explainability?.financialImpact ?? null;
+  const aiSplits = (plan?.splits ?? []) as Array<{ source: string; sourceName: string; qty: number; unitPrice: number; reason: string }>;
+  const aiOverpay = plan?.overpaymentRecommendation ?? null;
 
   // Pharmacy can cancel only before the supplier has acted on the order.
   const canCancel = isPharmacy && ['draft', 'pending_approval', 'submitted'].includes(order.status);
@@ -519,6 +543,82 @@ export default function OrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: order details */}
         <div className="lg:col-span-2 space-y-5">
+
+          {/* Geography / city context — shown for pharmacy when backend resolves cities */}
+          {isPharmacy && aiCtx && (aiCtx.supplierCity || aiCtx.buyerCity) && (
+            <div className={clsx(
+              'rounded-2xl border p-3 flex items-start gap-2 text-xs',
+              aiCtx.sameCity
+                ? 'border-emerald-200 bg-emerald-50/60 text-emerald-900'
+                : 'border-amber-200 bg-amber-50/60 text-amber-900',
+            )}>
+              <Truck size={14} className="mt-0.5 shrink-0" />
+              <div className="leading-relaxed">
+                {aiCtx.sameCity ? (
+                  <>
+                    <strong>نفس مدينتك</strong> — الموزّع في <strong>{aiCtx.supplierCity}</strong>،
+                    وأنت في <strong>{aiCtx.buyerCity}</strong>. توصيل أسرع وتكاليف شحن أقل.
+                  </>
+                ) : (
+                  <>
+                    <strong>مدينة مختلفة</strong> — الموزّع في <strong>{aiCtx.supplierCity ?? '—'}</strong>،
+                    وأنت في <strong>{aiCtx.buyerCity ?? '—'}</strong>. قد يستغرق التوصيل وقتاً أطول.
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* AI explainability — only for AI-originated orders, real planSnapshot data */}
+          {isPharmacy && isAiOrder && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={14} className="text-emerald-600" />
+                <h3 className="text-sm font-semibold text-emerald-900">لماذا اقترح الذكاء هذا الطلب؟</h3>
+              </div>
+              {aiCtxLoading ? (
+                <div className="text-xs text-emerald-900/70 flex items-center gap-2 py-1">
+                  <Loader2 size={12} className="animate-spin" /> جارٍ تحميل سياق القرار…
+                </div>
+              ) : aiReasonText ? (
+                <>
+                  <p className="text-xs text-emerald-900 leading-relaxed mb-2">{aiReasonText}</p>
+                  <ul className="text-xs text-emerald-900/90 leading-relaxed space-y-1.5 list-disc ps-4">
+                    {aiSplits.map((s, idx) => (
+                      <li key={idx}>
+                        <strong>{s.source === 'p2p' ? 'بورصة' : 'موزّع'}: {s.sourceName}</strong> — {s.qty} وحدة @ {fmtMoney(s.unitPrice)} {cur}. <span className="text-emerald-800/80">{s.reason}</span>
+                      </li>
+                    ))}
+                    {aiComputed && (
+                      <li>
+                        <strong>الإشارات:</strong>{' '}إلحاحية {Math.round(aiComputed.urgencyScore)}/100،
+                        {' '}مخاطر مالية: {aiComputed.financialRisk === 'high' ? 'مرتفعة' : aiComputed.financialRisk === 'medium' ? 'متوسطة' : 'منخفضة'}
+                        {aiComputed.marketShortageRisk ? '، شُحّ بالسوق' : ''}
+                      </li>
+                    )}
+                    {aiFinImpact && (
+                      <li>
+                        <strong>التأثير المالي:</strong> الإجمالي {fmtMoney(aiFinImpact.totalCost)} {cur}
+                        {aiFinImpact.savedVsHistoricalAvg > 0 && (
+                          <> — وفّر <strong>{fmtMoney(aiFinImpact.savedVsHistoricalAvg)} {cur}</strong> مقابل المتوسط التاريخي.</>
+                        )}
+                      </li>
+                    )}
+                  </ul>
+                  {aiOverpay && (
+                    <div className="mt-3 pt-3 border-t border-amber-200/60 text-[11px] text-amber-800 flex items-start gap-1.5">
+                      <AlertTriangle size={12} className="mt-0.5" />
+                      <span><strong>تنبيه دفع زائد:</strong> {aiOverpay.humanReason}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-emerald-900/70 leading-relaxed">
+                  لم نعثر على لقطة قرار محفوظة لهذا الطلب — قد يكون أُنشئ قبل تفعيل تسجيل خطط الشراء.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Items */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
