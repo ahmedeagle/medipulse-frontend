@@ -16,6 +16,7 @@ import { useProfileStore } from '../../store/auth.store';
 import { getRoleFromToken } from '../../auth/oidc';
 import { NotificationBell } from '../NotificationBell';
 import { LanguageSwitcher } from '../LanguageSwitcher';
+import { GlobalCartButton } from './GlobalCartButton';
 
 interface NavGroup {
   labelKey: string;
@@ -699,6 +700,7 @@ export function TopNav() {
 
           {/* Right side */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-auto">
+            {role === 'pharmacy_admin' && <GlobalCartButton />}
             <NotificationBell />
             <LanguageSwitcher />
 

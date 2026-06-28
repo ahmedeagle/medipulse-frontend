@@ -21,10 +21,9 @@ import { procurementApi } from '../../api/procurement.api'
 import Pagination from '../../components/ui/Pagination'
 import { FullPageSpinner } from '../../components/ui/Spinner'
 import { usePaginatedList } from '../../hooks/usePaginatedList'
-import { ProcurementCartDrawer } from '../../components/pharmacy/ProcurementCartDrawer'
-import { ManualCartDrawer } from '../../components/pharmacy/ManualCartDrawer'
 import { CompareSourcesModal } from '../../components/pharmacy/CompareSourcesModal'
 import { useManualCart, manualCartItemCount } from '../../store/manualCart.store'
+import { useCartUi } from '../../store/cartUi.store'
 import type { SupplierCatalogItem } from '../../types'
 
 type ViewMode = 'products' | 'distributors'
@@ -275,8 +274,7 @@ export default function CatalogPage() {
 
   const [view, setView]                 = useState<ViewMode>('products')
   const [search, setSearch]             = useState('')
-  const [drawerOpen, setDrawerOpen]     = useState(false)        // smart-plan cart
-  const [manualOpen, setManualOpen]     = useState(false)        // manual cart
+  const { openSmart, openManual }       = useCartUi()           // global cart drawers
   const [filtersOpen, setFiltersOpen]   = useState(false)        // mobile filter sheet
   const [filters, setFilters]           = useState<CatalogFilters>(EMPTY_FILTERS)
   const [qtys, setQtys]                 = useState<Record<string, number>>({})
@@ -337,7 +335,7 @@ export default function CatalogPage() {
       procurementApi.addToCart(productId, qty),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['procurement-cart'] })
-      setDrawerOpen(true)
+      openSmart()
     },
     onSettled: () => setAddingId(null),
   })
@@ -437,7 +435,7 @@ export default function CatalogPage() {
             {/* Manual cart */}
             <button
               type="button"
-              onClick={() => setManualOpen(true)}
+              onClick={() => openManual()}
               className="relative flex items-center gap-2 px-4 py-2.5 bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-xl transition-colors shadow-sm"
             >
               <ShoppingCart size={16} />
@@ -452,7 +450,7 @@ export default function CatalogPage() {
             {/* Smart plan cart */}
             <button
               type="button"
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => openSmart()}
               className="relative flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
             >
               <Zap size={16} />
@@ -715,7 +713,7 @@ export default function CatalogPage() {
                             imageUrl: row.product?.imageUrl ?? row.imageUrl ?? null,
                           },
                         )
-                        setManualOpen(true)
+                        openManual()
                       }}
                       onCompare={() => setCompareFor(row)}
                     />
@@ -735,12 +733,6 @@ export default function CatalogPage() {
           </div>
         </div>
       )}
-
-      {/* Smart-plan cart drawer */}
-      <ProcurementCartDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-
-      {/* Manual cart drawer */}
-      <ManualCartDrawer open={manualOpen} onClose={() => setManualOpen(false)} />
 
       {/* Compare sources modal */}
       {compareFor && (
@@ -774,7 +766,7 @@ export default function CatalogPage() {
               },
             )
             setCompareFor(null)
-            setManualOpen(true)
+            openManual()
           }}
         />
       )}
