@@ -371,6 +371,7 @@ export default function OrderDetailPage() {
   const aiComputed = plan?.explainability?.computedSignals ?? null;
   const aiFinImpact = plan?.explainability?.financialImpact ?? null;
   const aiSplits = (plan?.splits ?? []) as Array<{ source: string; sourceName: string; qty: number; unitPrice: number; reason: string }>;
+  const aiRejected = (plan?.explainability?.rejectedOptions ?? []) as Array<{ name: string; type: string; rejectedReason: string }>;
   const aiOverpay = plan?.overpaymentRecommendation ?? null;
 
   // Pharmacy can cancel only before the supplier has acted on the order.
@@ -666,6 +667,18 @@ export default function OrderDetailPage() {
                     <div className="mt-3 pt-3 border-t border-amber-200/60 text-[11px] text-amber-800 flex items-start gap-1.5">
                       <AlertTriangle size={12} className="mt-0.5" />
                       <span><strong>تنبيه دفع زائد:</strong> {aiOverpay.humanReason}</span>
+                    </div>
+                  )}
+                  {aiRejected.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200/60">
+                      <p className="text-[11px] font-semibold text-emerald-900/80 mb-1">موردون مستبعدون من هذا الطلب:</p>
+                      <ul className="text-[11px] text-emerald-900/75 space-y-1 list-disc ps-4">
+                        {aiRejected.map((r, idx) => (
+                          <li key={idx}>
+                            <strong>{r.name}</strong> — {r.rejectedReason}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </>
