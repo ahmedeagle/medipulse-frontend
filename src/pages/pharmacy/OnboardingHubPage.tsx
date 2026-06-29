@@ -192,6 +192,20 @@ export default function OnboardingHubPage() {
           cta={isAr ? 'أدخل بيانات المبيعات' : 'Seed consumption data'}
           status={data.aiReady ? 'done' : 'recommended'}
         />
+
+        <ActionCard
+          icon={<Upload className="h-5 w-5" />}
+          tone="emerald"
+          to="/pharmacy/sales-history"
+          title={isAr ? '4. ارفع سجل مبيعاتك السابق' : '4. Upload your past sales history'}
+          desc={
+            isAr
+              ? 'لديك ملفات مبيعات أو مشتريات من نظامك القديم؟ ارفعها كما هي وسيتولّى فريقنا معالجتها لتفعيل التنبؤ والرادار الموسمي من اليوم الأول.'
+              : 'Have raw sales/purchase exports from your old system? Upload them as-is and our team will process them to unlock forecasting and the seasonal radar from day one.'
+          }
+          cta={isAr ? 'ارفع الملفات' : 'Upload files'}
+          status="recommended"
+        />
       </div>
 
       {/* ── Checklist ────────────────────────────────────────────────── */}

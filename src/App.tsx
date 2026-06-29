@@ -47,6 +47,7 @@ const SupplierMarketplacePage          = lazy(() => import('./pages/pharmacy/Sup
 const ForecastPage                     = lazy(() => import('./pages/pharmacy/ForecastPage'));
 const EoqPage                          = lazy(() => import('./pages/pharmacy/EoqPage'));
 const MigrationAssistantPage           = lazy(() => import('./pages/pharmacy/MigrationAssistantPage'));
+const SalesHistoryPage                 = lazy(() => import('./pages/pharmacy/SalesHistoryPage'));
 const OnboardingHubPage                = lazy(() => import('./pages/pharmacy/OnboardingHubPage'));
 
 // ── Supplier ──────────────────────────────────────────────────────────────────
@@ -156,6 +157,7 @@ export default function App() {
             <Route path="reorder"          element={<EoqPage />} />
             <Route path="marketplace"      element={<SupplierMarketplacePage />} />
             <Route path="migration"        element={<MigrationAssistantPage />} />
+            <Route path="sales-history"    element={<SalesHistoryPage />} />
             <Route path="onboarding"       element={<OnboardingHubPage />} />
           </Route>
 
