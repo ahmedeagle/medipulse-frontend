@@ -1834,11 +1834,6 @@ function AgentsTab() {
   const qc = useQueryClient()
   const { toast } = useActions()
   const list = useQuery({ queryKey: ['ai-center', 'agents'], queryFn: aiCenterApi.listAgents })
-  const usage = useQuery({
-    queryKey: ['ai-center', 'token-usage', 'today'],
-    queryFn:  aiCenterApi.tokenUsageToday,
-    refetchInterval: 60_000,
-  })
   const [definitionCode, setDefinitionCode] = useState<string | null>(null)
 
   const toggle = useMutation({
@@ -1865,8 +1860,6 @@ function AgentsTab() {
 
   return (
     <div className="space-y-6">
-      <TokenBudgetBanner usage={usage.data} loading={usage.isLoading} />
-
       <div className="px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-2.5 text-xs text-gray-600">
         <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
         <span>
@@ -2143,64 +2136,6 @@ function AgentDefinitionDrawer({ code, onClose }: { code: string; onClose: () =>
             </button>
           </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-function TokenBudgetBanner({
-  usage, loading,
-}: {
-  usage:   import('../../api/ai-center.api').TokenUsageToday | undefined
-  loading: boolean
-}) {
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
-        <div className="h-4 w-32 bg-gray-100 rounded animate-pulse mb-2" />
-        <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
-      </div>
-    )
-  }
-  if (!usage) return null
-
-  const fmt = (n: number) => n.toLocaleString('en-US')
-  const danger  = usage.percent >= 90
-  const warn    = usage.percent >= 70 && !danger
-  const ok      = !warn && !danger
-
-  const toneBar = danger ? 'bg-red-500' : warn ? 'bg-amber-500' : 'bg-emerald-500'
-  const toneBg  = danger ? 'border-red-200 bg-red-50' :
-                  warn   ? 'border-amber-200 bg-amber-50' :
-                           'border-emerald-200 bg-emerald-50'
-  const toneText = danger ? 'text-red-900' : warn ? 'text-amber-900' : 'text-emerald-900'
-
-  return (
-    <div className={`rounded-2xl border ${toneBg} p-4`}>
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2">
-          <Zap size={16} className={toneText} />
-          <h3 className={`text-sm font-semibold ${toneText}`}>استهلاك الذكاء الاصطناعي اليوم</h3>
-          <Tooltip text="حدّ يومي على رموز الإخراج (Output Tokens) لكل صيدلية — يحمي من أي استهلاك غير متوقع. يعاد ضبطه تلقائياً عند منتصف الليل بتوقيت UTC.">
-            <Info size={12} className={`${toneText} opacity-60 cursor-help`} />
-          </Tooltip>
-        </div>
-        <div className={`text-xs font-medium ${toneText} tabular-nums`}>
-          {fmt(usage.outputTokens)} / {fmt(usage.cap)} رمز ({usage.percent}٪)
-        </div>
-      </div>
-
-      <div className="h-2 rounded-full bg-white/70 overflow-hidden mb-2">
-        <div className={`h-full ${toneBar} transition-all`} style={{ width: `${Math.min(100, usage.percent)}%` }} />
-      </div>
-
-      <div className={`flex items-center justify-between text-[11px] ${toneText} opacity-80`}>
-        <span>{fmt(usage.calls)} استدعاء · مُدخَل: {fmt(usage.inputTokens)}</span>
-        <span>
-          {danger ? '⚠️ اقترب من الحدّ اليومي — قد يتحول النظام إلى وضع القواعد فقط.' :
-           warn   ? 'استهلاك مرتفع — راقب نشاط المساعدين.' :
-           ok     ? `متبقي: ${fmt(usage.remaining)} رمز اليوم.` : ''}
-        </span>
       </div>
     </div>
   )
@@ -2649,21 +2584,21 @@ function StatCard({
   hint?: string
 }) {
   const tones: Record<string, string> = {
-    violet:  'bg-violet-50 text-violet-700 border-violet-200',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    red:     'bg-red-50 text-red-700 border-red-200',
-    amber:   'bg-amber-50 text-amber-700 border-amber-200',
-    sky:     'bg-sky-50 text-sky-700 border-sky-200',
-    fuchsia: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+    violet:  'text-violet-600',
+    emerald: 'text-emerald-600',
+    red:     'text-red-600',
+    amber:   'text-amber-600',
+    sky:     'text-sky-600',
+    fuchsia: 'text-fuchsia-600',
   }
   const inner = (
-    <div className={`rounded-xl border p-3 min-w-0 ${tones[tone]} ${hint ? 'cursor-help' : ''}`}>
+    <div className={`rounded-xl border border-gray-200 bg-white p-3 min-w-0 ${hint ? 'cursor-help' : ''}`}>
       <div className="flex items-center justify-between mb-1">
-        <Icon size={14} />
-        {hint && <Info size={11} className="opacity-50" />}
+        <Icon size={14} className={tones[tone]} />
+        {hint && <Info size={11} className="text-gray-300" />}
       </div>
-      <div className="text-[11px] opacity-80 mb-0.5 truncate">{label}</div>
-      <div className="text-lg font-bold tabular-nums leading-tight truncate">{value}</div>
+      <div className="text-[11px] text-gray-500 mb-0.5 truncate">{label}</div>
+      <div className="text-lg font-bold tabular-nums leading-tight truncate text-gray-900">{value}</div>
     </div>
   )
   return hint ? <Tooltip text={hint} block>{inner}</Tooltip> : inner

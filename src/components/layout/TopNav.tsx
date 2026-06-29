@@ -9,13 +9,12 @@ import {
   Inbox, TrendingUp, AlertTriangle, Star,
   Plug, GitBranch, Upload, ListChecks, Bell,
   CheckCircle2, ShieldCheck, Store, Receipt, Clock,
-  Menu, X, FileText, RefreshCw, Layers, LineChart,
+  Menu, X, FileText, RefreshCw, Layers, LineChart, Globe,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProfileStore } from '../../store/auth.store';
 import { getRoleFromToken } from '../../auth/oidc';
 import { NotificationBell } from '../NotificationBell';
-import { LanguageSwitcher } from '../LanguageSwitcher';
 import { GlobalCartButton } from './GlobalCartButton';
 
 interface NavGroup {
@@ -702,7 +701,6 @@ export function TopNav() {
           <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-auto">
             {role === 'pharmacy_admin' && <GlobalCartButton />}
             <NotificationBell />
-            <LanguageSwitcher />
 
             {/* User menu */}
             <div ref={userMenuRef} className="relative">
@@ -726,6 +724,13 @@ export function TopNav() {
                     <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
                     <p className="text-xs text-gray-400 truncate">{profile?.email}</p>
                   </div>
+                  <button
+                    onClick={() => i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Globe size={14} className="text-gray-400" />
+                    {i18n.language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"

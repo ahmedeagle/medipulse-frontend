@@ -259,6 +259,14 @@ export interface MarketIntelligence {
     totalVolume: number
   }>
   cityDensity: Array<{ city: string; sellerCount: number }>
+  resolvedCity: string | null
+  topProductsInCity: Array<{
+    productId: string
+    productName: string | null
+    productNameAr: string | null
+    unitsSold: number
+    pharmacyCount: number
+  }>
   generatedAt: string
 }
 

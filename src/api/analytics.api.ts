@@ -135,9 +135,54 @@ export interface PaginatedWithTotals<T> extends Paginated<T> {
   totals: SalesReportTotals
 }
 
+export interface DashboardOverview {
+  period: 'month' | 'week' | 'year'
+  aiImpact: {
+    savingsThisPeriodEgp:      number
+    actionsExecutedThisPeriod: number
+    pendingApprovals:          number
+  }
+  aiDrafts: {
+    count:               number
+    totalValueEgp:       number
+    potentialSavingsEgp: number
+    soonestExpiresAt:    string | null
+  }
+  sales: {
+    totalSales:    number
+    netProfit:     number
+    invoiceCount:  number
+    customerCount: number
+    deltaPct:      number | null
+  }
+  counts: {
+    products:      number
+    lowStock:      number
+    pendingOrders: number
+  }
+  forecastRisk: {
+    atRiskCount: number
+    items: Array<{
+      productId:              string
+      productName:            string | null
+      daysUntilReorderNeeded: number | null
+      predictedStockoutDate:  string | null
+    }>
+  }
+  topProducts: Array<{
+    productId:   string
+    productName: string | null
+    qtySold:     number
+    revenue:     number
+  }>
+}
+
 export const analyticsApi = {
   getDashboard: (weeks = 12) =>
     client.get(`/analytics/dashboard?weeks=${weeks}`),
+
+  getDashboardOverview: (period: 'month' | 'week' | 'year' = 'month'): Promise<DashboardOverview> =>
+    client.get('/analytics/dashboard-overview', { params: { period } }).then(r => r.data),
 
   getRegionalPricing: (productId: string) =>
     client.get(`/analytics/pricing/regional?productId=${productId}`),

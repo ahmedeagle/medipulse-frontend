@@ -1951,6 +1951,9 @@ export default function InventoryPage() {
     const linkStatus = searchParams.get('linkStatus')
     const batchId    = searchParams.get('batchId')
     const filter     = searchParams.get('filter')
+    const q          = searchParams.get('q')
+
+    if (q) setSearch(q)
 
     if (linkStatus === 'suggested') {
       setStatFilter('suggested')
@@ -1966,6 +1969,10 @@ export default function InventoryPage() {
     } else if (filter === 'low_stock') {
       setFilters(p => ({ ...p, status: 'low_stock' }))
       setShowFilters(true)
+    } else if (filter === 'expired') {
+      setStatFilter('expired')
+    } else if (filter === 'dead') {
+      setStatFilter('dead')
     }
 
     if (batchId) {

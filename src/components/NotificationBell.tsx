@@ -58,6 +58,75 @@ const CRITICAL_TYPES = new Set([
   'high_risk_stockout', 'near_expiry', 'expired_stock', 'low_stock',
 ]);
 
+// Resolve the in-app destination for a notification. Returns a router path, or
+// null when there is nothing meaningful to open. The backend stamps either a
+// path-style `resourceRef` (e.g. "/pharmacy/inventory?filter=expired"), a
+// prefixed ref ("order:<id>", "p2p_order:<id>", "approval:<id>", …), or nothing
+// at all — in which case we fall back to a sensible page based on `type`.
+function resolveNotificationTarget(n: any): string | null {
+  const type = (n?.type ?? '') as string;
+  const ref  = typeof n?.resourceRef === 'string' ? n.resourceRef.trim() : '';
+
+  const p2pRole = () => {
+    const buyerTypes  = new Set(['p2p_order_accepted', 'p2p_order_rejected', 'p2p_order_shipped', 'p2p_invoice_ready', 'p2p_order_reminder']);
+    const sellerTypes = new Set(['p2p_order_received', 'p2p_order_completed']);
+    return buyerTypes.has(type) ? 'buyer' : sellerTypes.has(type) ? 'seller' : 'both';
+  };
+
+  // AI-monitor task: always send the user to the agent's task queue, even though
+  // it also carries a p2p_order ref — the action lives in the AI Center.
+  if (type === 'p2p_order_action_required') return '/pharmacy/ai-center?tab=tasks';
+
+  // 1) Path-style ref → use directly, repairing known legacy routes.
+  if (ref.startsWith('/')) {
+    const imp = ref.match(/^\/pharmacy\/inventory\/imports\/([^/?]+)/);
+    if (imp) return `/pharmacy/inventory?linkStatus=suggested&batchId=${imp[1]}`;
+    return ref;
+  }
+
+  // 2) Prefixed ref "<kind>:<id>".
+  if (ref.includes(':')) {
+    const idx  = ref.indexOf(':');
+    const kind = ref.slice(0, idx);
+    const id   = ref.slice(idx + 1);
+    switch (kind) {
+      case 'order':                  return `/pharmacy/orders/${id}`;
+      case 'p2p_order':
+      case 'p2p_invoice':            return `/pharmacy/p2p?tab=orders&orderRole=${p2pRole()}&highlight=${id}`;
+      case 'approval':               return `/pharmacy/ai-center?tab=approvals&id=${id}`;
+      case 'recommendation':         return '/pharmacy/ai-center?tab=tasks';
+      case 'pos_shift':              return '/pharmacy/pos/shifts';
+      case 'p2p':                    return '/pharmacy/p2p?tab=insights';
+      case 'financial-health-daily': return '/pharmacy/reports/profit-loss';
+      case 'recall':                 return '/pharmacy/inventory';
+      case 'batch':                  return '/pharmacy/inventory';
+      case 'feature-request':        return '/pharmacy/settings';
+      default:                       break; // fall through to type mapping
+    }
+  }
+
+  // 3) No usable ref → map by notification type to a valid page.
+  switch (type) {
+    case 'high_risk_stockout':
+    case 'low_stock':
+    case 'reorder_deadline':         return '/pharmacy/inventory?filter=low_stock';
+    case 'near_expiry':
+    case 'expiry_digest':            return '/pharmacy/inventory?filter=expiry';
+    case 'expired_stock':            return '/pharmacy/inventory?filter=expired';
+    case 'dead_stock_warning':       return '/pharmacy/inventory?filter=dead';
+    case 'forecast_spike':           return '/pharmacy/ai-center';
+    case 'order_status_changed':
+    case 'delivery_confirmed':
+    case 'supplier_overdue':         return '/pharmacy/orders';
+    case 'draft_created':            return '/pharmacy/ai-center?tab=approvals';
+    case 'inventory_batch_complete': return '/pharmacy/inventory?linkStatus=suggested';
+    case 'inventory_batch_failed':   return '/pharmacy/inventory';
+    case 'morning_briefing':         return '/pharmacy/ai-center';
+    case 'p2p_pool_opportunity':     return '/pharmacy/p2p?tab=marketplace';
+    default:                         return null;
+  }
+}
+
 export function NotificationBell() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -192,29 +261,9 @@ export function NotificationBell() {
                     key={n.id}
                     onClick={() => {
                       if (!n.isRead) markRead.mutate(n.id);
-                      if (!n.resourceRef || typeof n.resourceRef !== 'string') { setOpen(false); return; }
                       setOpen(false);
-                      if (n.resourceRef.startsWith('/')) {
-                        navigate(n.resourceRef);
-                      } else if (n.type === 'p2p_order_action_required') {
-                        // AI monitor task → go directly to AI Center tasks tab
-                        navigate('/pharmacy/ai-center?tab=tasks');
-                      } else if (n.type === 'near_expiry' || n.type === 'expiry_digest' || n.type === 'expired_stock') {
-                        navigate('/pharmacy/reports/expiry?days=30&from=alert');
-                      } else if (n.type === 'dead_stock_warning') {
-                        navigate('/pharmacy/reports/operational?from=alert');
-                      } else if (n.type === 'low_stock' || n.type === 'high_risk_stockout' || n.type === 'reorder_deadline') {
-                        navigate('/pharmacy/reports/inventory?statFilter=lowStock&from=alert');
-                      } else if (n.type === 'morning_briefing') {
-                        navigate('/pharmacy/reports?from=alert');
-                      } else if (n.resourceRef.startsWith('p2p_order:') || n.resourceRef.startsWith('p2p_invoice:')) {
-                        const orderId = n.resourceRef.split(':')[1];
-                        // Map notification type to the role the recipient plays in that order
-                        const buyerTypes = new Set(['p2p_order_accepted','p2p_order_rejected','p2p_order_shipped','p2p_invoice_ready','p2p_order_reminder']);
-                        const sellerTypes = new Set(['p2p_order_received','p2p_order_completed']);
-                        const role = buyerTypes.has(n.type) ? 'buyer' : sellerTypes.has(n.type) ? 'seller' : 'both';
-                        navigate(`/pharmacy/p2p?tab=orders&orderRole=${role}&highlight=${orderId}`);
-                      }
+                      const target = resolveNotificationTarget(n);
+                      if (target) navigate(target);
                     }}
                     className={clsx(
                       'w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0',

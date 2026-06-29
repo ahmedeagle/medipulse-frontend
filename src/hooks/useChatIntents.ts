@@ -25,6 +25,8 @@ export const QUICK_CHIPS = [
   { emoji: '🔄', label: 'طلبات P2P عالقة', accent: 'border-l-orange-400',  trigger: 'في طلبات P2P متأخرة أو عالقة تحتاج متابعة؟' },
   { emoji: '💰', label: 'فروق الكاشير',    accent: 'border-l-rose-500',    trigger: 'في فروق نقدية أو مشكلات في شفتات الكاشير الأخيرة؟' },
   { emoji: '📋', label: 'طلبات الشراء',    accent: 'border-l-emerald-500', trigger: 'ما حالة طلبات الشراء المعلّقة أو المتأخرة؟' },
+  { emoji: '🧭', label: 'أين أجد...؟',     accent: 'border-l-indigo-400',  trigger: 'أين أجد نقطة البيع وكيف أبدأ وردية جديدة؟' },
+  { emoji: '📈', label: 'تقرير المبيعات',  accent: 'border-l-cyan-400',    trigger: 'أريد أن أرى تقرير المبيعات والأرباح' },
 ]
 
 export function useChatIntents() {

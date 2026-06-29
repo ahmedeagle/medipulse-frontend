@@ -306,3 +306,33 @@ BNPL ⭐
 Escrow ⭐
 
 The reason is simple: if a pharmacy can save 5–10% on procurement and 30 minutes per day, they'll use GX1. They don't need a wallet to start placing orders. They need access to suppliers, pricing, and inventory. That's where I'd focus first.
+
+
+no need  so far 
+
+A) build the EDA/price-list importer + publicPrice migration now (so it's ready the moment you drop the file), and
+(B) wire a supplier "upload your catalog" flow (PDF/Excel/image → parsed → mapped to master + images) since that's how the catalog and images actually scale?
+
+1️⃣ Chatbot first (start now — cheapest, fastest, zero external dependency)
+
+Pure software. No vendor, no paperwork, no recurring cost beyond AI tokens — which you already cap via the budget system.
+It's visible today and directly answers "make it smart, not basic."
+~1–2 days. This is the obvious first move.
+2️⃣ The catalog/supplier import engine next (it's the hidden prerequisite)
+
+The WhatsApp "supplier uploads price list → catalog updates" flow (Workflow 2) is literally an OCR/Excel parser + catalog matcher. That engine doesn't exist yet.
+Build it once as a normal web upload first — cheaper to test (no per-message charges), and the WhatsApp version just reuses it later.
+This also unblocks your actual go-live blocker (the catalog).
+3️⃣ Website (can run in parallel — different work)
+
+Self-contained, no external dependency, no recurring cost. Needed for GTM/credibility.
+Overlaps with #1/#2 since it's a different kind of work.
+4️⃣ WhatsApp supplier workflow LAST (most expensive + slowest + depends on #2)
+
+⏳ Lead time: needs a WhatsApp Business API provider + Meta business verification (days–weeks). Start this paperwork now in parallel, but engineering can't finish without it.
+💸 This is where your "cost is critical" lives: WhatsApp charges per 24h conversation. A chatty supplier workflow = real recurring cost.
+🔗 It can't be built before #2 — it's the same parse-and-match engine with WhatsApp as the pipe.
+On cost (since you flagged it)
+Use 360dialog or Meta Cloud API directly — not Twilio (Twilio adds per-message markup). 360dialog = flat fee, you pay Meta's raw rates.
+Validate every workflow on web first, then bolt WhatsApp on top — so you don't pay per-message to discover bugs.
+AI cost is already governed by the daily token cap we looked at earlier.
