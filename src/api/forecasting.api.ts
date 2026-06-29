@@ -13,6 +13,9 @@ export const forecastingApi = {
   getDeadStockSummary: () =>
     client.get('/forecasting/dead-stock/summary'),
 
+  getSeasonality: () =>
+    client.get('/forecasting/seasonality'),
+
   refreshForecasts: () =>
     client.post('/forecasting/refresh'),
 };

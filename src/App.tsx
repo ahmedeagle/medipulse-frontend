@@ -44,6 +44,8 @@ const ProcurementSpendPage             = lazy(() => import('./pages/pharmacy/rep
 const SupplierPerformancePage          = lazy(() => import('./pages/pharmacy/reports/domains/SupplierPerformancePage'));
 const P2pActivityPage                  = lazy(() => import('./pages/pharmacy/reports/domains/P2pActivityPage'));
 const SupplierMarketplacePage          = lazy(() => import('./pages/pharmacy/SupplierMarketplacePage'));
+const ForecastPage                     = lazy(() => import('./pages/pharmacy/ForecastPage'));
+const EoqPage                          = lazy(() => import('./pages/pharmacy/EoqPage'));
 const MigrationAssistantPage           = lazy(() => import('./pages/pharmacy/MigrationAssistantPage'));
 const OnboardingHubPage                = lazy(() => import('./pages/pharmacy/OnboardingHubPage'));
 
@@ -150,6 +152,8 @@ export default function App() {
             <Route path="reports/procurement-spend"            element={<ProcurementSpendPage />} />
             <Route path="reports/supplier-performance"         element={<SupplierPerformancePage />} />
             <Route path="reports/p2p-activity"                 element={<P2pActivityPage />} />
+            <Route path="forecast"         element={<ForecastPage />} />
+            <Route path="reorder"          element={<EoqPage />} />
             <Route path="marketplace"      element={<SupplierMarketplacePage />} />
             <Route path="migration"        element={<MigrationAssistantPage />} />
             <Route path="onboarding"       element={<OnboardingHubPage />} />

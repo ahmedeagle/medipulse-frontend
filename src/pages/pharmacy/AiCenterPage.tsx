@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, Inbox, Users, ShieldCheck,
-  Sparkles, TrendingDown, XCircle, AlertOctagon, Clock,
+  Sparkles, TrendingDown, TrendingUp, XCircle, AlertOctagon, Clock,
   Archive, Link as LinkIcon, ShoppingCart, Package,
   AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft,
   AlertCircle, Info, Loader2, X, Edit3,
   Store, Eye, RefreshCw, Activity, Ban, Zap, Settings,
   ShieldAlert, Banknote, PartyPopper, ExternalLink, Wallet,
+  CalendarClock,
 } from 'lucide-react'
 import {
   aiCenterApi,
@@ -22,6 +23,7 @@ import { inventoryApi } from '../../api/inventory.api'
 import { posApi } from '../../api/pos.api'
 import { supplierApi } from '../../api/supplier.api'
 import { procurementApi } from '../../api/procurement.api'
+import { forecastingApi } from '../../api/forecasting.api'
 import { useInfiniteList, InfiniteScrollSentinel } from '../../hooks/useInfiniteList'
 import { TabBar } from '../../components/ui/TabBar'
 
@@ -588,6 +590,104 @@ export default function AiCenterPage() {
 // DASHBOARD TAB
 // ═════════════════════════════════════════════════════════════════════════════
 
+// ─── Seasonal demand banner (Hijri calendar — works with zero sales history) ──
+
+const SEASON_CATEGORY_AR: Record<string, string> = {
+  antibiotic: 'مضادات حيوية',
+  antibiotics: 'مضادات حيوية',
+  antidiarrheal: 'مضادات الإسهال',
+  diarrhea: 'مضادات الإسهال',
+  analgesic: 'مسكّنات',
+  pain: 'مسكّنات',
+  antimalarial: 'مضادات الملاريا',
+  electrolyte: 'محاليل ومعالجة الجفاف',
+  hydration: 'محاليل ومعالجة الجفاف',
+  ors: 'محاليل الجفاف الفموية',
+  iv: 'محاليل وريدية',
+  wound: 'عناية بالجروح',
+  antifungal: 'مضادات الفطريات',
+  respiratory: 'أدوية الجهاز التنفسي',
+  gi: 'أدوية الجهاز الهضمي',
+  gastrointestinal: 'أدوية الجهاز الهضمي',
+  antacid: 'مضادات الحموضة',
+  digestive: 'أدوية الهضم',
+  headache: 'أدوية الصداع',
+  migraine: 'أدوية الشقيقة',
+  vitamin: 'فيتامينات',
+  supplement: 'مكمّلات غذائية',
+  pediatric: 'أدوية الأطفال',
+  antipyretic: 'خافضات الحرارة',
+  antihistamine: 'مضادات الهيستامين',
+  cough: 'أدوية السعال',
+  cold: 'أدوية البرد',
+  flu: 'أدوية الإنفلونزا',
+}
+
+interface SeasonCategory { category: string; multiplier: number; upliftPct: number }
+interface SeasonInfo { event: string; arabicName: string; daysUntil?: number; categories: SeasonCategory[] }
+
+function categoryLabelAr(key: string): string {
+  return SEASON_CATEGORY_AR[key.toLowerCase()] ?? key
+}
+
+function SeasonalDemandBanner() {
+  const { data } = useQuery({
+    queryKey: ['seasonality-active'],
+    queryFn: () => forecastingApi.getSeasonality().then((r) => r.data as { active: SeasonInfo | null; upcoming: SeasonInfo | null }),
+    staleTime: 6 * 60 * 60_000, // 6h — seasons change slowly
+    retry: false,
+  })
+
+  if (!data) return null
+
+  // Prefer an active season; otherwise show an upcoming one so the pharmacy can prepare.
+  const active = data.active && data.active.categories.length > 0 ? data.active : null
+  const upcoming = !active && data.upcoming && data.upcoming.categories.length > 0 ? data.upcoming : null
+  const season = active ?? upcoming
+  if (!season) return null
+
+  const isUpcoming = !active
+  const topCats = season.categories.slice(0, 4)
+
+  return (
+    <div className={`p-4 rounded-2xl border flex items-start gap-4 ${
+      isUpcoming
+        ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-white'
+        : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white'
+    }`}>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+        isUpcoming ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+      }`}>
+        <CalendarClock size={20} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold ${isUpcoming ? 'text-amber-900' : 'text-emerald-900'}`}>
+          {isUpcoming
+            ? `موسم ${season.arabicName} يبدأ خلال ${season.daysUntil} يوم — استعد الآن`
+            : `موسم ${season.arabicName} نشط الآن — ارتفاع متوقع في الطلب`}
+        </p>
+        <p className={`text-[11px] mt-0.5 leading-relaxed ${isUpcoming ? 'text-amber-700/80' : 'text-emerald-700/80'}`}>
+          {isUpcoming
+            ? 'يُنصح برفع مخزون الفئات التالية مبكراً لتفادي النقص وارتفاع الأسعار:'
+            : 'تأكد من توفّر مخزون كافٍ من الفئات التالية الأكثر طلباً خلال هذا الموسم:'}
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {topCats.map((c) => (
+            <span
+              key={c.category}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                isUpcoming ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+              }`}
+            >
+              {categoryLabelAr(c.category)} +{c.upliftPct}%
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MissedRevenueWidget() {
   const navigate = useNavigate()
   const { data } = useQuery({
@@ -797,6 +897,9 @@ function DashboardTab() {
 
   return (
     <div className="space-y-5">
+      {/* Seasonal demand radar (Hijri calendar — works from day one, no sales history needed) */}
+      <SeasonalDemandBanner />
+
       {totalSignals === 0 && (
         <div className="p-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -870,6 +973,36 @@ function DashboardTab() {
 
       {/* Financial health + market availability snapshot */}
       <FinancialHealthCards />
+
+      {/* Forecasting quick links — predictive planning tools */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button
+          onClick={() => navigate('/pharmacy/forecast')}
+          className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
+        >
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+            <TrendingUp size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">توقّع الطلب</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">تنبؤ ٧ و١٤ و٣٠ يوم لكل صنف مع نطاق الثقة</p>
+          </div>
+          <ChevronLeft size={14} className="text-gray-300 group-hover:text-emerald-500 rtl:rotate-180 shrink-0" />
+        </button>
+        <button
+          onClick={() => navigate('/pharmacy/reorder')}
+          className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
+        >
+          <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
+            <CalendarClock size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">جدول إعادة الطلب</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">نقطة إعادة الطلب وتاريخ النفاد المتوقّع لكل صنف</p>
+          </div>
+          <ChevronLeft size={14} className="text-gray-300 group-hover:text-sky-500 rtl:rotate-180 shrink-0" />
+        </button>
+      </div>
 
       {/* Top pending approvals preview */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
