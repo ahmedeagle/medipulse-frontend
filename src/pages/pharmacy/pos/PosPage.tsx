@@ -1156,10 +1156,36 @@ export default function PosPage() {
                       <div className="w-5 h-5 rounded-full border-2 border-teal-400 border-t-transparent animate-spin" />
                     </div>
                   ) : products.length === 0 ? (
-                    <div className="py-10 text-center px-4">
+                    <div className="py-8 text-center px-4">
                       <Package size={28} className="text-gray-200 mx-auto mb-2" />
                       <p className="text-gray-500 text-sm font-medium">لا توجد نتائج في مخزونك</p>
-                      <p className="text-gray-400 text-xs mt-1">جرّب البحث في متجر أومت</p>
+                      <p className="text-gray-400 text-xs mt-1">جرّب البحث في السوق الإلكتروني، أو سجّل طلب العميل لمتابعة الطلب لاحقاً</p>
+
+                      {/* Log a customer request for a product you don't stock at all */}
+                      <div className="mt-4 mx-auto max-w-sm rounded-xl bg-rose-50 border border-rose-200 px-3 py-3 text-right">
+                        <div className="flex items-start gap-2 mb-2">
+                          <Info size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                          <p className="text-[11px] text-rose-800 leading-relaxed">
+                            <span className="font-semibold">عميلك طلب «{query}» وهو غير متوفر لديك؟</span>
+                            {' '}سجّل الطلب — يحتسبه النظام ضمن «الطلب الضائع» ويُحسّن توصيات الشراء.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => missedMut.mutate({ productName: query.trim(), quantity: 1 })}
+                          disabled={missedMut.isPending || !query.trim()}
+                          className={clsx(
+                            'w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all',
+                            missedLogged === query.trim()
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-rose-600 hover:bg-rose-700 text-white',
+                          )}
+                        >
+                          {missedLogged === query.trim()
+                            ? <><CheckCircle2 size={13} /> تم تسجيل الطلب ✓</>
+                            : <><TrendingDown size={13} /> سجّل طلب عميل غير متوفر</>
+                          }
+                        </button>
+                      </div>
                     </div>
                   ) : products.map((p, idx) => {
                     const warn    = expiryWarning(p.expiryDate)
