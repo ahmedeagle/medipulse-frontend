@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check } from 'lucide-react'
+import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check, Mic } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context'
@@ -461,6 +461,45 @@ function buildWelcomeMsg(tenantName?: string): Message {
   }
 }
 
+// ── Voice input (Web Speech API — Arabic) ─────────────────────────────────────
+// Fully optional: returns supported=false when the browser lacks the API, so the
+// mic button simply never renders. Never throws.
+function useVoiceInput(onTranscript: (text: string) => void) {
+  const recognitionRef = useRef<any>(null)
+  const [listening, setListening] = useState(false)
+  const SpeechRecognition =
+    typeof window !== 'undefined' ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : undefined
+  const supported = !!SpeechRecognition
+
+  const toggle = () => {
+    if (!supported) return
+    if (listening) {
+      try { recognitionRef.current?.stop() } catch { /* noop */ }
+      setListening(false)
+      return
+    }
+    try {
+      const rec = new SpeechRecognition()
+      rec.lang = 'ar-EG'
+      rec.interimResults = false
+      rec.maxAlternatives = 1
+      rec.onresult = (e: any) => {
+        const text = e.results?.[0]?.[0]?.transcript ?? ''
+        if (text) onTranscript(text)
+      }
+      rec.onend = () => setListening(false)
+      rec.onerror = () => setListening(false)
+      recognitionRef.current = rec
+      rec.start()
+      setListening(true)
+    } catch {
+      setListening(false)
+    }
+  }
+
+  return { supported, listening, toggle }
+}
+
 // ── Main ChatWidget ───────────────────────────────────────────────────────────
 
 export function ChatWidget() {
@@ -476,6 +515,7 @@ export function ChatWidget() {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const bottomRef                       = useRef<HTMLDivElement>(null)
   const inputRef                        = useRef<HTMLInputElement>(null)
+  const { supported: voiceSupported, listening, toggle: toggleVoice } = useVoiceInput(setInput)
 
   // ── Draggable position ─────────────────────────────────────────────────────
   const [pos, setPos] = useState<{ right: number; bottom: number }>(() => {
@@ -821,13 +861,26 @@ export function ChatWidget() {
 
           {/* Input */}
           <div className="px-3 py-2.5 border-t border-gray-100 bg-white shrink-0 flex items-center gap-2">
+            {voiceSupported && (
+              <button
+                onClick={toggleVoice}
+                disabled={busy}
+                title={listening ? 'إيقاف الإدخال الصوتي' : 'تحدّث بدل الكتابة'}
+                className={clsx(
+                  'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors disabled:opacity-40',
+                  listening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+                )}
+              >
+                <Mic size={14} />
+              </button>
+            )}
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && send(input)}
-              placeholder="اسأل عن مخزونك…"
+              placeholder={listening ? 'أستمع إليك…' : 'اسأل عن مخزونك…'}
               disabled={busy}
               className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 placeholder:text-gray-400 disabled:opacity-50"
             />
