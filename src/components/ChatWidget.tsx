@@ -383,11 +383,34 @@ function AIOnboardingModal({ onStart }: { onStart: () => void }) {
 
 // ── Welcome message ───────────────────────────────────────────────────────────
 
-const WELCOME_MSG: Message = {
-  id: -1,
-  role: 'bot',
-  text: 'مرحباً 👋 أنا «المساعد التشغيلي» لصيدليتك.\nاسألني بلغتك العادية عن المخزون، المبيعات والأرباح، توصيات الشراء، انتهاء الصلاحية، فرص P2P، الموسم القادم، أو اطلب «موجز اليوم».',
-  followUps: ['أعطني موجزاً سريعاً عن صيدليتي', 'ماذا يجب أن أطلب هذا الأسبوع؟', 'ما الموسم القادم وماذا أجهّز له؟'],
+// Time-aware proactive welcome — greeting + suggestions adapt to the time of day,
+// so the assistant feels alive without any backend call (fully fail-safe).
+function buildWelcomeMsg(tenantName?: string): Message {
+  const h = new Date().getHours()
+  const who = tenantName ? ` في ${tenantName}` : ''
+  let greeting: string
+  let followUps: string[]
+
+  if (h >= 5 && h < 12) {
+    greeting = `صباح الخير 🌅 جاهز ليومك${who}؟`
+    followUps = ['أعطني موجز اليوم', 'ماذا يجب أن أطلب هذا الأسبوع؟', 'ما الأصناف التي اقتربت من الحد الأدنى؟']
+  } else if (h >= 12 && h < 17) {
+    greeting = `مساء الخير ☀️ كيف تسير الأمور${who}؟`
+    followUps = ['كيف مبيعات اليوم حتى الآن؟', 'هل توجد فروق في شفتات الكاشير؟', 'ما المنتجات الأعلى ربحاً؟']
+  } else if (h >= 17 && h < 22) {
+    greeting = `مساء الخير 🌆 لنراجع أداء اليوم${who}.`
+    followUps = ['أعطني موجز اليوم', 'ما الأصناف قرب انتهاء الصلاحية؟', 'ما فرص الشراء عبر P2P؟']
+  } else {
+    greeting = `أهلاً 🌙 أنا «المساعد التشغيلي» — تحت أمرك في أي وقت.`
+    followUps = ['أعطني موجزاً سريعاً عن صيدليتي', 'ماذا يجب أن أطلب هذا الأسبوع؟', 'ما الموسم القادم وماذا أجهّز له؟']
+  }
+
+  return {
+    id: -1,
+    role: 'bot',
+    text: `${greeting}\nاسألني بلغتك العادية عن المخزون، المبيعات والأرباح، توصيات الشراء، انتهاء الصلاحية، فرص P2P، أو الموسم القادم.`,
+    followUps,
+  }
 }
 
 // ── Main ChatWidget ───────────────────────────────────────────────────────────
@@ -395,7 +418,7 @@ const WELCOME_MSG: Message = {
 export function ChatWidget() {
   const [open, setOpen]                 = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [messages, setMessages]         = useState<Message[]>([WELCOME_MSG])
+  const [messages, setMessages]         = useState<Message[]>(() => [buildWelcomeMsg()])
   const [input, setInput]               = useState('')
   const [busy, setBusy]                 = useState(false)
   const [executingMsgId, setExecutingMsgId] = useState<number | null>(null)
@@ -490,8 +513,12 @@ export function ChatWidget() {
   const role = profile?.role ?? (kcRoles.some(r => r.startsWith('pharmacy')) ? 'pharmacy_pending' : '')
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100)
-  }, [open])
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+      // Refresh the time-aware welcome (with tenant name) when opening a fresh chat
+      setMessages(prev => (prev.length === 1 && prev[0].id === -1 ? [buildWelcomeMsg(tenantName)] : prev))
+    }
+  }, [open, tenantName])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -531,7 +558,7 @@ export function ChatWidget() {
 
   const startNewConversation = () => {
     setConversationId(undefined)
-    setMessages([WELCOME_MSG])
+    setMessages([buildWelcomeMsg(tenantName)])
     setShowHistory(false)
     setTimeout(() => inputRef.current?.focus(), 100)
   }
@@ -560,7 +587,7 @@ export function ChatWidget() {
         cards: m.cards,
         actions: m.actions,
       }))
-      setMessages(loaded.length ? loaded : [WELCOME_MSG])
+      setMessages(loaded.length ? loaded : [buildWelcomeMsg(tenantName)])
       setConversationId(id)
     } catch {
       // keep current
