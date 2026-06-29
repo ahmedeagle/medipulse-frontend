@@ -3277,7 +3277,8 @@ const TASK_DEFS: Array<{
 function TasksTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const focusId   = searchParams.get('id')
-  const taskParam = (searchParams.get('task') as TaskKind | null) ?? 'purchase'
+  const explicitTask = searchParams.get('task') as TaskKind | null
+  const taskParam = explicitTask ?? 'purchase'
   const setTask = (k: TaskKind) => setSearchParams({ tab: 'tasks', task: k })
   const detailRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -3319,6 +3320,22 @@ function TasksTab() {
     c.catalog_link = catalogLinkCount.data ?? 0
     return c
   }, [allPending.data, catalogLinkCount.data])
+
+  // When the user arrives without choosing a sub-tab (e.g. from a notification
+  // or the generic ?tab=tasks link) and the default "purchase" queue is empty,
+  // jump to the first sub-tab that actually has pending tasks so they never see
+  // an empty page while real tasks wait under another sub-tab.
+  const autoJumped = useRef(false)
+  useEffect(() => {
+    if (explicitTask || autoJumped.current) return
+    if (!allPending.data) return
+    if ((counts.purchase ?? 0) > 0) return
+    const firstWithTasks = TASK_DEFS.find(d => (counts[d.key] ?? 0) > 0)
+    if (firstWithTasks) {
+      autoJumped.current = true
+      setSearchParams({ tab: 'tasks', task: firstWithTasks.key }, { replace: true })
+    }
+  }, [explicitTask, allPending.data, counts, setSearchParams])
 
   const isCatalogLink = def.key === 'catalog_link'
 

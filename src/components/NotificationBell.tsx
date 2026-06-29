@@ -75,7 +75,7 @@ function resolveNotificationTarget(n: any): string | null {
 
   // AI-monitor task: always send the user to the agent's task queue, even though
   // it also carries a p2p_order ref — the action lives in the AI Center.
-  if (type === 'p2p_order_action_required') return '/pharmacy/ai-center?tab=tasks';
+  if (type === 'p2p_order_action_required') return '/pharmacy/ai-center?tab=tasks&task=p2p_monitor';
 
   // 1) Path-style ref → use directly, repairing known legacy routes.
   if (ref.startsWith('/')) {
@@ -94,7 +94,7 @@ function resolveNotificationTarget(n: any): string | null {
       case 'p2p_order':
       case 'p2p_invoice':            return `/pharmacy/p2p?tab=orders&orderRole=${p2pRole()}&highlight=${id}`;
       case 'approval':               return `/pharmacy/ai-center?tab=approvals&id=${id}`;
-      case 'recommendation':         return '/pharmacy/ai-center?tab=tasks';
+      case 'recommendation':         return '/pharmacy/ai-center?tab=tasks&task=risk';
       case 'pos_shift':              return '/pharmacy/pos/shifts';
       case 'p2p':                    return '/pharmacy/p2p?tab=insights';
       case 'financial-health-daily': return '/pharmacy/reports/profit-loss';
