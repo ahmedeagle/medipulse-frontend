@@ -4064,12 +4064,12 @@ function QuickStartGuide({
   const isVerified    = sellerProfile?.verificationStatus === 'verified'
 
   const steps = [
-    { done: true,                      icon: User,         labelAr: 'تسجيل الحساب',                          time: '',             ctaAr: '',               tab: '',        legal: false, accent: 'from-emerald-500 to-violet-500' },
-    { done: hasLegal,                  icon: Shield,       labelAr: 'السجلات القانونية (آخر 90 يوم)',           time: '~ دقيقة',      ctaAr: 'ارفع المستندات',   tab: 'sell',   legal: true,  accent: 'from-blue-500 to-indigo-500'  },
-    { done: hasProfile && hasLocation, icon: MapPin,       labelAr: 'اسم الصيدلية · ساعات العمل',             time: '~ دقيقة',      ctaAr: 'أكمل البيانات',      tab: 'profile',legal: false, accent: 'from-violet-500 to-purple-500' },
-    { done: hasRequiredDocs,           icon: FileText,     labelAr: 'المستندات المطلوبة',                      time: '~ دقيقة',      ctaAr: 'ارفع المستندات', tab: 'profile',legal: false, accent: 'from-amber-500 to-orange-500'  },
-    { done: hasZones,                  icon: Truck,        labelAr: 'مناطق التوصيل',                          time: '~ دقيقة',      ctaAr: 'حدد المناطق',    tab: 'profile',legal: false, accent: 'from-sky-500 to-cyan-500'      },
-    { done: isVerified,                icon: Award,        labelAr: 'تاجر موثق ✓',                            time: 'بعد التحقيق', ctaAr: '',               tab: '',        legal: false, accent: 'from-yellow-400 to-amber-500'  },
+    { done: true,                      icon: User,         labelAr: 'تسجيل الحساب',                          time: '',             ctaAr: '',               tab: '',        legal: false, accent: 'from-emerald-500 to-emerald-700' },
+    { done: hasLegal,                  icon: Shield,       labelAr: 'السجلات القانونية (آخر 90 يوم)',           time: '~ دقيقة',      ctaAr: 'ارفع المستندات',   tab: 'sell',   legal: true,  accent: 'from-emerald-500 to-emerald-700'  },
+    { done: hasProfile && hasLocation, icon: MapPin,       labelAr: 'اسم الصيدلية · ساعات العمل',             time: '~ دقيقة',      ctaAr: 'أكمل البيانات',      tab: 'profile',legal: false, accent: 'from-emerald-500 to-emerald-700' },
+    { done: hasRequiredDocs,           icon: FileText,     labelAr: 'المستندات المطلوبة',                      time: '~ دقيقة',      ctaAr: 'ارفع المستندات', tab: 'profile',legal: false, accent: 'from-emerald-500 to-emerald-700'  },
+    { done: hasZones,                  icon: Truck,        labelAr: 'مناطق التوصيل',                          time: '~ دقيقة',      ctaAr: 'حدد المناطق',    tab: 'profile',legal: false, accent: 'from-emerald-500 to-emerald-700'      },
+    { done: isVerified,                icon: Award,        labelAr: 'تاجر موثق ✓',                            time: 'بعد التحقيق', ctaAr: '',               tab: '',        legal: false, accent: 'from-emerald-500 to-emerald-700'  },
   ]
 
   const completedCount = steps.filter(s => s.done).length
@@ -4098,10 +4098,10 @@ function QuickStartGuide({
         {view === 'welcome' && (
           <>
             {/* Hero gradient */}
-            <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-violet-800 px-6 pt-6 pb-8 shrink-0 overflow-hidden">
+            <div className="relative bg-gradient-to-br from-emerald-700 via-emerald-800 to-slate-900 px-6 pt-6 pb-8 shrink-0 overflow-hidden">
               {/* Decorative blobs */}
               <div className="absolute -top-8 -end-8 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
-              <div className="absolute -bottom-12 -start-12 w-48 h-48 rounded-full bg-violet-900/30 pointer-events-none" />
+              <div className="absolute -bottom-12 -start-12 w-48 h-48 rounded-full bg-emerald-900/40 pointer-events-none" />
 
               <div className="relative flex items-start justify-between mb-5">
                 <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors shrink-0">
@@ -4113,7 +4113,7 @@ function QuickStartGuide({
                   <div className="flex items-center gap-0.5 mt-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
                     <ArrowRight size={8} className="text-white/60" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-violet-300" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
                   </div>
                 </div>
               </div>
@@ -4162,7 +4162,7 @@ function QuickStartGuide({
                     const Icon = b.icon
                     return (
                       <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/40 transition-all">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-violet-600 flex items-center justify-center mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center mb-2">
                           <Icon size={14} className="text-white" />
                         </div>
                         <p className="text-[12px] font-bold text-gray-800 leading-snug">{b.titleAr}</p>
@@ -4175,16 +4175,16 @@ function QuickStartGuide({
                 {/* Buyer column */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-                      <TrendingDown size={11} className="text-blue-600" />
+                    <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
+                      <TrendingDown size={11} className="text-slate-600" />
                     </div>
-                    <span className="text-xs font-bold text-blue-700">مشتري</span>
+                    <span className="text-xs font-bold text-slate-700">مشتري</span>
                   </div>
                   {buyerBenefits.map((b, i) => {
                     const Icon = b.icon
                     return (
-                      <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/40 transition-all">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-2">
+                      <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100 hover:border-slate-300 hover:bg-slate-50 transition-all">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center mb-2">
                           <Icon size={14} className="text-white" />
                         </div>
                         <p className="text-[12px] font-bold text-gray-800 leading-snug">{b.titleAr}</p>
@@ -4200,7 +4200,7 @@ function QuickStartGuide({
             <div className="px-4 pb-4 pt-3 shrink-0 space-y-2 border-t border-gray-100">
               <button
                 onClick={() => setView('setup')}
-                className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-600 to-violet-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:from-emerald-700 hover:to-violet-700 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:bg-emerald-700 transition-all"
               >
                 <Plus size={16} />
                 ابدأ البيع الآن — نزّل منتجاتك
@@ -4220,7 +4220,7 @@ function QuickStartGuide({
         {view === 'setup' && (
           <>
             {/* Header */}
-            <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-violet-800 px-5 pt-5 pb-6 shrink-0 overflow-hidden">
+            <div className="relative bg-gradient-to-br from-emerald-700 via-emerald-800 to-slate-900 px-5 pt-5 pb-6 shrink-0 overflow-hidden">
               <div className="absolute -top-6 -end-6 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
 
               <div className="relative flex items-center gap-3 mb-4">
@@ -4267,7 +4267,7 @@ function QuickStartGuide({
                         <div className={clsx(
                           'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all',
                           step.done
-                            ? 'bg-gradient-to-br from-emerald-500 to-violet-600 shadow-sm shadow-emerald-200'
+                            ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-sm shadow-emerald-200'
                             : isNext
                             ? `bg-gradient-to-br ${step.accent} shadow-md animate-pulse`
                             : 'bg-gray-100',
@@ -4308,7 +4308,7 @@ function QuickStartGuide({
                             className={clsx(
                               'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors',
                               isNext
-                                ? 'bg-violet-700 text-white hover:bg-violet-800 shadow-sm'
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
                                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
                             )}
                           >
@@ -4325,16 +4325,16 @@ function QuickStartGuide({
 
             {/* Footer */}
             <div className="px-4 pb-4 pt-2 shrink-0 space-y-2 border-t border-gray-100">
-              <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <Award size={14} className="shrink-0 mt-0.5 text-amber-500" />
-                <p className="text-[11px] text-amber-700 leading-snug">
+              <div className="flex items-start gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                <Award size={14} className="shrink-0 mt-0.5 text-emerald-600" />
+                <p className="text-[11px] text-emerald-700 leading-snug">
                   الصيدليات الموثقة تحصل على <span className="font-bold">3× مشاهدات أكثر</span> وأولوية في نتائج البحث
                 </p>
               </div>
               {pct === 100 && (
                 <button
                   onClick={() => { onClose(); onNavigate('sell') }}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-600 to-violet-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:bg-emerald-700 transition-all"
                 >
                   <Rocket size={15} />
                   ابدأ نزيل منتجاتك الآن
