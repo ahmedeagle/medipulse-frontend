@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight } from 'lucide-react'
+import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context'
 import { useChatIntents, QUICK_CHIPS, ChatResult, ActionButton, ResponseCard } from '../hooks/useChatIntents'
 import { useProfileStore } from '../store/auth.store'
 import { featureRequestsApi } from '../api/feature-requests.api'
-import { chatApi } from '../api/chat.api'
+import { chatApi, ChatConversationSummary } from '../api/chat.api'
 
 // ── Message type ──────────────────────────────────────────────────────────────
 
@@ -16,6 +16,7 @@ interface Message {
   text: string
   cards?: ResponseCard[]
   actions?: ActionButton[]
+  followUps?: string[]
   notConfigured?: boolean
   question?: string
   loading?: boolean
@@ -110,10 +111,10 @@ function NotConfiguredMessage({ msg }: { msg: Message }) {
 // ── Response cards ─────────────────────────────────────────────────────────────
 
 const COLOR_MAP = {
-  emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', value: 'text-emerald-700', label: 'text-emerald-600' },
-  amber:   { bg: 'bg-amber-50',   border: 'border-amber-200',   value: 'text-amber-700',   label: 'text-amber-600' },
-  red:     { bg: 'bg-red-50',     border: 'border-red-200',     value: 'text-red-700',     label: 'text-red-600' },
-  blue:    { bg: 'bg-blue-50',    border: 'border-blue-200',    value: 'text-blue-700',    label: 'text-blue-600' },
+  emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', value: 'text-emerald-700', label: 'text-emerald-600', bar: 'bg-emerald-400' },
+  amber:   { bg: 'bg-amber-50',   border: 'border-amber-200',   value: 'text-amber-700',   label: 'text-amber-600', bar: 'bg-amber-400' },
+  red:     { bg: 'bg-red-50',     border: 'border-red-200',     value: 'text-red-700',     label: 'text-red-600', bar: 'bg-red-400' },
+  blue:    { bg: 'bg-blue-50',    border: 'border-blue-200',    value: 'text-blue-700',    label: 'text-blue-600', bar: 'bg-blue-400' },
 }
 
 function KpiRowCard({ card }: { card: Extract<ResponseCard, { type: 'kpi_row' }> }) {
@@ -171,6 +172,30 @@ function TableCard({ card }: { card: Extract<ResponseCard, { type: 'table' }> })
   )
 }
 
+function BarsCard({ card }: { card: Extract<ResponseCard, { type: 'bars' }> }) {
+  if (!card.items?.length) return null
+  return (
+    <div className="mt-2.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+      {card.title && <p className="text-[10px] font-semibold text-gray-500 mb-2">{card.title}</p>}
+      <div className="flex flex-col gap-2">
+        {card.items.map((it, i) => {
+          const c = COLOR_MAP[it.color ?? 'emerald'] ?? COLOR_MAP.emerald
+          const w = Math.max(4, Math.min(100, Math.round(it.pct || 0)))
+          return (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-600 w-20 shrink-0 truncate text-start">{it.label}</span>
+              <div className="flex-1 h-2.5 rounded-full bg-gray-100 overflow-hidden">
+                <div className={`h-full rounded-full ${c.bar ?? 'bg-emerald-400'}`} style={{ width: `${w}%` }} />
+              </div>
+              <span className={`text-[10px] font-bold ${c.value} w-12 text-end tabular-nums`}>{it.value}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function ActionConfirmedCard({ card, onNavigate }: {
   card: Extract<ResponseCard, { type: 'action_confirmed' }>
   onNavigate: (r: string) => void
@@ -195,6 +220,7 @@ function ResponseCards({ cards, onNavigate }: { cards: ResponseCard[]; onNavigat
       {cards.map((card, i) => {
         if (card.type === 'kpi_row')        return <KpiRowCard       key={i} card={card} />
         if (card.type === 'table')          return <TableCard         key={i} card={card} />
+        if (card.type === 'bars')           return <BarsCard          key={i} card={card} />
         if (card.type === 'action_confirmed') return <ActionConfirmedCard key={i} card={card} onNavigate={onNavigate} />
         return null
       })}
@@ -360,7 +386,8 @@ function AIOnboardingModal({ onStart }: { onStart: () => void }) {
 const WELCOME_MSG: Message = {
   id: -1,
   role: 'bot',
-  text: 'مرحباً! أنا مساعد ميدي بولس 🤖\nاسألني عن مخزونك، توصيات الشراء، انتهاء الصلاحية، فرص P2P، أو ملخص يومك.',
+  text: 'مرحباً 👋 أنا «المساعد التشغيلي» لصيدليتك.\nاسألني بلغتك العادية عن المخزون، المبيعات والأرباح، توصيات الشراء، انتهاء الصلاحية، فرص P2P، الموسم القادم، أو اطلب «موجز اليوم».',
+  followUps: ['أعطني موجزاً سريعاً عن صيدليتي', 'ماذا يجب أن أطلب هذا الأسبوع؟', 'ما الموسم القادم وماذا أجهّز له؟'],
 }
 
 // ── Main ChatWidget ───────────────────────────────────────────────────────────
@@ -372,6 +399,10 @@ export function ChatWidget() {
   const [input, setInput]               = useState('')
   const [busy, setBusy]                 = useState(false)
   const [executingMsgId, setExecutingMsgId] = useState<number | null>(null)
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined)
+  const [showHistory, setShowHistory]   = useState(false)
+  const [conversations, setConversations] = useState<ChatConversationSummary[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const bottomRef                       = useRef<HTMLDivElement>(null)
   const inputRef                        = useRef<HTMLInputElement>(null)
 
@@ -477,14 +508,17 @@ export function ChatWidget() {
     const loadingMsg: Message = { id: ++msgId, role: 'bot', loading: true, text: '' }
     setMessages(prev => [...prev, userMsg, loadingMsg])
 
-    const result: ChatResult = await resolveIntent(text.trim())
+    const result: ChatResult = await resolveIntent(text.trim(), conversationId)
+
+    if (result.type === 'answer' && result.conversationId) setConversationId(result.conversationId)
+    else if (result.type === 'not_configured' && result.conversationId) setConversationId(result.conversationId)
 
     setMessages(prev => {
       const without = prev.filter(m => !m.loading)
       let botMsg: Message
 
       if (result.type === 'answer') {
-        botMsg = { id: ++msgId, role: 'bot', text: result.text, cards: result.cards, actions: result.actions }
+        botMsg = { id: ++msgId, role: 'bot', text: result.text, cards: result.cards, actions: result.actions, followUps: result.followUps }
       } else if (result.type === 'not_configured') {
         botMsg = { id: ++msgId, role: 'bot', notConfigured: true, question: result.question, text: '' }
       } else {
@@ -494,6 +528,59 @@ export function ChatWidget() {
     })
     setBusy(false)
   }
+
+  const startNewConversation = () => {
+    setConversationId(undefined)
+    setMessages([WELCOME_MSG])
+    setShowHistory(false)
+    setTimeout(() => inputRef.current?.focus(), 100)
+  }
+
+  const openHistory = async () => {
+    setShowHistory(true)
+    setLoadingHistory(true)
+    try {
+      setConversations(await chatApi.listConversations())
+    } catch {
+      setConversations([])
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const loadConversation = async (id: string) => {
+    setShowHistory(false)
+    setBusy(true)
+    try {
+      const conv = await chatApi.getConversation(id)
+      const loaded: Message[] = conv.map(m => ({
+        id: ++msgId,
+        role: m.role === 'user' ? 'user' : 'bot',
+        text: m.text,
+        cards: m.cards,
+        actions: m.actions,
+      }))
+      setMessages(loaded.length ? loaded : [WELCOME_MSG])
+      setConversationId(id)
+    } catch {
+      // keep current
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removeConversation = async (id: string) => {
+    try {
+      await chatApi.deleteConversation(id)
+      setConversations(prev => prev.filter(c => c.id !== id))
+      if (id === conversationId) startNewConversation()
+    } catch {
+      // silent
+    }
+  }
+
+  const lastBot = [...messages].reverse().find(m => m.role === 'bot' && !m.loading)
+  const followUps = !busy && lastBot?.followUps?.length ? lastBot.followUps : []
 
   const hasUnread = !open && messages.length > 1
 
@@ -534,13 +621,51 @@ export function ChatWidget() {
           style={{ position: 'fixed', right: Math.max(8, pos.right), bottom: Math.max(8, pos.bottom) + 60, height: '520px' }}
           dir="rtl"
         >
+          {/* History drawer */}
+          {showHistory && (
+            <div className="absolute inset-0 z-10 bg-white flex flex-col" dir="rtl">
+              <div className="bg-emerald-600 px-4 py-3 flex items-center gap-2.5 shrink-0">
+                <p className="text-white text-sm font-semibold flex-1">المحادثات السابقة</p>
+                <button onClick={startNewConversation} title="محادثة جديدة"
+                  className="text-white/80 hover:text-white transition-colors"><Plus size={16} /></button>
+                <button onClick={() => setShowHistory(false)} className="text-white/70 hover:text-white transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
+                {loadingHistory ? (
+                  <div className="flex justify-center pt-8"><Loader2 size={18} className="text-emerald-500 animate-spin" /></div>
+                ) : conversations.length === 0 ? (
+                  <p className="text-center text-[12px] text-gray-400 pt-8">لا توجد محادثات محفوظة بعد.</p>
+                ) : conversations.map(c => (
+                  <div key={c.id} className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 hover:border-emerald-300 transition-colors">
+                    <button onClick={() => loadConversation(c.id)} className="flex-1 min-w-0 text-start">
+                      <p className="text-[12px] font-medium text-gray-700 truncate">{c.title}</p>
+                      <p className="text-[10px] text-gray-400">{c.messageCount} رسالة</p>
+                    </button>
+                    <button onClick={() => removeConversation(c.id)} title="حذف"
+                      className="text-gray-300 hover:text-red-500 transition-colors shrink-0"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="bg-emerald-600 px-4 py-3 flex items-center gap-2.5 shrink-0">
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-base">🤖</div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-semibold">مساعد ميدي بولس</p>
+              <p className="text-white text-sm font-semibold">المساعد التشغيلي</p>
               {tenantName && <p className="text-emerald-100 text-[11px] truncate">{tenantName}</p>}
             </div>
+            <button onClick={startNewConversation} title="محادثة جديدة"
+              className="text-white/80 hover:text-white transition-colors">
+              <Plus size={16} />
+            </button>
+            <button onClick={openHistory} title="المحادثات السابقة"
+              className="text-white/80 hover:text-white transition-colors">
+              <History size={15} />
+            </button>
             {/* Direct line to a human via WhatsApp — most visible point for support */}
             <a
               href={(() => {
@@ -584,6 +709,24 @@ export function ChatWidget() {
             ))}
             <div ref={bottomRef} />
           </div>
+
+          {/* Suggested follow-ups for the latest answer */}
+          {followUps.length > 0 && (
+            <div className="px-3 pt-2 bg-white shrink-0">
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+                {followUps.map(f => (
+                  <button
+                    key={f}
+                    onClick={() => send(f)}
+                    disabled={busy}
+                    className="px-2.5 py-1 bg-teal-50 text-teal-700 text-[11px] rounded-full font-medium hover:bg-teal-100 transition-colors whitespace-nowrap shrink-0 disabled:opacity-40 border border-teal-100"
+                  >
+                    ↳ {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Quick chips — always visible */}
           <div className="px-3 pt-2 pb-1 border-t border-gray-100 bg-white shrink-0">

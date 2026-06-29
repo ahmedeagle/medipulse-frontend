@@ -9,8 +9,8 @@ export interface ActionButton {
 }
 
 export type ChatResult =
-  | { type: 'answer'; text: string; items?: string[]; cards?: ResponseCard[]; actions?: ActionButton[] }
-  | { type: 'not_configured'; question: string }
+  | { type: 'answer'; text: string; items?: string[]; cards?: ResponseCard[]; actions?: ActionButton[]; conversationId?: string; followUps?: string[] }
+  | { type: 'not_configured'; question: string; conversationId?: string }
   | { type: 'error'; message?: string }
 
 export const QUICK_CHIPS = [
@@ -27,18 +27,20 @@ export const QUICK_CHIPS = [
   { emoji: '📋', label: 'طلبات الشراء',    accent: 'border-l-emerald-500', trigger: 'ما حالة طلبات الشراء المعلّقة أو المتأخرة؟' },
   { emoji: '🧭', label: 'أين أجد...؟',     accent: 'border-l-indigo-400',  trigger: 'أين أجد نقطة البيع وكيف أبدأ وردية جديدة؟' },
   { emoji: '📈', label: 'تقرير المبيعات',  accent: 'border-l-cyan-400',    trigger: 'أريد أن أرى تقرير المبيعات والأرباح' },
+  { emoji: '🧭', label: 'موجز اليوم',     accent: 'border-l-emerald-500', trigger: 'أعطني موجزاً سريعاً عن صيدليتي' },
+  { emoji: '🌙', label: 'الموسم القادم',  accent: 'border-l-amber-500',   trigger: 'ما الموسم القادم وماذا أجهّز له؟' },
 ]
 
 export function useChatIntents() {
-  const resolveIntent = async (question: string): Promise<ChatResult> => {
+  const resolveIntent = async (question: string, conversationId?: string): Promise<ChatResult> => {
     try {
-      const res = await chatApi.ask(question)
+      const res = await chatApi.ask(question, conversationId)
 
       if (res.type === 'answer') {
-        return { type: 'answer', text: res.text ?? '', cards: res.cards, actions: res.actions }
+        return { type: 'answer', text: res.text ?? '', cards: res.cards, actions: res.actions, conversationId: res.conversationId, followUps: res.followUps }
       }
       if (res.type === 'not_configured') {
-        return { type: 'not_configured', question: res.question ?? question }
+        return { type: 'not_configured', question: res.question ?? question, conversationId: res.conversationId }
       }
       return { type: 'error', message: res.message }
     } catch {
