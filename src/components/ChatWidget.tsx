@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check, Mic, Maximize2, Minimize2 } from 'lucide-react'
+import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check, Mic, Maximize2, Minimize2, Flag } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context'
@@ -310,6 +310,52 @@ function CopyButton({ msg }: { msg: Message }) {
   )
 }
 
+// Lets the pharmacist flag an answer as inaccurate. Reuses the feature_requests
+// pipeline so ops can review → resolve, and the corrected answer is then served
+// instantly next time the same question is asked (findResolvedAnswer shortcut).
+function ReportButton({ msg }: { msg: Message }) {
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'duplicate'>('idle')
+  const [tracking, setTracking] = useState('')
+  const question = (msg.question ?? '').trim()
+  if (!question) return null
+
+  const onReport = async () => {
+    if (state !== 'idle') return
+    setState('loading')
+    try {
+      const snippet = serializeMessage(msg).slice(0, 280)
+      const hint = `إجابة غير دقيقة — مراجعة المساعد الذكي. ملخص الإجابة الحالية: ${snippet}`
+      const res = await featureRequestsApi.submit(question, hint)
+      setTracking(res.trackingNumber)
+      setState('done')
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        setTracking(err.response?.data?.trackingNumber ?? '')
+        setState('duplicate')
+      } else {
+        setState('idle')
+      }
+    }
+  }
+
+  if (state === 'done' || state === 'duplicate') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600" title={tracking ? `رقم المتابعة: ${tracking}` : undefined}>
+        <CheckCircle size={11} />
+        <span>{state === 'duplicate' ? 'تم التبليغ مسبقاً' : 'تم التبليغ — شكراً لك'}</span>
+      </span>
+    )
+  }
+
+  return (
+    <button onClick={onReport} disabled={state === 'loading'} title="بلّغ عن إجابة غير دقيقة"
+      className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-amber-600 transition-colors disabled:opacity-50">
+      {state === 'loading' ? <Loader2 size={11} className="animate-spin" /> : <Flag size={11} />}
+      <span>إجابة غير دقيقة؟</span>
+    </button>
+  )
+}
+
 function BotMessage({ msg, tenantName, onNavigate, onExecute, executingMsgId }: {
   msg: Message
   tenantName: string
@@ -374,7 +420,8 @@ function BotMessage({ msg, tenantName, onNavigate, onExecute, executingMsgId }: 
 
         {/* Copy / share footer — only when there's something worth sharing */}
         {(msg.text || (msg.cards && msg.cards.length > 0)) && (
-          <div className="mt-2 pt-1.5 border-t border-gray-50 flex justify-end">
+          <div className="mt-2 pt-1.5 border-t border-gray-50 flex items-center justify-between gap-2">
+            <ReportButton msg={msg} />
             <CopyButton msg={msg} />
           </div>
         )}
@@ -634,7 +681,7 @@ export function ChatWidget() {
       let botMsg: Message
 
       if (result.type === 'answer') {
-        botMsg = { id: ++msgId, role: 'bot', text: result.text, cards: result.cards, actions: result.actions, followUps: result.followUps }
+        botMsg = { id: ++msgId, role: 'bot', text: result.text, cards: result.cards, actions: result.actions, followUps: result.followUps, question: text.trim() }
       } else if (result.type === 'not_configured') {
         botMsg = { id: ++msgId, role: 'bot', notConfigured: true, question: result.question, text: '' }
       } else {
