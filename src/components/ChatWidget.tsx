@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check, Mic } from 'lucide-react'
+import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check, Mic, Maximize2, Minimize2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context'
@@ -505,6 +505,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
 export function ChatWidget() {
   const [open, setOpen]                 = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [expanded, setExpanded]         = useState(false)
   const [messages, setMessages]         = useState<Message[]>(() => [buildWelcomeMsg()])
   const [input, setInput]               = useState('')
   const [busy, setBusy]                 = useState(false)
@@ -732,8 +733,15 @@ export function ChatWidget() {
       {/* Chat panel */}
       {open && (
         <div
-          className="z-50 w-[min(340px,calc(100vw-16px))] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
-          style={{ position: 'fixed', right: Math.max(8, pos.right), bottom: Math.max(8, pos.bottom) + 60, height: '520px' }}
+          className={clsx(
+            'z-50 bg-white shadow-2xl border border-gray-200 flex flex-col overflow-hidden',
+            expanded ? 'rounded-2xl w-[min(720px,calc(100vw-24px))]' : 'rounded-2xl w-[min(340px,calc(100vw-16px))]',
+          )}
+          style={
+            expanded
+              ? { position: 'fixed', right: 12, bottom: 12, height: 'min(860px, calc(100vh - 24px))' }
+              : { position: 'fixed', right: Math.max(8, pos.right), bottom: Math.max(8, pos.bottom) + 60, height: '520px' }
+          }
           dir="rtl"
         >
           {/* History drawer */}
@@ -780,6 +788,10 @@ export function ChatWidget() {
             <button onClick={openHistory} title="المحادثات السابقة"
               className="text-white/80 hover:text-white transition-colors">
               <History size={15} />
+            </button>
+            <button onClick={() => setExpanded(e => !e)} title={expanded ? 'تصغير النافذة' : 'تكبير النافذة'}
+              className="text-white/80 hover:text-white transition-colors">
+              {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
             </button>
             {/* Direct line to a human via WhatsApp — most visible point for support */}
             <a
