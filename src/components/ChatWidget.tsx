@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2 } from 'lucide-react'
+import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context'
@@ -269,6 +269,47 @@ function ActionButtons({
 
 // ── BotMessage ────────────────────────────────────────────────────────────────
 
+// Serialize a bot answer (headline + cards) into plain text for copy/share.
+function serializeMessage(msg: Message): string {
+  const lines: string[] = []
+  if (msg.text) lines.push(msg.text)
+  for (const card of msg.cards ?? []) {
+    if (card.type === 'kpi_row') {
+      lines.push(card.items.map(it => `${it.label}: ${it.value}`).join(' · '))
+    } else if (card.type === 'bars') {
+      if (card.title) lines.push(card.title)
+      card.items.forEach(it => lines.push(`- ${it.label}: ${it.value}`))
+    } else if (card.type === 'table') {
+      if (card.title) lines.push(card.title)
+      lines.push(card.columns.map(c => c.header).join(' | '))
+      card.rows.forEach(r => lines.push(card.columns.map(c => String(r[c.key] ?? '—')).join(' | ')))
+    } else if (card.type === 'action_confirmed') {
+      lines.push(card.message)
+    }
+  }
+  return lines.join('\n').trim()
+}
+
+function CopyButton({ msg }: { msg: Message }) {
+  const [copied, setCopied] = useState(false)
+  const text = serializeMessage(msg)
+  if (!text) return null
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* clipboard blocked — silent */ }
+  }
+  return (
+    <button onClick={onCopy} title="نسخ الإجابة"
+      className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-emerald-600 transition-colors">
+      {copied ? <Check size={11} /> : <Copy size={11} />}
+      <span>{copied ? 'تم النسخ' : 'نسخ'}</span>
+    </button>
+  )
+}
+
 function BotMessage({ msg, tenantName, onNavigate, onExecute, executingMsgId }: {
   msg: Message
   tenantName: string
@@ -329,6 +370,13 @@ function BotMessage({ msg, tenantName, onNavigate, onExecute, executingMsgId }: 
             onNavigate={onNavigate}
             onExecute={onExecute}
           />
+        )}
+
+        {/* Copy / share footer — only when there's something worth sharing */}
+        {(msg.text || (msg.cards && msg.cards.length > 0)) && (
+          <div className="mt-2 pt-1.5 border-t border-gray-50 flex justify-end">
+            <CopyButton msg={msg} />
+          </div>
         )}
       </div>
     </div>
