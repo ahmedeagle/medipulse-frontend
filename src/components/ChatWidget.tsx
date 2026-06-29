@@ -505,7 +505,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
 export function ChatWidget() {
   const [open, setOpen]                 = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [expanded, setExpanded]         = useState(false)
+  const [expanded, setExpanded]         = useState(true)
   const [messages, setMessages]         = useState<Message[]>(() => [buildWelcomeMsg()])
   const [input, setInput]               = useState('')
   const [busy, setBusy]                 = useState(false)
