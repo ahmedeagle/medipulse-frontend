@@ -7,13 +7,14 @@ import {
   TrendingUp, TrendingDown, Clock, ShieldCheck, ChevronLeft,
   Wallet, LineChart, Store, Tag, ArrowDownRight, Zap, Receipt, Users,
   PackageSearch, Boxes, BadgePercent, Building2, Truck, Network,
-  Megaphone, Inbox, PackageX, Star, Award,
+  Megaphone, Inbox, PackageX, Star, Award, CalendarClock,
   type LucideIcon,
 } from 'lucide-react'
 import { inventoryApi } from '../../api/inventory.api'
 import { ordersApi } from '../../api/orders.api'
 import { aiCenterApi } from '../../api/ai-center.api'
 import { analyticsApi } from '../../api/analytics.api'
+import { forecastingApi } from '../../api/forecasting.api'
 import { procurementApi, type OrchestratorResult } from '../../api/procurement.api'
 import { supplierApi, type FinancialHealthSnapshot, type SupplierMarketplaceCard } from '../../api/supplier.api'
 import { p2pMarketplaceApi, p2pSellerApi } from '../../api/p2p.api'
@@ -87,6 +88,83 @@ function SectionCard({
 
 function Skeleton({ className = 'h-28' }: { className?: string }) {
   return <div className={`animate-pulse bg-gray-100 rounded-2xl ${className}`} />
+}
+
+// ── Seasonal demand radar ────────────────────────────────────────────────────
+// Driven by the Hijri calendar, so it works from day one with zero sales history.
+// Fails silent (retry:false) and only renders when an event is active/upcoming.
+const SEASON_CATEGORY_AR: Record<string, string> = {
+  analgesics: 'مسكنات', antibiotics: 'مضادات حيوية', antipyretics: 'خافضات حرارة',
+  cold_flu: 'برد وإنفلونزا', vitamins: 'فيتامينات', supplements: 'مكملات',
+  hydration: 'محاليل ومعالجة جفاف', dermatology: 'جلدية', sunscreen: 'واقيات شمس',
+  antihistamines: 'مضادات حساسية', digestive: 'جهاز هضمي', first_aid: 'إسعافات أولية',
+  chronic: 'أمراض مزمنة', pediatric: 'أطفال', respiratory: 'جهاز تنفسي',
+}
+const seasonCategoryAr = (k: string) =>
+  SEASON_CATEGORY_AR[k] ?? k.replace(/_/g, ' ')
+
+interface SeasonCat { category: string; multiplier: number; upliftPct: number }
+interface SeasonInfo { event: string; arabicName: string; daysUntil?: number; categories: SeasonCat[] }
+
+function SeasonalRadarBanner() {
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['dashboard-seasonality'],
+    queryFn: () => forecastingApi.getSeasonality().then((r) => r.data as { active: SeasonInfo | null; upcoming: SeasonInfo | null }),
+    staleTime: 6 * 60 * 60_000,
+    retry: false,
+  })
+  if (!data) return null
+
+  const active = data.active && data.active.categories.length > 0 ? data.active : null
+  const upcoming = !active && data.upcoming && data.upcoming.categories.length > 0 ? data.upcoming : null
+  const season = active ?? upcoming
+  if (!season) return null
+
+  const isUpcoming = !active
+  const topCats = season.categories.slice(0, 4)
+
+  return (
+    <button
+      onClick={() => navigate('/pharmacy/forecast')}
+      className={`w-full text-start p-4 rounded-2xl border flex items-start gap-4 transition-all hover:shadow-md ${
+        isUpcoming
+          ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-white hover:border-amber-300'
+          : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white hover:border-emerald-300'
+      }`}
+    >
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+        isUpcoming ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+      }`}>
+        <CalendarClock size={20} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold ${isUpcoming ? 'text-amber-900' : 'text-emerald-900'}`}>
+          {isUpcoming
+            ? `موسم ${season.arabicName} يبدأ خلال ${season.daysUntil} يوم — استعد الآن`
+            : `موسم ${season.arabicName} نشط الآن — ارتفاع متوقع في الطلب`}
+        </p>
+        <p className={`text-[11px] mt-0.5 leading-relaxed ${isUpcoming ? 'text-amber-700/80' : 'text-emerald-700/80'}`}>
+          {isUpcoming
+            ? 'يُنصح برفع مخزون الفئات التالية مبكراً لتفادي النقص:'
+            : 'تأكد من توفّر مخزون كافٍ من الفئات الأكثر طلباً هذا الموسم:'}
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {topCats.map((c) => (
+            <span
+              key={c.category}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                isUpcoming ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+              }`}
+            >
+              {seasonCategoryAr(c.category)} +{c.upliftPct}%
+            </span>
+          ))}
+        </div>
+      </div>
+      <ChevronLeft size={14} className={`shrink-0 rtl:rotate-180 ${isUpcoming ? 'text-amber-300' : 'text-emerald-300'}`} />
+    </button>
+  )
 }
 
 // friendly empty state: muted icon in a circle + title + optional hint
@@ -313,6 +391,9 @@ export default function PharmacyDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Seasonal demand radar — Hijri-driven, works from day one */}
+      <SeasonalRadarBanner />
 
       {/* Near-expiry loss alert — actionable */}
       {finance && finance.nearExpiryValue > 0 && (
