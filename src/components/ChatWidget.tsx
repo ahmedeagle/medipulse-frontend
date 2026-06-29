@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, History, Plus, Trash2, Copy, Check, Mic, Maximize2, Minimize2, Flag } from 'lucide-react'
+import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, ChevronDown, History, Plus, Trash2, Copy, Check, Mic, Maximize2, Minimize2, Flag } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context'
@@ -794,19 +794,30 @@ export function ChatWidget() {
           {/* History drawer */}
           {showHistory && (
             <div className="absolute inset-0 z-10 bg-white flex flex-col" dir="rtl">
-              <div className="bg-emerald-600 px-4 py-3 flex items-center gap-2.5 shrink-0">
-                <p className="text-white text-sm font-semibold flex-1">المحادثات السابقة</p>
-                <button onClick={startNewConversation} title="محادثة جديدة"
-                  className="text-white/80 hover:text-white transition-colors"><Plus size={16} /></button>
-                <button onClick={() => setShowHistory(false)} className="text-white/70 hover:text-white transition-colors">
-                  <X size={16} />
+              <div className="bg-emerald-600 px-3 py-2.5 flex items-center gap-2 shrink-0">
+                <button onClick={() => setShowHistory(false)} title="رجوع للمحادثة"
+                  className="h-8 px-2 rounded-lg hover:bg-white/15 text-white flex items-center gap-1 text-[12px] font-medium transition-colors">
+                  <ChevronRight size={18} /><span>رجوع</span>
                 </button>
+                <p className="text-white text-sm font-semibold flex-1 text-center">المحادثات السابقة</p>
+                <button onClick={startNewConversation} title="محادثة جديدة"
+                  className="h-8 w-8 rounded-lg hover:bg-white/15 text-white flex items-center justify-center transition-colors"><Plus size={16} /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
                 {loadingHistory ? (
                   <div className="flex justify-center pt-8"><Loader2 size={18} className="text-emerald-500 animate-spin" /></div>
                 ) : conversations.length === 0 ? (
-                  <p className="text-center text-[12px] text-gray-400 pt-8">لا توجد محادثات محفوظة بعد.</p>
+                  <div className="text-center pt-10 px-6">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                      <History size={20} className="text-emerald-500" />
+                    </div>
+                    <p className="text-[13px] font-medium text-gray-600">لا توجد محادثات محفوظة بعد</p>
+                    <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">كل محادثة جديدة تُحفظ هنا تلقائياً لتعود إليها وقت ما تحب.</p>
+                    <button onClick={startNewConversation}
+                      className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-semibold transition-colors">
+                      <Plus size={14} /> ابدأ محادثة جديدة
+                    </button>
+                  </div>
                 ) : conversations.map(c => (
                   <div key={c.id} className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 hover:border-emerald-300 transition-colors">
                     <button onClick={() => loadConversation(c.id)} className="flex-1 min-w-0 text-start">
@@ -822,25 +833,26 @@ export function ChatWidget() {
           )}
 
           {/* Header */}
-          <div className="bg-emerald-600 px-4 py-3 flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-base">🤖</div>
+          <div className="bg-emerald-600 px-3 py-2.5 flex items-center gap-1.5 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-base shrink-0">🤖</div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-semibold">المساعد التشغيلي</p>
-              {tenantName && <p className="text-emerald-100 text-[11px] truncate">{tenantName}</p>}
+              <p className="text-white text-sm font-semibold leading-tight">المساعد التشغيلي</p>
+              {tenantName && <p className="text-emerald-100 text-[10px] truncate">{tenantName}</p>}
             </div>
+
+            {/* Conversation actions */}
+            <button onClick={openHistory} title="المحادثات السابقة"
+              className="h-8 px-2 rounded-lg hover:bg-white/15 text-white/90 hover:text-white transition-colors flex items-center gap-1 text-[11px] font-medium">
+              <History size={14} /><span className="hidden sm:inline">محادثاتي</span>
+            </button>
             <button onClick={startNewConversation} title="محادثة جديدة"
-              className="text-white/80 hover:text-white transition-colors">
+              className="h-8 w-8 rounded-lg hover:bg-white/15 text-white/90 hover:text-white transition-colors flex items-center justify-center">
               <Plus size={16} />
             </button>
-            <button onClick={openHistory} title="المحادثات السابقة"
-              className="text-white/80 hover:text-white transition-colors">
-              <History size={15} />
-            </button>
-            <button onClick={() => setExpanded(e => !e)} title={expanded ? 'تصغير النافذة' : 'تكبير النافذة'}
-              className="text-white/80 hover:text-white transition-colors">
-              {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            </button>
-            {/* Direct line to a human via WhatsApp — most visible point for support */}
+
+            <span className="w-px h-5 bg-white/20 mx-0.5" aria-hidden />
+
+            {/* Direct line to a human via WhatsApp */}
             <a
               href={(() => {
                 const raw = (import.meta as any).env?.VITE_SUPPORT_WHATSAPP ?? '201000000000';
@@ -851,13 +863,15 @@ export function ChatWidget() {
               target="_blank"
               rel="noopener noreferrer"
               title="تواصل مع موظف دعم حقيقي عبر واتساب"
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold transition-colors"
+              className="h-8 w-8 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-sm"
             >
               <span aria-hidden>💬</span>
-              <span className="hidden sm:inline">دعم بشري</span>
             </a>
-            <button onClick={() => setOpen(false)} className="text-white/70 hover:text-white transition-colors">
-              <X size={16} />
+
+            {/* Minimize to the floating pill — keeps the conversation open */}
+            <button onClick={() => setOpen(false)} title="تصغير — تُحفظ محادثتك وتفتحها وقت ما تحب"
+              className="h-8 w-8 rounded-lg hover:bg-white/15 text-white/90 hover:text-white transition-colors flex items-center justify-center">
+              <ChevronDown size={18} />
             </button>
           </div>
 
