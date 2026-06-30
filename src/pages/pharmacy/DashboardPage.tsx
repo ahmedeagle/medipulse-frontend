@@ -363,13 +363,24 @@ export default function PharmacyDashboardPage() {
           <Sparkles className="absolute -top-4 -left-4 opacity-10" size={140} />
           <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div>
-              <p className="text-emerald-100 text-sm font-medium">{t('dashboard.ai_saved_you')}</p>
-              <p className="text-4xl font-extrabold mt-1 tracking-tight">
-                {money(ai?.savingsThisPeriodEgp ?? 0, currency)}
-              </p>
-              <p className="text-emerald-200 text-xs mt-1">
-                {t(`dashboard.period_${period}`)} · {t('dashboard.ai_saved_caption')}
-              </p>
+              {(ai?.savingsThisPeriodEgp ?? 0) > 0 ? (
+                <>
+                  <p className="text-emerald-100 text-sm font-medium">{t('dashboard.ai_saved_you')}</p>
+                  <p className="text-4xl font-extrabold mt-1 tracking-tight">
+                    {money(ai?.savingsThisPeriodEgp ?? 0, currency)}
+                  </p>
+                  <p className="text-emerald-200 text-xs mt-1">
+                    {t(`dashboard.period_${period}`)} · {t('dashboard.ai_saved_caption')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-extrabold mt-1 tracking-tight">{t('dashboard.ai_no_savings_title')}</p>
+                  <p className="text-emerald-100 text-sm mt-1.5 max-w-md leading-relaxed">
+                    {t('dashboard.ai_no_savings_caption')}
+                  </p>
+                </>
+              )}
             </div>
             <div className="flex items-stretch gap-3">
               <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-3 min-w-[120px]">
