@@ -1059,15 +1059,15 @@ function AiImpactSection() {
     retry: false,
   })
   if (!data) return null
-  const saved    = data.realizedSavingsEgp ?? 0
+  const realized = data.recovery?.realizedEgp ?? 0
+  const pipeline = data.recovery?.pipelineEgp ?? 0
   const executed = data.executed ?? 0
-  const proposed = data.proposed ?? 0
-  if (saved <= 0 && executed <= 0) return null
+  if (realized <= 0 && pipeline <= 0 && executed <= 0) return null
 
   const stats = [
-    { label: 'وفّرت هذا الشهر', value: `${saved.toLocaleString('en-US')} ج.م`, icon: Wallet },
+    { label: 'استرداد محقّق هذا الشهر', value: `${realized.toLocaleString('en-US')} ج.م`, icon: Wallet },
+    { label: 'قيد الاسترداد (معروض للبيع)', value: `${pipeline.toLocaleString('en-US')} ج.م`, icon: TrendingUp },
     { label: 'قرارات نفّذها الذكاء', value: executed.toLocaleString('en-US'), icon: CheckCircle2 },
-    { label: 'إجمالي المقترحات', value: proposed.toLocaleString('en-US'), icon: Sparkles },
   ]
   return (
     <div>

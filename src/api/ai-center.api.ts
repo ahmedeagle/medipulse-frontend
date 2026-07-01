@@ -211,6 +211,17 @@ export interface ReportBucket {
   missed:   number
 }
 
+export type RecoveryEventType =
+  | 'purchase_saving' | 'p2p_saving' | 'expiry_avoided'
+  | 'deadstock_recovered' | 'stockout_avoided' | 'return_recovery'
+
+export interface RecoverySummary {
+  since:       string
+  realizedEgp: number
+  pipelineEgp: number
+  byType: Array<{ type: RecoveryEventType; realizedEgp: number; pipelineEgp: number; count: number }>
+}
+
 export interface AiCenterReport {
   period:   ReportPeriod
   since:    string
@@ -220,6 +231,7 @@ export interface AiCenterReport {
   rejected: number
   missed:   number
   realizedSavingsEgp: number
+  recovery: RecoverySummary
   byBucket: ReportBucket[]
   backlog: {
     pending:               number
