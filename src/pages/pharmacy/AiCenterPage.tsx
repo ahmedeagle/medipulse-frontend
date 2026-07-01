@@ -10,7 +10,7 @@ import {
   AlertCircle, Info, Loader2, X, Edit3,
   Store, Eye, RefreshCw, Activity, Ban, Zap, Settings,
   ShieldAlert, Banknote, PartyPopper, ExternalLink, Wallet,
-  CalendarClock, BarChart3,
+  CalendarClock, BarChart3, FileText,
 } from 'lucide-react'
 import {
   aiCenterApi,
@@ -3484,13 +3484,13 @@ const DOMAIN_DEFS: Array<{
   {
     key: 'purchasing',
     labelAr: 'الشراء',
-    hintAr: 'مسودات الشراء والشراء الذكي والتوصيات المرتبطة بالشراء',
+    hintAr: 'مسودات أوامر الشراء والشراء الذكي من الموردين والبورصة',
     icon: ShoppingCart,
   },
   {
     key: 'inventory',
     labelAr: 'المخزون والانتهاء',
-    hintAr: 'النقص، الراكد، قرب الانتهاء، والعناصر التي تحتاج ربطاً',
+    hintAr: 'النقص، الراكد، قرب الانتهاء، الربط بالكتالوج، وتوصيات الذكاء',
     icon: Package,
   },
   {
@@ -3512,13 +3512,13 @@ function domainFromApproval(a: Approval): DomainKind | null {
     case 'smart_procurement':
     case 'procurement_draft':
     case 'procurement_basket':
-    case 'recommendation':
       return 'purchasing'
     case 'low_stock':
     case 'dead_stock_clearance':
     case 'expiry_liquidation':
     case 'expired_quarantine':
     case 'inventory_item':
+    case 'recommendation':
       return 'inventory'
     case 'p2p_listing_suggestion':
     case 'listing_suggestion':
@@ -3784,15 +3784,24 @@ function TasksTab() {
     refetchInterval: 30_000,
   })
 
+  // Stable global totals for the open/done toggle (never depends on which view
+  // is loaded, so the numbers don't jump). Shared query key = deduped.
+  const counts = useQuery({
+    queryKey: ['ai-center', 'counts'],
+    queryFn:  aiCenterApi.approvalCounts,
+    refetchInterval: 30_000,
+  })
+  const totalOpen = (counts.data?.pending ?? 0) + (counts.data?.modified ?? 0)
+  const totalDone = (counts.data?.approved ?? 0) + (counts.data?.executed ?? 0) + (counts.data?.rejected ?? 0)
+
   const openCounts: Record<DomainKind, number> = useMemo(() => {
     const c: Record<DomainKind, number> = { purchasing: 0, inventory: 0, p2p: 0, pos: 0 }
     for (const a of openApprovals.data?.data ?? []) {
       const d = domainFromApproval(a)
       if (d) c[d]++
     }
-    c.inventory += catalogLinkCount.data ?? 0
     return c
-  }, [openApprovals.data, catalogLinkCount.data])
+  }, [openApprovals.data])
 
   const doneCounts: Record<DomainKind, number> = useMemo(() => {
     const c: Record<DomainKind, number> = { purchasing: 0, inventory: 0, p2p: 0, pos: 0 }
@@ -3831,21 +3840,13 @@ function TasksTab() {
     }
   }, [explicitDomain, openApprovals.data, openCounts, setSearchParams])
 
-  const isInventoryOpen = domainParam === 'inventory' && stateParam === 'open'
-  const hasCatalogLinks = isInventoryOpen && (catalogLinkCount.data ?? 0) > 0
-
-  const catalogLinkItems = useQuery({
-    queryKey: ['inventory', 'suggested-items'],
-    queryFn:  () => inventoryApi.getAll({ linkStatus: 'suggested', limit: 50 }).then(r => r.data),
-    enabled:  isInventoryOpen,
-    refetchInterval: 30_000,
-  })
+  // Catalog-link suggestions are a separate inventory-items concern (NOT approval
+  // tasks), so we surface them as a non-counted banner — never folded into the
+  // domain count. This keeps every card's number exactly equal to its list.
+  const showCatalogBanner = domainParam === 'inventory' && stateParam === 'open' && (catalogLinkCount.data ?? 0) > 0
 
   const focused = currentList.find(a => a.id === focusId)
     ?? (focusId ? ((stateParam === 'open' ? openApprovals.isLoading : doneApprovals.isLoading) ? undefined : null) : undefined)
-
-  const totalOpen = openCounts.purchasing + openCounts.inventory + openCounts.p2p + openCounts.pos
-  const totalDone = doneCounts.purchasing + doneCounts.inventory + doneCounts.p2p + doneCounts.pos
 
   return (
     <div className="space-y-5">
@@ -3855,7 +3856,6 @@ function TasksTab() {
           const Icon = d.icon
           const active = d.key === domainParam
           const n = stateParam === 'open' ? openCounts[d.key] : doneCounts[d.key]
-          const doneN = doneCounts[d.key]
           return (
             <button
               key={d.key}
@@ -3880,9 +3880,6 @@ function TasksTab() {
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">{d.hintAr}</p>
-                  {doneN > 0 && (
-                    <p className="text-[10px] text-gray-500 mt-1">مكتمل مؤخراً: {doneN}</p>
-                  )}
                 </div>
               </div>
             </button>
@@ -3913,17 +3910,43 @@ function TasksTab() {
       {/* Filtered list + detail (reuse same layout as ApprovalsTab) */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-5">
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 text-xs text-gray-600">
-            <selectedDomain.icon size={14} className="text-gray-500" />
-            <span>
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-2 text-xs text-gray-600">
+            <span className="flex items-center gap-2">
+              <selectedDomain.icon size={14} className="text-gray-500" />
               {selectedDomain.labelAr}
               {stateParam === 'open' ? ' — بانتظار قرارك' : ' — أُغلِقت مؤخراً'}
             </span>
+            {domainParam === 'purchasing' && (
+              <a href="/pharmacy/purchases/invoices" className="shrink-0 inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-semibold">
+                <FileText size={12} /> فواتير الشراء
+              </a>
+            )}
+            {domainParam === 'p2p' && (
+              <a href="/pharmacy/p2p?tab=orders" className="shrink-0 inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-semibold">
+                <Store size={12} /> سوق التبادل
+              </a>
+            )}
+            {domainParam === 'pos' && (
+              <a href="/pharmacy/pos/shifts" className="shrink-0 inline-flex items-center gap-1 text-rose-700 hover:text-rose-900 font-semibold">
+                <ShieldCheck size={12} /> سجل الشفتات
+              </a>
+            )}
           </div>
+
+          {/* Catalog-link suggestions — separate concern, not counted as tasks. */}
+          {showCatalogBanner && (
+            <div className="px-4 py-2.5 bg-sky-50 border-b border-sky-100 text-xs text-sky-800 flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 min-w-0">
+                <LinkIcon size={13} className="shrink-0" />
+                <span className="truncate">{catalogLinkCount.data} منتج مقترح ربطه بالكتالوج المركزي — للمراجعة</span>
+              </span>
+              <a href="/pharmacy/inventory?linkStatus=suggested" className="shrink-0 px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors text-[11px] font-semibold">راجعها</a>
+            </div>
+          )}
 
           {(stateParam === 'open' ? openApprovals.isLoading : doneApprovals.isLoading) ? (
             <SkeletonRows />
-          ) : currentList.length === 0 && !hasCatalogLinks ? (
+          ) : currentList.length === 0 ? (
             stateParam === 'done' ? (
               <EmptyState
                 icon={CheckCircle2}
@@ -3936,16 +3959,16 @@ function TasksTab() {
                 <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
                   <Store size={22} className="text-emerald-600" />
                 </div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد فرص شراء تنتظر قرارك الآن</p>
-                <p className="text-xs text-gray-500 mb-4 max-w-[300px] mx-auto leading-relaxed">
-                  يُحلل النظام مخزونك يومياً ويُنشئ قرارات عندما يجد فرصاً في البورصة أوفر بنسبة معينة من مورّديك.
-                  يمكنك تصفح جميع الفرص المتاحة الآن مباشرةً في صفحة البورصة.
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد قرارات سوق تنتظرك الآن</p>
+                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
+                  تشمل هذه الفئة اقتراحات الإدراج في البورصة وطلبات التبادل بين الصيدليات.
+                  عند وجود أي قرار، ستجده هنا — أو تصفّح السوق مباشرة.
                 </p>
                 <a
                   href="/pharmacy/p2p?tab=insights"
                   className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors"
                 >
-                  <Store size={13} /> تصفح فرص الشراء الذكي
+                  <Store size={13} /> تصفح السوق
                 </a>
               </div>
             ) : domainParam === 'purchasing' ? (
@@ -3954,15 +3977,15 @@ function TasksTab() {
                   <ShoppingCart size={22} className="text-sky-600" />
                 </div>
                 <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد مهام شراء بانتظارك الآن</p>
-                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
-                  يراقب النظام مخزونك باستمرار ويُنشئ توصيات شراء تلقائياً عند قرب نفاد أي صنف أو اقتراب انتهاء صلاحيته.
-                  التوصيات تصل هنا مع تفاصيل السعر والمورّد الأنسب — جاهزة لموافقتك بضغطة واحدة.
+                <p className="text-xs text-gray-500 mb-4 max-w-[340px] mx-auto leading-relaxed">
+                  عند اقتراب نفاد أي صنف، يُنشئ النظام مسودة أمر شراء بأفضل سعر (مورّد أو بورصة) وتظهر هنا جاهزة لموافقتك.
+                  لمتابعة أوامر الشراء المؤكّدة، افتح صفحة فواتير الشراء.
                 </p>
                 <a
-                  href="/pharmacy/inventory"
+                  href="/pharmacy/purchases/invoices"
                   className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors"
                 >
-                  <ShoppingCart size={13} /> استعرض المخزون الحالي
+                  <FileText size={13} /> فواتير الشراء
                 </a>
               </div>
             ) : domainParam === 'inventory' ? (
@@ -3971,19 +3994,26 @@ function TasksTab() {
                   <Package size={22} className="text-violet-600" />
                 </div>
                 <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد مهام مخزون بانتظارك الآن</p>
-                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
-                  هذا يشمل: النقص، الراكد، قرب الانتهاء، واقتراحات الربط بالكتالوج.
+                <p className="text-xs text-gray-500 mb-4 max-w-[340px] mx-auto leading-relaxed">
+                  تشمل هذه الفئة: النقص، المخزون الراكد، قرب انتهاء الصلاحية، توصيات الذكاء، وربط المنتجات بالكتالوج.
                   عند ظهور أي حالة تحتاج قراراً، ستجدها هنا مباشرة.
                 </p>
+                <a
+                  href="/pharmacy/inventory"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-colors"
+                >
+                  <Package size={13} /> استعرض المخزون
+                </a>
               </div>
-            ) : domainParam === 'pos' ? (
+            ) : (
               <div className="py-12 px-6 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center mx-auto mb-3">
                   <ShieldCheck size={22} className="text-rose-600" />
                 </div>
                 <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد تنبيهات كاشير بانتظارك الآن</p>
                 <p className="text-xs text-gray-500 mb-4 max-w-[360px] mx-auto leading-relaxed">
-                  عندما يرصد الذكاء فروقات نقدية أو سلوك غير معتاد في الشفتات، ستظهر هنا للمراجعة الفورية.
+                  عندما يرصد الذكاء فروقات نقدية أو سلوك غير معتاد في ورديات الكاشير، ستظهر هنا للمراجعة الفورية.
+                  التنبيهات التي راجعتها تجدها في تبويب «مكتملة».
                 </p>
                 <a
                   href="/pharmacy/pos/shifts"
@@ -3992,19 +4022,9 @@ function TasksTab() {
                   <ShieldCheck size={13} /> افتح سجل الشفتات
                 </a>
               </div>
-            ) : (
-              <EmptyState
-                icon={CheckCircle2}
-                iconCls="bg-emerald-100 text-emerald-700"
-                title="لا توجد مهام في هذه الفئة"
-                body="هذا يعني أن مساعدك أنجز ما يخص هذا النوع — أو أنه لم يجد ما يستدعي قراراً منك بعد."
-              />
             )
           ) : (
             <>
-              {stateParam === 'open' && domainParam === 'inventory' && (catalogLinkCount.data ?? 0) > 0 && (
-                <CatalogLinkPanel items={catalogLinkItems} />
-              )}
               <ul className="divide-y divide-gray-100 max-h-[calc(100vh-26rem)] overflow-y-auto">
                 {currentList.map(a => (
                   <ApprovalRow
