@@ -55,7 +55,7 @@ const TYPE_COLOR: Record<string, string> = {
 
 // Notification types that warrant a critical (urgent) sound
 const CRITICAL_TYPES = new Set([
-  'high_risk_stockout', 'near_expiry', 'expired_stock', 'low_stock',
+  'high_risk_stockout', 'near_expiry', 'expired_stock', 'low_stock', 'drug_need_broadcast',
 ]);
 
 // Resolve the in-app destination for a notification. Returns a router path, or
@@ -123,6 +123,10 @@ function resolveNotificationTarget(n: any): string | null {
     case 'inventory_batch_failed':   return '/pharmacy/inventory';
     case 'morning_briefing':         return '/pharmacy/ai-center';
     case 'p2p_pool_opportunity':     return '/pharmacy/p2p?tab=marketplace';
+    // Demand Broadcast ("أحتاج دواء"): a nearby pharmacy needs a drug you hold → list it to sell.
+    case 'drug_need_broadcast':      return '/pharmacy/p2p?tab=sell';
+    // Requester side: a nearby pharmacy can supply your need → go buy it.
+    case 'drug_need_response':       return '/pharmacy/p2p?tab=marketplace';
     default:                         return null;
   }
 }
