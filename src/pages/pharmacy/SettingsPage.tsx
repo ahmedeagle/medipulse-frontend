@@ -7,6 +7,7 @@ import {
   Check, X, ToggleLeft, ToggleRight, MapPin, Phone, Mail,
   FileText, Printer, Barcode, Warehouse, Bell, Shield,
   AlertCircle, Loader2, Eye, EyeOff, ExternalLink,
+  MessageCircle, Send, Moon,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
@@ -16,6 +17,7 @@ import {
   type Warehouse as WarehouseType,
   type NotificationSettings,
 } from '../../api/pharmacy-settings.api'
+import { notificationsApi, type NotificationPreferences } from '../../api/notifications.api'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -27,6 +29,7 @@ type SectionId =
   | 'users'
   | 'inventory'
   | 'seller'
+  | 'delivery'
   | 'extra'
 
 interface Section {
@@ -46,6 +49,7 @@ const SECTIONS: Section[] = [
   { id: 'users',     icon: Users,      labelAr: 'إعدادات المستخدمين',     labelEn: 'Users & Permissions',     descAr: 'الفريق، الأدوار، الصلاحيات',                    descEn: 'Team members, roles, access control'            },
   { id: 'inventory', icon: Warehouse,  labelAr: 'إعدادات المخزون',        labelEn: 'Inventory Settings',      descAr: 'المستودعات، إعادة التخزين، التنبيهات',          descEn: 'Warehouses, reorder settings, alerts'           },
   { id: 'seller',    icon: Store,      labelAr: 'إعدادات البائع',         labelEn: 'Seller Settings',         descAr: 'ملف البائع، التوصيل، التشغيل التلقائي',         descEn: 'Seller profile, delivery, automations'          },
+  { id: 'delivery',  icon: Send,       labelAr: 'مركز الإشعارات',         labelEn: 'Notification Center',     descAr: 'قنوات التوصيل، مستوى الأهمية، ساعات الهدوء',   descEn: 'Delivery channels, severity, quiet hours'       },
   { id: 'extra',     icon: Sliders,    labelAr: 'إعدادات إضافية',         labelEn: 'Additional Settings',     descAr: 'الإشعارات، الخصوصية، تصدير البيانات',           descEn: 'Notifications, privacy, data export'            },
 ]
 
@@ -353,6 +357,13 @@ export default function SettingsPage() {
     staleTime: 60_000,
   })
 
+  // Notification delivery preferences (channels / severity / quiet hours)
+  const { data: prefs } = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: notificationsApi.getPreferences,
+    staleTime: 60_000,
+  })
+
   // Local form state — populated from server on load
   const [general, setGeneral] = useState({
     language: 'ar', currency: 'EGP', timezone: 'Africa/Cairo',
@@ -384,6 +395,12 @@ export default function SettingsPage() {
     enableLowStockAlerts: true, enableExpiryAlerts: true, enableDeadStockAlerts: true,
     enableP2POrderAlerts: true, enableSmartProcurementAlerts: true, enableClearanceAlerts: true,
     enablePosIntegrityAlerts: true, enableMorningBriefing: true,
+  })
+
+  const [delivery, setDelivery] = useState<NotificationPreferences>({
+    inApp: true, email: true, whatsapp: false, push: false,
+    allowLow: true, allowMedium: true, allowHigh: true, allowCritical: true,
+    quietHoursStart: null, quietHoursEnd: null, quietHoursTimezone: 'Africa/Cairo',
   })
 
   // Sync local state when server data arrives
@@ -429,6 +446,24 @@ export default function SettingsPage() {
     })
   }, [settings])
 
+  // Sync delivery preferences when server data arrives
+  useEffect(() => {
+    if (!prefs) return
+    setDelivery({
+      inApp: prefs.inApp ?? true,
+      email: prefs.email ?? true,
+      whatsapp: prefs.whatsapp ?? false,
+      push: prefs.push ?? false,
+      allowLow: prefs.allowLow ?? true,
+      allowMedium: prefs.allowMedium ?? true,
+      allowHigh: prefs.allowHigh ?? true,
+      allowCritical: prefs.allowCritical ?? true,
+      quietHoursStart: prefs.quietHoursStart ?? null,
+      quietHoursEnd: prefs.quietHoursEnd ?? null,
+      quietHoursTimezone: prefs.quietHoursTimezone ?? 'Africa/Cairo',
+    })
+  }, [prefs])
+
   // Scrollspy
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -459,6 +494,10 @@ export default function SettingsPage() {
   const saveMut = useMutation({
     mutationFn: (data: Partial<PharmacySettingsData>) => pharmacySettingsApi.updateSettings(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pharmacy-settings'] }),
+  })
+  const savePrefsMut = useMutation({
+    mutationFn: (data: Partial<NotificationPreferences>) => notificationsApi.updatePreferences(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notification-preferences'] }),
   })
   const [savedSection, setSavedSection] = useState<SectionId | null>(null)
   const save = (section: SectionId, data: Partial<PharmacySettingsData>) => {
@@ -1198,6 +1237,114 @@ export default function SettingsPage() {
               </Link>
             </div>
           </div>
+        </SectionCard>
+
+        {/* ── 8. Notification Center (delivery channels / severity / quiet hours) ── */}
+        <SectionCard id="delivery"
+          title="مركز الإشعارات"
+          desc="اختر قنوات التوصيل ومستوى الأهمية وساعات الهدوء — الواتساب والإشعارات الفورية اختيارية بالكامل"
+        >
+          {(() => {
+            const minToTime = (m: number | null) =>
+              m == null ? '' : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+            const timeToMin = (t: string) => {
+              if (!t) return null
+              const [h, m] = t.split(':').map(Number)
+              return h * 60 + m
+            }
+            const quietOn = delivery.quietHoursStart != null && delivery.quietHoursEnd != null
+            return (
+              <div className="space-y-5">
+
+                {/* Channels */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 border-l-4 border-l-emerald-400">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Send size={15} className="text-emerald-600" />
+                    <p className="text-sm font-bold text-gray-900">قنوات التوصيل</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">كيف تصلك الإشعارات. التطبيق مُفعّل دائماً — القنوات الأخرى اختيارية.</p>
+
+                  <div className="flex items-center justify-between py-2.5 opacity-70">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 flex items-center gap-1.5"><Bell size={13} /> داخل التطبيق</p>
+                      <p className="text-xs text-gray-400">دائماً مُفعّل — لا يمكن إيقافه لضمان وصول التنبيهات الحرجة</p>
+                    </div>
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">مُفعّل دائماً</span>
+                  </div>
+
+                  <Toggle checked={delivery.email} onChange={v => setDelivery(d => ({ ...d, email: v }))}
+                    label="البريد الإلكتروني" desc="نسخة من الإشعارات المهمة على بريدك" />
+
+                  <div className="mt-1 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <Toggle checked={delivery.whatsapp} onChange={v => setDelivery(d => ({ ...d, whatsapp: v }))}
+                      label="واتساب (اختياري)" desc="للتنبيهات الحرجة فقط — يتطلب رقم واتساب مُسجّل في ملف البائع" />
+                    <p className="text-[11px] text-amber-700 mt-1.5 flex items-start gap-1">
+                      <MessageCircle size={12} className="mt-0.5 shrink-0" />
+                      عند التفعيل، تصلك رسائل واتساب للتنبيهات الحرجة فقط. أنت تتحكم بهذا بالكامل ويمكنك إيقافه في أي وقت.
+                    </p>
+                  </div>
+
+                  <Toggle checked={delivery.push} onChange={v => setDelivery(d => ({ ...d, push: v }))}
+                    label="الإشعارات الفورية (Push)" desc="إشعارات المتصفح/الجهاز للتنبيهات العاجلة" />
+                </div>
+
+                {/* Severity rules */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 border-l-4 border-l-blue-400">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Shield size={15} className="text-blue-600" />
+                    <p className="text-sm font-bold text-gray-900">مستوى الأهمية</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">اختر مستويات التنبيه التي تصلك عبر القنوات الخارجية (بريد/واتساب/فوري). داخل التطبيق يبقى الكل.</p>
+                  <Toggle checked={delivery.allowCritical} onChange={v => setDelivery(d => ({ ...d, allowCritical: v }))}
+                    label="🔴 حرِج" desc="نقص حاد، مخاطر مالية، مخالفات — يُنصح بإبقائه مُفعّلاً" />
+                  <Toggle checked={delivery.allowHigh} onChange={v => setDelivery(d => ({ ...d, allowHigh: v }))}
+                    label="🟠 مرتفع" desc="نقص مخزون، قرب انتهاء صلاحية، مهام تنتهي اليوم" />
+                  <Toggle checked={delivery.allowMedium} onChange={v => setDelivery(d => ({ ...d, allowMedium: v }))}
+                    label="🟡 متوسط" desc="طلبات البورصة، فرص التصفية، التشغيل اليومي" />
+                  <Toggle checked={delivery.allowLow} onChange={v => setDelivery(d => ({ ...d, allowLow: v }))}
+                    label="⚪ منخفض" desc="ملخصات ومعلومات عامة" />
+                </div>
+
+                {/* Quiet hours */}
+                <div className="p-4 bg-white rounded-xl border border-gray-200 border-l-4 border-l-violet-400">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Moon size={15} className="text-violet-600" />
+                    <p className="text-sm font-bold text-gray-900">ساعات الهدوء</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">إيقاف التنبيهات غير الحرجة (واتساب/فوري) ليلاً. التنبيهات الحرجة تصلك دائماً.</p>
+                  <Toggle
+                    checked={quietOn}
+                    onChange={v => setDelivery(d => ({
+                      ...d,
+                      quietHoursStart: v ? 1320 : null,
+                      quietHoursEnd:   v ? 360 : null,
+                    }))}
+                    label="تفعيل ساعات الهدوء" desc="مثال: من 10 مساءً حتى 6 صباحاً" />
+                  {quietOn && (
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className={FIELD}>من</label>
+                        <input type="time" className={INPUT} value={minToTime(delivery.quietHoursStart)}
+                          onChange={e => setDelivery(d => ({ ...d, quietHoursStart: timeToMin(e.target.value) }))} />
+                      </div>
+                      <div>
+                        <label className={FIELD}>إلى</label>
+                        <input type="time" className={INPUT} value={minToTime(delivery.quietHoursEnd)}
+                          onChange={e => setDelivery(d => ({ ...d, quietHoursEnd: timeToMin(e.target.value) }))} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <SaveButton
+                  loading={savePrefsMut.isPending}
+                  onClick={() => savePrefsMut.mutate(delivery, {
+                    onSuccess: () => { setSavedSection('delivery'); setTimeout(() => setSavedSection(null), 2000) },
+                  })}
+                />
+              </div>
+            )
+          })()}
         </SectionCard>
 
         {/* ── 8. Additional Settings ──────────────────────────────────────────── */}
