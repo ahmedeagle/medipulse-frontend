@@ -340,7 +340,7 @@ function FilterSidebar({
 function AiProcurementNudge() {
   return (
     <Link
-      to="/pharmacy/ai-center?tab=tasks&task=purchase"
+      to="/pharmacy/ai-center?tab=tasks&domain=purchasing&state=open"
       className="block bg-gradient-to-l from-emerald-600 via-emerald-700 to-teal-700 text-white rounded-2xl p-4 shadow-md hover:shadow-lg transition-shadow"
     >
       <div className="flex items-center gap-3">

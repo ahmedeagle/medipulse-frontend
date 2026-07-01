@@ -6170,7 +6170,7 @@ function ExpiryAlertsPanel({ isRTL }: { isRTL: boolean }) {
 
       {/* -- Expiry Clearance shortcut -- */}
       <button
-        onClick={() => window.location.href = '/pharmacy/ai-center?tab=tasks&task=expiry_clearance'}
+        onClick={() => window.location.href = '/pharmacy/ai-center?tab=tasks&domain=inventory&state=open'}
         className="w-full rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 flex items-center gap-4 hover:shadow-md hover:border-amber-300 transition-all group text-start"
       >
         <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-lg">??</div>

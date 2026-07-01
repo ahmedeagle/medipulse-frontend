@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, createContext, useContext } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, Inbox, Users, ShieldCheck,
@@ -3559,21 +3559,26 @@ function TasksTab() {
     refetchInterval: 30_000,
   })
 
+  const [doneLimit, setDoneLimit] = useState(150)
   const doneApprovals = useQuery({
-    queryKey: ['ai-center', 'approvals', 'done', 'domains-all'],
+    queryKey: ['ai-center', 'approvals', 'done', 'domains-all', doneLimit],
     enabled: stateParam === 'done',
     queryFn: async () => {
       const [approved, executed, rejected] = await Promise.all([
-        aiCenterApi.listApprovals({ status: 'approved', limit: 150 }),
-        aiCenterApi.listApprovals({ status: 'executed', limit: 150 }),
-        aiCenterApi.listApprovals({ status: 'rejected', limit: 150 }),
+        aiCenterApi.listApprovals({ status: 'approved', limit: doneLimit }),
+        aiCenterApi.listApprovals({ status: 'executed', limit: doneLimit }),
+        aiCenterApi.listApprovals({ status: 'rejected', limit: doneLimit }),
       ])
       const merged = [...approved.data, ...executed.data, ...rejected.data]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      return { data: merged, total: merged.length }
+      // serverTotal reflects the full history size so the UI knows if more pages exist.
+      const serverTotal = approved.total + executed.total + rejected.total
+      return { data: merged, total: merged.length, serverTotal }
     },
+    placeholderData: keepPreviousData,
     refetchInterval: 60_000,
   })
+  // note: v5 uses placeholderData for prev-page retention
 
   const catalogLinkCount = useQuery({
     queryKey: ['inventory', 'suggested-count'],
@@ -3814,6 +3819,19 @@ function TasksTab() {
                     showCheckbox={false}
                   />
                 ))}
+                {stateParam === 'done'
+                  && (doneApprovals.data?.serverTotal ?? 0) > (doneApprovals.data?.data.length ?? 0) && (
+                  <li className="p-3 text-center">
+                    <button
+                      onClick={() => setDoneLimit(l => l + 150)}
+                      disabled={doneApprovals.isFetching}
+                      className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 inline-flex items-center gap-2"
+                    >
+                      {doneApprovals.isFetching && <Loader2 size={13} className="animate-spin" />}
+                      عرض المزيد من المكتملة
+                    </button>
+                  </li>
+                )}
               </ul>
             </>
           )}
