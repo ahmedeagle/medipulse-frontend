@@ -255,6 +255,34 @@ function approvalActionDescription(approval: Approval): string {
   return 'سيبدأ النظام تنفيذ الإجراء فوراً. هل أنت متأكّد؟'
 }
 
+/** Plain-language "why this matters" per approval type — shown in the detail so
+ * the pharmacist knows the value of acting, not just the action itself. */
+function impactText(approval: Approval): string | null {
+  switch (approval.subjectType) {
+    case 'inventory_item':
+      return 'سيُربط المنتج بقاعدة البيانات الموحّدة، فيصبح متاحاً للتنبؤ بالطلب والشراء الذكي، وتظهر بياناته بدقة في الفواتير والمخزون والتقارير.'
+    case 'smart_procurement':
+    case 'procurement_draft':
+    case 'procurement_basket':
+      return 'يتحوّل الاقتراح إلى طلب شراء جاهز للإرسال بأفضل سعر — توفير على الشراء ومنع نفاد الصنف.'
+    case 'low_stock':
+      return 'إعادة التوفير قبل أن ينفد الصنف — تحمي مبيعاتك ولا تفقد العميل.'
+    case 'recommendation':
+      return 'توصية تحمي مخزونك وربحك — تنفيذها يقلّل النفاد أو الركود ويحسّن قراراتك.'
+    case 'expiry_liquidation':
+    case 'dead_stock_clearance':
+      return 'استرداد قيمة المخزون قبل أن يخسر صلاحيته أو يركد — تحويل الخسارة المحتملة إلى نقد.'
+    case 'expired_quarantine':
+      return 'عزل المنتَج المنتهي من المخزون النشط وتسجيل الخسارة بدقة في الدفاتر للتدقيق.'
+    case 'p2p_order_action':
+      return 'إنهاء حالة طلب عالق في سوق التبادل — لا يبقى أي طلب دون تصرّف.'
+    case 'pos_shift_action':
+      return 'حماية إيراداتك من الفروقات النقدية والأخطاء في الكاشير قبل أن تتراكم.'
+    default:
+      return null
+  }
+}
+
 interface ExecNav { message: string; linkLabel: string; linkHref: string }
 
 function executionNav(approval: Approval, executionResult: any): ExecNav | null {
@@ -1323,6 +1351,13 @@ function ApprovalsTab() {
     refetchInterval: 30_000,
   })
 
+  // Shared with the page header badge (same key → deduped by react-query).
+  const counts = useQuery({
+    queryKey: ['ai-center', 'counts'],
+    queryFn:  aiCenterApi.approvalCounts,
+    refetchInterval: 30_000,
+  })
+
   const bulkApprove = useMutation({
     mutationFn: () => aiCenterApi.bulkApprove(Array.from(selected)),
     onSuccess: (r) => {
@@ -1365,7 +1400,28 @@ function ApprovalsTab() {
     ?? (focusId ? (list.isLoading || focusedFallback.isLoading ? undefined : null) : undefined)
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-5">
+    <div className="space-y-4">
+      {/* Summary cards — see the queue shape and jump to a status in one tap */}
+      <div className="grid grid-cols-3 gap-3">
+        {([
+          { key: 'pending',  label: 'بانتظار قرارك', n: counts.data?.pending  ?? 0, active: 'border-violet-400 bg-violet-50',   num: 'text-violet-700' },
+          { key: 'approved', label: 'موافق عليه',    n: counts.data?.approved ?? 0, active: 'border-emerald-400 bg-emerald-50', num: 'text-emerald-700' },
+          { key: 'rejected', label: 'مرفوض',         n: counts.data?.rejected ?? 0, active: 'border-gray-300 bg-gray-50',      num: 'text-gray-700' },
+        ] as const).map(c => (
+          <button
+            key={c.key}
+            onClick={() => { setStatusFilter(c.key); setSelected(new Set()) }}
+            className={`text-start p-4 rounded-2xl border transition-all ${
+              statusFilter === c.key ? `${c.active} ring-2 ring-offset-1 ring-gray-100` : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+            }`}
+          >
+            <p className={`text-2xl font-extrabold tabular-nums leading-none ${c.num}`}>{c.n.toLocaleString('en-US')}</p>
+            <p className="text-xs font-semibold text-gray-600 mt-1.5">{c.label}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-5">
       {/* List */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         {/* Status pills */}
@@ -1468,6 +1524,7 @@ function ApprovalsTab() {
           onClose={() => setSearchParams({ tab: 'approvals' })}
         />
       </div>
+    </div>
     </div>
   )
 }
@@ -1992,6 +2049,16 @@ function ApprovalDetail({ approval, onClose }: { approval: Approval | null | und
           </div>
         )}
         <Section title="ملخص" body={approval.summary} />
+
+        {impactText(approval) && (
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-3.5">
+            <div className="flex items-center gap-1.5 text-teal-900 font-medium text-xs mb-1">
+              <Zap size={13} />
+              التأثير
+            </div>
+            <p className="text-teal-900/90 text-xs leading-relaxed">{impactText(approval)}</p>
+          </div>
+        )}
 
         <div className="bg-violet-50 border border-violet-200 rounded-xl p-3.5">
           <div className="flex items-center gap-1.5 text-violet-900 font-medium text-xs mb-1.5">
