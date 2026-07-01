@@ -278,6 +278,8 @@ function impactText(approval: Approval): string | null {
       return 'إنهاء حالة طلب عالق في سوق التبادل — لا يبقى أي طلب دون تصرّف.'
     case 'pos_shift_action':
       return 'حماية إيراداتك من الفروقات النقدية والأخطاء في الكاشير قبل أن تتراكم.'
+    case 'fraud_signal':
+      return 'إشارة احتيال أو سلوك غير معتاد رصدها النظام — مراجعتها تحمي أموالك ومخزونك من التلاعب.'
     default:
       return null
   }
@@ -1561,6 +1563,18 @@ function ApprovalRow({
       <div className="flex-1 min-w-0">
         <div className="font-medium text-gray-900 text-sm flex items-center gap-2 flex-wrap">
           <span className="truncate">{approval.title}</span>
+          {(() => {
+            // Terminal-state badge so the "closed" view clearly shows the outcome.
+            if (approval.status === 'executed' && approval.executionResult?.failed) return null // has its own badge
+            const s: Record<string, { ar: string; cls: string }> = {
+              approved: { ar: 'موافَق', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+              executed: { ar: 'نُفّذ', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+              rejected: { ar: 'مرفوض', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
+              expired:  { ar: 'انتهت المهلة', cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+            }
+            const b = s[approval.status]
+            return b ? <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${b.cls}`}>{b.ar}</span> : null
+          })()}
           {approval.subjectType === 'recommendation' && (
             <RecommendationTypeBadge title={approval.title} />
           )}
@@ -2243,6 +2257,7 @@ function subjectTypeLabelAr(t: string): string {
     case 'inventory_item':      return 'ربط منتج'
     case 'smart_procurement':   return 'فرصة شراء ذكية P2P'
     case 'listing_suggestion':  return 'اقتراح إدراج P2P'
+    case 'fraud_signal':        return 'إشارة احتيال'
     case 'expired_quarantine':  return 'عزل منتهي صلاحية'
     case 'order':               return 'طلب'
     default:                    return t
@@ -3484,7 +3499,7 @@ const DOMAIN_DEFS: Array<{
   {
     key: 'purchasing',
     labelAr: 'الشراء',
-    hintAr: 'مسودات أوامر الشراء والشراء الذكي من الموردين والبورصة',
+    hintAr: 'مسودات أوامر الشراء من الموردين — جاهزة لموافقتك',
     icon: ShoppingCart,
   },
   {
@@ -3496,20 +3511,19 @@ const DOMAIN_DEFS: Array<{
   {
     key: 'p2p',
     labelAr: 'سوق P2P',
-    hintAr: 'توصيات الإدراج وطلبات التبادل بين الصيدليات',
+    hintAr: 'الشراء الذكي من الصيدليات القريبة، عروض الإدراج، وطلبات التبادل',
     icon: Store,
   },
   {
     key: 'pos',
-    labelAr: 'الكاشير',
-    hintAr: 'نزاهة الشفتات وفروقات النقد والتنبيهات المرتبطة بنقطة البيع',
+    labelAr: 'الكاشير والنزاهة',
+    hintAr: 'فروقات النقد، سلوك الشفتات، وإشارات الاحتيال',
     icon: ShieldCheck,
   },
 ]
 
 function domainFromApproval(a: Approval): DomainKind | null {
   switch (a.subjectType) {
-    case 'smart_procurement':
     case 'procurement_draft':
     case 'procurement_basket':
       return 'purchasing'
@@ -3520,11 +3534,13 @@ function domainFromApproval(a: Approval): DomainKind | null {
     case 'inventory_item':
     case 'recommendation':
       return 'inventory'
+    case 'smart_procurement':
     case 'p2p_listing_suggestion':
     case 'listing_suggestion':
     case 'p2p_order_action':
       return 'p2p'
     case 'pos_shift_action':
+    case 'fraud_signal':
       return 'pos'
     default:
       return null
@@ -3762,15 +3778,18 @@ function TasksTab() {
     queryKey: ['ai-center', 'approvals', 'done', 'domains-all', doneLimit],
     enabled: stateParam === 'done',
     queryFn: async () => {
-      const [approved, executed, rejected] = await Promise.all([
+      // "Closed" = every terminal state: approved, executed, rejected AND expired
+      // (the decision window passed unactioned). Expired items are the bulk of
+      // history, so excluding them made whole domains look empty.
+      const [approved, executed, rejected, expired] = await Promise.all([
         aiCenterApi.listApprovals({ status: 'approved', limit: doneLimit }),
         aiCenterApi.listApprovals({ status: 'executed', limit: doneLimit }),
         aiCenterApi.listApprovals({ status: 'rejected', limit: doneLimit }),
+        aiCenterApi.listApprovals({ status: 'expired',  limit: doneLimit }),
       ])
-      const merged = [...approved.data, ...executed.data, ...rejected.data]
+      const merged = [...approved.data, ...executed.data, ...rejected.data, ...expired.data]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      // serverTotal reflects the full history size so the UI knows if more pages exist.
-      const serverTotal = approved.total + executed.total + rejected.total
+      const serverTotal = approved.total + executed.total + rejected.total + expired.total
       return { data: merged, total: merged.length, serverTotal }
     },
     placeholderData: keepPreviousData,
@@ -3792,7 +3811,7 @@ function TasksTab() {
     refetchInterval: 30_000,
   })
   const totalOpen = (counts.data?.pending ?? 0) + (counts.data?.modified ?? 0)
-  const totalDone = (counts.data?.approved ?? 0) + (counts.data?.executed ?? 0) + (counts.data?.rejected ?? 0)
+  const totalDone = (counts.data?.approved ?? 0) + (counts.data?.executed ?? 0) + (counts.data?.rejected ?? 0) + (counts.data?.expired ?? 0)
 
   const openCounts: Record<DomainKind, number> = useMemo(() => {
     const c: Record<DomainKind, number> = { purchasing: 0, inventory: 0, p2p: 0, pos: 0 }
@@ -3903,7 +3922,7 @@ function TasksTab() {
             stateParam === 'done' ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'
           }`}
         >
-          مكتملة ({totalDone})
+          مُغلقة ({totalDone})
         </button>
       </div>
 
@@ -3951,8 +3970,8 @@ function TasksTab() {
               <EmptyState
                 icon={CheckCircle2}
                 iconCls="bg-emerald-100 text-emerald-700"
-                title="لا توجد مهام مكتملة في هذه الفئة بعد"
-                body="بمجرد الموافقة أو الرفض أو التنفيذ، ستظهر هنا كسجل مختصر يسهل مراجعته."
+                title="لا توجد مهام مُغلقة في هذه الفئة بعد"
+                body="ستظهر هنا المهام بعد اعتمادها أو رفضها أو تنفيذها — وكذلك التي انتهت مهلتها دون تصرّف."
               />
             ) : domainParam === 'p2p' ? (
               <div className="py-12 px-6 text-center">
@@ -4046,7 +4065,7 @@ function TasksTab() {
                       className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 inline-flex items-center gap-2"
                     >
                       {doneApprovals.isFetching && <Loader2 size={13} className="animate-spin" />}
-                      عرض المزيد من المكتملة
+                      عرض المزيد من المُغلقة
                     </button>
                   </li>
                 )}
