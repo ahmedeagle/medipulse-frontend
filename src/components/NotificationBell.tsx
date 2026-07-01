@@ -58,6 +58,52 @@ const CRITICAL_TYPES = new Set([
   'high_risk_stockout', 'near_expiry', 'expired_stock', 'low_stock', 'drug_need_broadcast',
 ]);
 
+// Clear Arabic category headline per type — shown bold at the top of each row so a
+// glance tells the pharmacist WHAT happened before reading the product/details. The
+// backend title (which often leads with a Latin product name) becomes the secondary
+// detail line, keeping the RTL layout clean.
+const TYPE_HEADLINE_AR: Record<string, string> = {
+  high_risk_stockout: 'نفاد مخزون وشيك', low_stock: 'انخفاض المخزون',
+  reorder_deadline: 'موعد إعادة الطلب', near_expiry: 'قرب انتهاء الصلاحية',
+  expiry_digest: 'ملخص الصلاحيات', expired_stock: 'مخزون منتهي الصلاحية',
+  dead_stock: 'مخزون راكد', dead_stock_warning: 'مخزون راكد',
+  forecast_spike: 'ارتفاع متوقع في الطلب', order_status_changed: 'تحديث حالة الطلب',
+  delivery_confirmed: 'تم تأكيد التوصيل', supplier_overdue: 'تأخّر المورد',
+  draft_created: 'مسودة شراء جاهزة', procurement_delay_suggested: 'يُقترح تأجيل الشراء',
+  overpayment_alert: 'تنبيه دفع زائد', market_shortage: 'نقص في السوق',
+  inventory_batch_complete: 'اكتملت معالجة المخزون', inventory_batch_failed: 'فشلت معالجة المخزون',
+  sales_history_upload_received: 'تم استلام سجل المبيعات', morning_briefing: 'موجز الصباح',
+  system: 'تنبيه النظام', feature_request_update: 'تحديث طلب ميزة',
+  pos_integrity_alert: 'تنبيه سلامة الكاشير', usage_limit_reached: 'انتهى رصيدك الشهري',
+  approval_expiring: 'مهمة على وشك الانتهاء', ai_governance_blocked: 'إجراء يحتاج مراجعتك',
+  p2p_order_received: 'طلب بورصة جديد', p2p_order_accepted: 'تم قبول طلبك',
+  p2p_order_rejected: 'تم رفض الطلب', p2p_order_shipped: 'تم شحن الطلب',
+  p2p_order_completed: 'اكتمل الطلب', p2p_order_cancelled: 'أُلغي الطلب',
+  p2p_order_disputed: 'نزاع على طلب', p2p_invoice_ready: 'فاتورة البورصة جاهزة',
+  p2p_invoice_generated: 'فاتورة البورصة جاهزة', p2p_order_action_required: 'طلب بحاجة إلى إجراء',
+  p2p_order_reminder: 'تذكير بطلب معلّق', p2p_pool_opportunity: 'فرصة تجميع إقليمية',
+  p2p_opportunity: 'فرصة شراء أوفر', clearance_listing_available: 'عرض تصفية متاح',
+  drug_need_broadcast: 'طلب دواء عاجل قريب منك', drug_need_response: 'صيدلية قريبة توفّر طلبك',
+};
+
+// Compact localized relative time — "منذ ٣ ساعات" instead of a raw timestamp.
+function timeAgo(iso: string, lang: string): string {
+  const then = new Date(iso).getTime();
+  if (!then) return '';
+  const rtf = new Intl.RelativeTimeFormat(lang.startsWith('ar') ? 'ar' : 'en', { numeric: 'auto' });
+  const sec = Math.round((Date.now() - then) / 1000);
+  if (Math.abs(sec) < 60) return rtf.format(-sec, 'second');
+  const min = Math.round(sec / 60);
+  if (Math.abs(min) < 60) return rtf.format(-min, 'minute');
+  const hr = Math.round(min / 60);
+  if (Math.abs(hr) < 24) return rtf.format(-hr, 'hour');
+  const day = Math.round(hr / 24);
+  if (Math.abs(day) < 30) return rtf.format(-day, 'day');
+  const month = Math.round(day / 30);
+  if (Math.abs(month) < 12) return rtf.format(-month, 'month');
+  return rtf.format(-Math.round(month / 12), 'year');
+}
+
 // Resolve the in-app destination for a notification. Returns a router path, or
 // null when there is nothing meaningful to open. The backend stamps either a
 // path-style `resourceRef` (e.g. "/pharmacy/inventory?filter=expired"), a
@@ -216,7 +262,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute end-0 top-12 w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+        <div className="absolute end-0 top-12 w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
           {/* Header */}
           <div className="flex items-center px-4 py-3 border-b border-gray-100" dir={isRTL ? 'rtl' : 'ltr'}>
             <div className="flex items-center gap-2">
@@ -280,16 +326,19 @@ export function NotificationBell() {
                     </div>
                     <div className="flex-1 min-w-0 text-right">
                       <div className="flex items-start justify-between gap-2 flex-row-reverse">
-                        <p className={clsx('text-sm font-medium text-right', n.isRead ? 'text-gray-600' : 'text-gray-900')}>
-                          {n.title}
+                        <p className={clsx('text-sm font-bold leading-snug text-right', n.isRead ? 'text-gray-700' : 'text-gray-900')}>
+                          {isRTL ? (TYPE_HEADLINE_AR[n.type] ?? n.title) : n.title}
                         </p>
                         {!n.isRead && (
                           <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 text-right">{n.body}</p>
+                      {isRTL && TYPE_HEADLINE_AR[n.type] && (
+                        <p className="text-[13px] text-gray-700 mt-0.5 line-clamp-2 text-right"><bdi>{n.title}</bdi></p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 text-right"><bdi>{n.body}</bdi></p>
                       <p className="text-xs text-gray-400 mt-1 text-right">
-                        {new Date(n.createdAt).toLocaleString('en-US')}
+                        {timeAgo(n.createdAt, i18n.language)}
                       </p>
                     </div>
                   </button>
