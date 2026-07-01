@@ -961,6 +961,112 @@ function ExpiryBacklogStrip() {
   )
 }
 
+/** One KPI widget card (shared by all dashboard sections). */
+function WidgetCard({ w, onClick }: { w: DashboardWidget; onClick: () => void }) {
+  const Icon = WIDGET_ICON[w.iconKey] ?? Sparkles
+  const hot = w.count > 0
+  const tone =
+    w.severity === 'danger'  ? 'text-red-600 bg-red-50'
+  : w.severity === 'warning' ? 'text-amber-600 bg-amber-50'
+  : w.severity === 'info'    ? 'text-sky-600 bg-sky-50'
+  :                            'text-emerald-600 bg-emerald-50'
+  return (
+    <button
+      onClick={onClick}
+      className="text-start p-5 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
+    >
+      <div className="flex-1 min-w-0 text-start">
+        <p className={`text-3xl font-bold leading-none tabular-nums ${hot ? 'text-gray-900' : 'text-gray-300'}`}>{w.count.toLocaleString('en-US')}</p>
+        <p className="font-semibold text-gray-800 text-sm mt-1.5">{w.titleAr}</p>
+        {w.count === 0 && w.emptyMessageAr && (
+          <p className="text-[11px] text-emerald-600 mt-1 leading-relaxed flex items-center gap-1">
+            <CheckCircle2 size={10} />
+            {w.emptyMessageAr}
+          </p>
+        )}
+      </div>
+      <div className={`shrink-0 w-12 h-12 rounded-full grid place-items-center ${tone}`}>
+        <Icon size={20} />
+      </div>
+    </button>
+  )
+}
+
+/** Section heading — gives every dashboard block a clear mental category. */
+function SectionHead({ icon: Icon, title, subtitle, tone }: {
+  icon: React.ElementType; title: string; subtitle?: string
+  tone: 'red' | 'amber' | 'violet' | 'emerald' | 'sky'
+}) {
+  const toneCls: Record<string, string> = {
+    red:     'bg-red-100 text-red-700',
+    amber:   'bg-amber-100 text-amber-700',
+    violet:  'bg-violet-100 text-violet-700',
+    emerald: 'bg-emerald-100 text-emerald-700',
+    sky:     'bg-sky-100 text-sky-700',
+  }
+  return (
+    <div className="flex items-center gap-2.5 mt-1">
+      <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${toneCls[tone]}`}><Icon size={15} /></span>
+      <div className="min-w-0">
+        <h2 className="text-sm font-bold text-gray-800 leading-tight">{title}</h2>
+        {subtitle && <p className="text-[11px] text-gray-400 leading-tight">{subtitle}</p>}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Section 6 — AI Impact. Turns the AI Center from "more alerts" into "value
+ * delivered": realised savings, decisions executed, and proposals this month.
+ * Uses the existing report endpoint; renders nothing until there's a win to show.
+ */
+function AiImpactSection() {
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['ai-center', 'report', 'month'],
+    queryFn:  () => aiCenterApi.report('month'),
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+  if (!data) return null
+  const saved    = data.realizedSavingsEgp ?? 0
+  const executed = data.executed ?? 0
+  const proposed = data.proposed ?? 0
+  if (saved <= 0 && executed <= 0) return null
+
+  const stats = [
+    { label: 'وفّرت هذا الشهر', value: `${saved.toLocaleString('en-US')} ج.م`, icon: Wallet },
+    { label: 'قرارات نفّذها الذكاء', value: executed.toLocaleString('en-US'), icon: CheckCircle2 },
+    { label: 'إجمالي المقترحات', value: proposed.toLocaleString('en-US'), icon: Sparkles },
+  ]
+  return (
+    <div>
+      <SectionHead icon={TrendingUp} title="أثر الذكاء الاصطناعي" subtitle="القيمة التي حقّقها مساعدوك هذا الشهر" tone="emerald" />
+      <button
+        onClick={() => navigate('/pharmacy/ai-center?tab=report')}
+        className="mt-2 w-full text-start rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-teal-50 to-white p-5 hover:shadow-md transition-all"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {stats.map(s => (
+            <div key={s.label} className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-emerald-100 grid place-items-center text-emerald-600 shrink-0">
+                <s.icon size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl font-extrabold text-emerald-900 tabular-nums leading-tight">{s.value}</p>
+                <p className="text-[11px] text-emerald-700/80 leading-tight">{s.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-[11px] text-emerald-700/70 flex items-center gap-1">
+          عرض تقرير الأثر الكامل <ChevronLeft size={12} className="rtl:rotate-180" />
+        </p>
+      </button>
+    </div>
+  )
+}
+
 function DashboardTab() {
   const navigate = useNavigate()
   const { data, isLoading, error, refetch, isFetching } = useQuery({
@@ -993,6 +1099,15 @@ function DashboardTab() {
   const totalSignals =
     data.widgets.reduce((s, w) => s + w.count, 0) + data.pendingApprovals.total
 
+  // Bucket the flat widget list into clear mental categories (no data removed).
+  const widgetByKey = new Map(data.widgets.map(w => [w.key, w]))
+  const pickWidgets = (keys: string[]) =>
+    keys.map(k => widgetByKey.get(k)).filter((w): w is DashboardWidget => !!w)
+  const requiredWidgets = pickWidgets(['pending_approvals', 'catalog_issues'])
+  const riskWidgets     = pickWidgets(['out_of_stock', 'stock_risk', 'expired'])
+  const oppWidgets      = pickWidgets(['near_expiry', 'dead_stock'])
+  const nearExpiryCount = widgetByKey.get('near_expiry')?.count ?? 0
+
   return (
     <div className="space-y-5">
       {/* Seasonal demand radar (Hijri calendar — works from day one, no sales history needed) */}
@@ -1018,95 +1133,93 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* Expiry financial risk banner */}
+      {/* ── Section 1: Hero — expiry loss in money (strongest signal) ── */}
       {data.expiryRiskEgp > 0 && (
         <div className="p-4 rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center shrink-0">
-            <AlertTriangle size={18} />
+          <div className="w-11 h-11 rounded-xl bg-red-100 text-red-700 flex items-center justify-center shrink-0">
+            <AlertTriangle size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-red-900">
+            <p className="text-base font-bold text-red-900">
               قد تخسر {data.expiryRiskEgp.toLocaleString('en-US')} جنيه من مخزون سينتهي قريباً
             </p>
             <p className="text-[11px] text-red-700 mt-0.5">
-              قيمة المخزون الذي سينتهي خلال 180 يوماً — عرضه في P2P أو بيعه بخصم يقلل الخسارة
+              {nearExpiryCount > 0 ? `${nearExpiryCount} صنف · ` : ''}قيمة المخزون الذي سينتهي خلال 180 يوماً — عرضه في P2P أو بيعه بخصم يقلّل الخسارة
             </p>
           </div>
           <button
             onClick={() => navigate('/pharmacy/p2p?tab=sell&preset=near_expiry')}
-            className="shrink-0 px-3 py-1.5 text-[11px] font-semibold text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors whitespace-nowrap"
+            className="shrink-0 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors whitespace-nowrap"
           >
             أدرج للبيع ←
           </button>
         </div>
       )}
 
-      {/* KPI widgets — unified emerald style, matching Inventory dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {data.widgets.map(w => {
-          const Icon = WIDGET_ICON[w.iconKey] ?? Sparkles
-          return (
-            <button
-              key={w.key}
-              onClick={() => navigate(w.deepLink)}
-              className="text-start p-5 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
-            >
-              <div className="flex-1 min-w-0 text-start">
-                <p className="text-3xl font-bold text-gray-900 leading-none tabular-nums">{w.count.toLocaleString('en-US')}</p>
-                <p className="font-semibold text-gray-800 text-sm mt-1.5">{w.titleAr}</p>
-                {w.count === 0 && w.emptyMessageAr && (
-                  <p className="text-[11px] text-emerald-600 mt-1 leading-relaxed flex items-center gap-1">
-                    <CheckCircle2 size={10} />
-                    {w.emptyMessageAr}
-                  </p>
-                )}
-              </div>
-              <div className="shrink-0 w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                <Icon size={20} className="text-emerald-600" />
-              </div>
-            </button>
-          )
-        })}
+      {/* ── Section 2: Required Actions — needs your decision now ── */}
+      <div className="space-y-2.5">
+        <SectionHead icon={Inbox} title="إجراءات مطلوبة" subtitle="قرارات ومهام تنتظر تصرّفك" tone="violet" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {requiredWidgets.map(w => <WidgetCard key={w.key} w={w} onClick={() => navigate(w.deepLink)} />)}
+        </div>
+        <PosIntegrityWidget />
       </div>
 
-      {/* Missed revenue insight widget */}
-      <MissedRevenueWidget />
+      {/* ── Section 3: Critical Risks — money/patient risk ── */}
+      <div className="space-y-2.5">
+        <SectionHead icon={AlertOctagon} title="المخاطر الحرجة" subtitle="نفاد وانتهاء صلاحية يهدّد مبيعاتك" tone="red" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {riskWidgets.map(w => <WidgetCard key={w.key} w={w} onClick={() => navigate(w.deepLink)} />)}
+        </div>
+        <MissedRevenueWidget />
+      </div>
 
-      {/* POS loss-prevention — cashier-shift anomalies needing review */}
-      <PosIntegrityWidget />
+      {/* ── Section 4: Opportunities — recover value before it's lost ── */}
+      <div className="space-y-2.5">
+        <SectionHead icon={PartyPopper} title="فرص وتقليل خسائر" subtitle="حوّل المخزون قبل أن يخسر قيمته" tone="amber" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {oppWidgets.map(w => <WidgetCard key={w.key} w={w} onClick={() => navigate(w.deepLink)} />)}
+        </div>
+      </div>
+
+      {/* ── Section 5: AI Predictions — plan ahead ── */}
+      <div className="space-y-2.5">
+        <SectionHead icon={TrendingUp} title="توقّعات الذكاء" subtitle="خطّط قبل حدوث النقص" tone="sky" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate('/pharmacy/forecast')}
+            className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
+          >
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+              <TrendingUp size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900">توقّع الطلب</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">أعلى الأصناف المتوقّع زيادة الطلب عليها — تنبؤ ٧ و١٤ و٣٠ يوم</p>
+            </div>
+            <ChevronLeft size={14} className="text-gray-300 group-hover:text-emerald-500 rtl:rotate-180 shrink-0" />
+          </button>
+          <button
+            onClick={() => navigate('/pharmacy/reorder')}
+            className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
+          >
+            <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
+              <CalendarClock size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900">جدول إعادة الطلب</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">الأصناف التي تقترب من نقطة إعادة الطلب وتاريخ النفاد المتوقّع</p>
+            </div>
+            <ChevronLeft size={14} className="text-gray-300 group-hover:text-sky-500 rtl:rotate-180 shrink-0" />
+          </button>
+        </div>
+      </div>
 
       {/* Financial health + market availability snapshot */}
       <FinancialHealthCards />
 
-      {/* Forecasting quick links — predictive planning tools */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button
-          onClick={() => navigate('/pharmacy/forecast')}
-          className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
-        >
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-            <TrendingUp size={20} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900">توقّع الطلب</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">تنبؤ ٧ و١٤ و٣٠ يوم لكل صنف مع نطاق الثقة</p>
-          </div>
-          <ChevronLeft size={14} className="text-gray-300 group-hover:text-emerald-500 rtl:rotate-180 shrink-0" />
-        </button>
-        <button
-          onClick={() => navigate('/pharmacy/reorder')}
-          className="text-start p-4 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm transition-all group flex items-center gap-4"
-        >
-          <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
-            <CalendarClock size={20} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900">جدول إعادة الطلب</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">نقطة إعادة الطلب وتاريخ النفاد المتوقّع لكل صنف</p>
-          </div>
-          <ChevronLeft size={14} className="text-gray-300 group-hover:text-sky-500 rtl:rotate-180 shrink-0" />
-        </button>
-      </div>
+      {/* ── Section 6: AI Impact — value delivered ── */}
+      <AiImpactSection />
 
       {/* Top pending approvals preview */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
@@ -1127,6 +1240,24 @@ function DashboardTab() {
             عرض الكل <ChevronLeft size={14} className="rtl:rotate-180" />
           </button>
         </div>
+        {/* Summary breakdown chips — see the shape of the queue before scanning it */}
+        {data.pendingApprovals.total > 0 && (
+          <div className="px-5 pt-3 flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-violet-50 text-violet-700">
+              {data.pendingApprovals.total} بانتظار الموافقة
+            </span>
+            {data.pendingApprovals.critical > 0 && (
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-700">
+                {data.pendingApprovals.critical} حرجة
+              </span>
+            )}
+            {data.pendingApprovals.high > 0 && (
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700">
+                {data.pendingApprovals.high} مرتفعة
+              </span>
+            )}
+          </div>
+        )}
         {data.topApprovals.length === 0 ? (
           <EmptyState
             icon={CheckCircle2}
