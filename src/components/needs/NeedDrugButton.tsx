@@ -283,16 +283,49 @@ function MyNeeds() {
   );
 }
 
+export function NeedDrugModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
+  const [tab, setTab] = useState<Tab>('new');
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isRTL ? 'أحتاج دواء غير متوفر عندك؟' : 'Need a drug you’re out of?'}
+      size="md"
+    >
+      <div className="p-6 pt-4">
+        <div className="mb-4 flex gap-1 rounded-xl bg-gray-50 p-1">
+          <button
+            onClick={() => setTab('new')}
+            className={clsx('flex-1 rounded-lg py-2 text-sm font-semibold transition-colors', tab === 'new' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500')}
+          >
+            {isRTL ? 'طلب جديد' : 'New request'}
+          </button>
+          <button
+            onClick={() => setTab('mine')}
+            className={clsx('flex-1 rounded-lg py-2 text-sm font-semibold transition-colors', tab === 'mine' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500')}
+          >
+            {isRTL ? 'طلباتي' : 'My requests'}
+          </button>
+        </div>
+
+        {tab === 'new' ? <NewNeedForm onSourced={() => {}} /> : <MyNeeds />}
+      </div>
+    </Modal>
+  );
+}
+
 export function NeedDrugButton() {
   const { i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>('new');
 
   return (
     <>
       <button
-        onClick={() => { setTab('new'); setOpen(true); }}
+        onClick={() => setOpen(true)}
         className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-2.5 sm:px-3.5 py-2 text-sm font-bold text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 shrink-0"
         title={isRTL ? 'أحتاج دواء' : 'I need a drug'}
       >
@@ -300,31 +333,7 @@ export function NeedDrugButton() {
         <span className="hidden sm:inline whitespace-nowrap">{isRTL ? 'أحتاج دواء' : 'I Need a Drug'}</span>
       </button>
 
-      <Modal
-        isOpen={open}
-        onClose={() => setOpen(false)}
-        title={isRTL ? 'أحتاج دواء غير متوفر عندك؟' : 'Need a drug you’re out of?'}
-        size="md"
-      >
-        <div className="p-6 pt-4">
-          <div className="mb-4 flex gap-1 rounded-xl bg-gray-50 p-1">
-            <button
-              onClick={() => setTab('new')}
-              className={clsx('flex-1 rounded-lg py-2 text-sm font-semibold transition-colors', tab === 'new' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500')}
-            >
-              {isRTL ? 'طلب جديد' : 'New request'}
-            </button>
-            <button
-              onClick={() => setTab('mine')}
-              className={clsx('flex-1 rounded-lg py-2 text-sm font-semibold transition-colors', tab === 'mine' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500')}
-            >
-              {isRTL ? 'طلباتي' : 'My requests'}
-            </button>
-          </div>
-
-          {tab === 'new' ? <NewNeedForm onSourced={() => {}} /> : <MyNeeds />}
-        </div>
-      </Modal>
+      <NeedDrugModal isOpen={open} onClose={() => setOpen(false)} />
     </>
   );
 }

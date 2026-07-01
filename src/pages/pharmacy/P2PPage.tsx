@@ -639,16 +639,16 @@ function MarketplaceTab({ isRTL, autoOpenEmergency }: { isRTL: boolean; autoOpen
         {/* Two clearly separated zones */}
         <div className="flex gap-2.5 items-stretch">
 
-          {/* Zone A: Emergency "أحتاج الآن" */}
+          {/* Zone A: Emergency "طلب طارئ" from nearby pharmacies (P2P-only) */}
           <div className="shrink-0 flex flex-col items-center gap-0.5">
             <button
               onClick={() => setShowEmergencySheet(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
             >
               <Zap size={14} />
-              {isRTL ? 'أحتاج الآن' : 'Need Now'}
+              {isRTL ? 'طلب طارئ' : 'Emergency'}
             </button>
-            <span className="text-[9px] text-gray-400 text-center leading-tight">حالات الطوارئ والعاجلة</span>
+            <span className="text-[9px] text-gray-400 text-center leading-tight">{isRTL ? 'من الصيدليات القريبة فوراً' : 'from nearby pharmacies'}</span>
           </div>
 
           {/* Divider */}

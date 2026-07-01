@@ -9,14 +9,14 @@ import {
   Inbox, TrendingUp, AlertTriangle, Star,
   Plug, GitBranch, Upload, ListChecks, Bell,
   CheckCircle2, ShieldCheck, Store, Receipt, Clock,
-  Menu, X, FileText, RefreshCw, Layers, LineChart, Globe,
+  Menu, X, FileText, RefreshCw, Layers, LineChart, Globe, Pill,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProfileStore } from '../../store/auth.store';
 import { getRoleFromToken } from '../../auth/oidc';
 import { NotificationBell } from '../NotificationBell';
 import { GlobalCartButton } from './GlobalCartButton';
-import { NeedDrugButton } from '../needs/NeedDrugButton';
+import { NeedDrugModal } from '../needs/NeedDrugButton';
 
 interface NavGroup {
   labelKey: string;
@@ -137,7 +137,7 @@ const NAV_MAP: Record<string, { dashboard: string; groups: NavGroup[] }> = {
   chain_admin:    { dashboard: '/chain',    groups: CHAIN_NAV },
 };
 
-function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean }) {
+function DropdownGroup({ group, isActive, extraAction }: { group: NavGroup; isActive: boolean; extraAction?: { label: string; icon: React.ElementType; onClick: () => void } }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -202,6 +202,18 @@ function DropdownGroup({ group, isActive }: { group: NavGroup; isActive: boolean
               {t(item.labelKey)}
             </Link>
           ))}
+          {extraAction && (
+            <>
+              <div className="my-1 border-t border-gray-100" />
+              <button
+                onClick={() => { extraAction.onClick(); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors"
+              >
+                <extraAction.icon size={14} />
+                {extraAction.label}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -422,12 +434,13 @@ function AiCenterMenu() {
 
 // ── Mobile nav drawer ─────────────────────────────────────────────────────────
 function MobileNavDrawer({
-  open, onClose, role, navConfig,
+  open, onClose, role, navConfig, onNeedDrug,
 }: {
   open: boolean
   onClose: () => void
   role: string
   navConfig: { dashboard: string; groups: NavGroup[] } | undefined
+  onNeedDrug?: () => void
 }) {
   const { t, i18n } = useTranslation()
   const isRTL = i18n.language === 'ar'
@@ -509,6 +522,14 @@ function MobileNavDrawer({
                     <i.icon size={16} />{t(i.labelKey)}
                   </Link>
                 ))}
+                {role === 'pharmacy_admin' && onNeedDrug && (
+                  <button
+                    onClick={onNeedDrug}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                  >
+                    <Pill size={16} />{isRTL ? 'أحتاج دواء' : 'I need a drug'}
+                  </button>
+                )}
               </div>
 
               {/* Medicine Market */}
@@ -573,6 +594,7 @@ export function TopNav() {
   const { profile, clearProfile } = useProfileStore();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [needOpen, setNeedOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const role = profile?.role ?? getRoleFromToken(auth.user) ?? '';
@@ -596,7 +618,9 @@ export function TopNav() {
 
   return (
     <>
-      <MobileNavDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} role={role} navConfig={navConfig} />
+      <MobileNavDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} role={role} navConfig={navConfig} onNeedDrug={() => { setMobileOpen(false); setNeedOpen(true); }} />
+
+      {role === 'pharmacy_admin' && <NeedDrugModal isOpen={needOpen} onClose={() => setNeedOpen(false)} />}
 
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-4">
@@ -644,7 +668,11 @@ export function TopNav() {
                 </Link>
                 <AiCenterMenu />
                 <P2PExchangeLink />
-                <DropdownGroup group={PHARMACY_NAV[0]} isActive={PHARMACY_NAV[0].items.some(i => location.pathname.startsWith(i.to))} />
+                <DropdownGroup
+                  group={PHARMACY_NAV[0]}
+                  isActive={PHARMACY_NAV[0].items.some(i => location.pathname.startsWith(i.to))}
+                  extraAction={{ label: isRTL ? 'أحتاج دواء' : 'I need a drug', icon: Pill, onClick: () => setNeedOpen(true) }}
+                />
                 <PosMenu />
                 <DropdownGroup group={PHARMACY_NAV[1]} isActive={PHARMACY_NAV[1].items.some(i => location.pathname.startsWith(i.to))} />
                 <DropdownGroup group={PHARMACY_NAV[2]} isActive={PHARMACY_NAV[2].items.some(i => location.pathname.startsWith(i.to))} />
@@ -700,7 +728,6 @@ export function TopNav() {
 
           {/* Right side */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-auto">
-            {role === 'pharmacy_admin' && <NeedDrugButton />}
             {role === 'pharmacy_admin' && <GlobalCartButton />}
             <NotificationBell />
 
