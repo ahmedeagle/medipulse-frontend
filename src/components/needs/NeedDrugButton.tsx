@@ -17,9 +17,9 @@ const EGP = (n: number) =>
 type Tab = 'new' | 'mine';
 
 const URGENCY_OPTIONS: { value: NeedUrgency; ar: string; en: string; hintAr: string; hintEn: string }[] = [
-  { value: 'normal',   ar: 'عادي',  en: 'Normal',   hintAr: '',                                hintEn: '' },
-  { value: 'urgent',   ar: 'عاجل',  en: 'Urgent',   hintAr: '',                                hintEn: '' },
-  { value: 'critical', ar: 'طارئ',  en: 'Critical', hintAr: 'يوصل للصيدليات القريبة فوراً',     hintEn: 'reaches nearby pharmacies instantly' },
+  { value: 'normal',   ar: 'عادي',  en: 'Normal',   hintAr: 'خلال أيام يكفيني',        hintEn: 'within a few days is fine' },
+  { value: 'urgent',   ar: 'عاجل',  en: 'Urgent',   hintAr: 'محتاجه اليوم أو بكرة',     hintEn: 'need it today/tomorrow' },
+  { value: 'critical', ar: 'طارئ',  en: 'Critical', hintAr: 'المريض مستني — أسرع مصدر', hintEn: 'patient waiting — fastest source' },
 ];
 
 const STATUS_STYLE: Record<DrugNeed['status'], { ar: string; en: string; cls: string }> = {
@@ -186,19 +186,20 @@ function NewNeedForm({ onSourced }: { onSourced: () => void }) {
               type="button"
               onClick={() => setUrgency(o.value)}
               className={clsx(
-                'rounded-xl border py-2 text-sm font-semibold transition-colors',
+                'flex flex-col items-center gap-0.5 rounded-xl border py-2 px-1 text-center transition-colors',
                 urgency === o.value
                   ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                   : 'border-gray-200 text-gray-600 hover:bg-gray-50',
               )}
             >
-              {isRTL ? o.ar : o.en}
+              <span className="text-sm font-semibold">{isRTL ? o.ar : o.en}</span>
+              <span className="text-[10px] leading-tight text-gray-400">{isRTL ? o.hintAr : o.hintEn}</span>
             </button>
           ))}
         </div>
         {urgency === 'critical' && (
           <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-            <AlertTriangle size={12} /> {isRTL ? URGENCY_OPTIONS[2].hintAr : URGENCY_OPTIONS[2].hintEn}
+            <AlertTriangle size={12} /> {isRTL ? 'هنرتّبلك أسرع مصدر متاح فوراً.' : 'We prioritise the fastest available source.'}
           </p>
         )}
       </div>
