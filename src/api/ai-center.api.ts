@@ -232,6 +232,14 @@ export interface AiCenterReport {
   missed:   number
   realizedSavingsEgp: number
   recovery: RecoverySummary
+  /** Cross-check of legacy on-the-fly savings vs the persisted ledger. */
+  reconciliation: {
+    legacyProcurementSavingsEgp:  number
+    ledgerProcurementRealizedEgp: number
+    ledgerRealizedEgp:            number
+    deltaEgp:                     number
+    inSync:                       boolean
+  }
   byBucket: ReportBucket[]
   backlog: {
     pending:               number
