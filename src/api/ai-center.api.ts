@@ -201,9 +201,40 @@ export interface TokenUsageBreakdownRow {
   totalCostUsd:  number
 }
 
+export type ReportPeriod = 'week' | 'month'
+
+export interface ReportBucket {
+  bucket:   'purchasing' | 'inventory' | 'p2p' | 'pos' | 'other'
+  labelAr:  string
+  created:  number
+  executed: number
+  missed:   number
+}
+
+export interface AiCenterReport {
+  period:   ReportPeriod
+  since:    string
+  proposed: number
+  approved: number
+  executed: number
+  rejected: number
+  missed:   number
+  realizedSavingsEgp: number
+  byBucket: ReportBucket[]
+  backlog: {
+    pending:               number
+    oldestPendingAgeHours: number | null
+    expiringNext24h:       number
+  }
+  avgTimeToDecideHours: number | null
+}
+
 export const aiCenterApi = {
   workforceSummary: (): Promise<WorkforceSummary> =>
     client.get('/ai-center/workforce/summary').then(r => r.data),
+
+  report: (period: ReportPeriod = 'week'): Promise<AiCenterReport> =>
+    client.get('/ai-center/report', { params: { period } }).then(r => r.data),
 
   // Approvals
   listApprovals: (params: {

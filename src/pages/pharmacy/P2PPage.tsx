@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -499,7 +499,7 @@ export default function P2PPage() {
       <div className="p-6">
         {/* -- Off-platform payment notice -----------------------------------
             P2P settlements happen directly between the two pharmacies today.
-            MediPulse does not hold funds, escrow, or arbitrate financial
+            Bnoov does not hold funds, escrow, or arbitrate financial
             disputes · so we surface that contract terms loudly on every tab. */}
         {(activeTab === 'marketplace' || activeTab === 'sell' || activeTab === 'orders') && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900 text-sm flex items-start gap-2">
@@ -507,8 +507,8 @@ export default function P2PPage() {
             <div className="leading-relaxed">
               <strong>{isRTL ? 'تنبيه الدفع: ' : 'Payment notice: '}</strong>
               {isRTL
-                ? 'طلبات P2P تتم بالدفع عند الاستلام بين الصيدليات. MediPulse لا تتولى المدفوعات ولا تضمن التسوية بين الأطراف المتعاملة. يرجى الاتفاق على شروط الدفع وأدوات السداد مباشرة بينكما.'
-                : 'P2P payments happen directly between the two pharmacies, off-platform. MediPulse does not hold funds or arbitrate financial disputes. Agree on payment terms in writing before shipping and keep the transfer receipt.'}
+                ? 'طلبات P2P تتم بالدفع عند الاستلام بين الصيدليات. Bnoov لا تتولى المدفوعات ولا تضمن التسوية بين الأطراف المتعاملة. يرجى الاتفاق على شروط الدفع وأدوات السداد مباشرة بينكما.'
+                : 'P2P payments happen directly between the two pharmacies, off-platform. Bnoov does not hold funds or arbitrate financial disputes. Agree on payment terms in writing before shipping and keep the transfer receipt.'}
             </div>
           </div>
         )}

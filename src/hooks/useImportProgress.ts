@@ -1,10 +1,10 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+﻿import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { importsApi, type ImportBatch, type ImportBatchStatus } from '../api/imports.api'
 
 const TERMINAL: ReadonlySet<ImportBatchStatus> = new Set(['completed', 'failed', 'cancelled'])
 
-const LS_KEY = 'medipulse:activeImportBatchId'
+const LS_KEY = 'bnoov:activeImportBatchId'
 
 /** Persist the current batch id so a page reload keeps the toast alive. */
 export function rememberActiveBatch(id: string | null): void {

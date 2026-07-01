@@ -1,6 +1,6 @@
-# Pharmacy Exchange Network (PEN) — Full Build Documentation
+﻿# Pharmacy Exchange Network (PEN) — Full Build Documentation
 
-> **Project:** MediPulse P2P Smart Trading Network  
+> **Project:** Bnoov P2P Smart Trading Network  
 > **Codename:** PEN — Pharmacy Exchange Network  
 > **Status:** All 5 phases complete, both repos compile clean (0 TS errors)  
 > **Goal:** Beat competitor Aumet by turning every pharmacy into a buyer, seller, emergency source, and smart inventory node simultaneously
@@ -45,13 +45,13 @@
 ## Architecture Overview
 
 ```
-medipulse-backend (NestJS)
+bnoov-backend (NestJS)
 ├── p2p-seller/          ← Seller profiles + reliability scoring
 ├── p2p-listing/         ← Listings + ListingRulesEngine (9 rules)
 ├── p2p-orders/          ← Order state machine + invoices + disputes
 └── p2p-marketplace/     ← Smart search + intelligence + matching
 
-medipulse-frontend (React + Vite)
+bnoov-frontend (React + Vite)
 └── src/pages/pharmacy/P2PPage.tsx   ← Single-page hub with 5 tabs
     ├── Marketplace   (search + smart ranking + order modal)
     ├── Sell          (my listings + AddListingForm + 9-rule panel)
@@ -454,7 +454,7 @@ GET /p2p/admin/exchange-suggestions            ?limit
 
 ## Key Files
 
-### Backend (`medipulse-backend/src/`)
+### Backend (`bnoov-backend/src/`)
 
 ```
 p2p-seller/
@@ -501,7 +501,7 @@ migrations/
 └── 1780701000000-AddAutoDiscountIndex.ts
 ```
 
-### Frontend (`medipulse-frontend/src/`)
+### Frontend (`bnoov-frontend/src/`)
 
 ```
 pages/pharmacy/
@@ -530,7 +530,7 @@ i18n/locales/
 ## How to Run Migrations
 
 ```bash
-# From medipulse-backend root
+# From bnoov-backend root
 npm run migration:run
 
 # Or with TypeORM CLI directly

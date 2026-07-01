@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Barcode, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { inventoryApi } from '../api/inventory.api';
 
@@ -87,7 +87,7 @@ export function BarcodeInput({ onFound, placeholder = 'Type or scan barcode (e.g
             {result.genericName && <p className="text-green-600 text-xs">{result.genericName}</p>}
             {result.manufacturer && <p className="text-green-500 text-xs">{result.manufacturer}</p>}
             <p className="text-green-500 text-xs mt-0.5">
-              Source: {result.source === 'local_db' ? 'MediPulse database ✓' : 'External lookup'}
+              Source: {result.source === 'local_db' ? 'Bnoov database ✓' : 'External lookup'}
             </p>
           </div>
         </div>

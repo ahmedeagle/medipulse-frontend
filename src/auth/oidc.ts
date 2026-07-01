@@ -1,4 +1,4 @@
-import { UserManager, WebStorageStateStore } from 'oidc-client-ts';
+﻿import { UserManager, WebStorageStateStore } from 'oidc-client-ts';
 
 const kcUrl    = import.meta.env.VITE_KC_URL;
 const kcRealm  = import.meta.env.VITE_KC_REALM;
@@ -27,7 +27,7 @@ export const userManager = new UserManager({
 });
 
 /**
- * Extracts the MediPulse role from KC realm_access claim.
+ * Extracts the Bnoov role from KC realm_access claim.
  * Order matters — first match wins.
  */
 export function getRoleFromToken(user: { profile?: any; access_token?: string } | null): string | null {

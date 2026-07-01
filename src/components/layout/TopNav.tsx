@@ -16,6 +16,7 @@ import { useProfileStore } from '../../store/auth.store';
 import { getRoleFromToken } from '../../auth/oidc';
 import { NotificationBell } from '../NotificationBell';
 import { GlobalCartButton } from './GlobalCartButton';
+import { NeedDrugButton } from '../needs/NeedDrugButton';
 
 interface NavGroup {
   labelKey: string;
@@ -615,7 +616,7 @@ export function TopNav() {
             className="flex items-center gap-2 shrink-0"
           >
             <span className="text-2xl">💊</span>
-            <span className="font-bold text-base sm:text-lg text-gray-900 tracking-tight">MediPulse</span>
+            <span className="font-bold text-base sm:text-lg text-gray-900 tracking-tight">Bnoov</span>
             {tenantName && (
               <span
                 title={tenantName}
@@ -699,6 +700,7 @@ export function TopNav() {
 
           {/* Right side */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-auto">
+            {role === 'pharmacy_admin' && <NeedDrugButton />}
             {role === 'pharmacy_admin' && <GlobalCartButton />}
             <NotificationBell />
 

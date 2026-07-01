@@ -1,7 +1,7 @@
-Website / GTM Changes — integrated into every phase
+﻿Website / GTM Changes — integrated into every phase
 Rules for all website edits:
 
-File: medipulse-site/index.html (bilingual AR/EN via data-i18n).
+File: bnoov-site/index.html (bilingual AR/EN via data-i18n).
 Reuse existing section styling, card grid, colors, RTL. No new design language.
 Every new claim must map to a real, shipped backend capability (no vaporware — keeps trust + avoids false advertising).
 Each addition gets a soft CTA to demo.

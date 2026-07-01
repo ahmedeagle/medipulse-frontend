@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ export const useManualCart = create<ManualCartState>()(
 
       clearAll: () => set({ groups: {} }),
     }),
-    { name: 'medipulse-manual-cart' },
+    { name: 'bnoov-manual-cart' },
   ),
 )
 

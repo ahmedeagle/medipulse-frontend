@@ -16,6 +16,9 @@ export const forecastingApi = {
   getSeasonality: () =>
     client.get('/forecasting/seasonality'),
 
+  getModelAccuracy: () =>
+    client.get('/forecasting/model-accuracy'),
+
   refreshForecasts: () =>
     client.post('/forecasting/refresh'),
 };

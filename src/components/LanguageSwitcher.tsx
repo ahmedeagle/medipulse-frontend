@@ -1,8 +1,8 @@
-import { useTranslation } from 'react-i18next';
+﻿import { useTranslation } from 'react-i18next';
 
 /**
  * Language switcher — toggles between Arabic and English.
- * Persists selection in localStorage under 'medipulse-lang'.
+ * Persists selection in localStorage under 'bnoov-lang'.
  * Also updates document dir (rtl/ltr) via the i18n listener in src/i18n/index.ts.
  */
 export function LanguageSwitcher() {

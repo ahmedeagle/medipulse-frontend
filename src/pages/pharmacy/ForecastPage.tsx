@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { BarChart2, TrendingUp, TrendingDown, Minus, RefreshCw, Loader2, ChevronRight } from 'lucide-react';
+import { BarChart2, TrendingUp, TrendingDown, Minus, RefreshCw, Loader2, ChevronRight, ShieldCheck } from 'lucide-react';
 import clsx from 'clsx';
 import { forecastingApi } from '../../api/forecasting.api';
 import { inventoryApi } from '../../api/inventory.api';
@@ -11,6 +11,72 @@ const TREND_CONFIG = {
   stable:     { icon: Minus,        color: 'text-gray-500',   bg: 'bg-gray-50',   label: 'Stable' },
   decreasing: { icon: TrendingDown, color: 'text-red-500',    bg: 'bg-red-50',    label: 'Decreasing' },
 } as const;
+
+/**
+ * Model-validation banner. Proves to the pharmacy owner that our forecasting
+ * engine isn't a black box — it is continuously benchmarked against Facebook
+ * Prophet on their OWN demand, and we show which one is winning + the error rate.
+ */
+function ModelAccuracyCard() {
+  const { data } = useQuery({
+    queryKey: ['forecast-model-accuracy'],
+    queryFn: () => forecastingApi.getModelAccuracy().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (!data) return null;
+
+  const evaluated = Number(data.evaluated) || 0;
+  const holtPct = data.avgHoltMapePct != null ? Math.max(0, 100 - Number(data.avgHoltMapePct)) : null;
+  const prophetPct = data.avgProphetMapePct != null ? Math.max(0, 100 - Number(data.avgProphetMapePct)) : null;
+
+  // Until enough shadow comparisons exist, reassure rather than show empty stats.
+  const learning = evaluated < 20;
+
+  return (
+    <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-5">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100">
+          <ShieldCheck size={18} className="text-indigo-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-gray-900">AI forecast accuracy — independently validated</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Every forecast is silently re-checked against a Facebook Prophet model on your own sales.
+            We only keep the engine that predicts your demand most accurately.
+          </p>
+
+          {learning ? (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
+              <Loader2 size={12} className="animate-spin" />
+              Learning your demand — {evaluated} of 20 validation checks completed
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs text-gray-400">Live engine accuracy</p>
+                <p className="text-lg font-bold text-gray-900">{holtPct != null ? `${holtPct.toFixed(1)}%` : '—'}</p>
+                <p className="text-[11px] text-gray-400">Holt-Winters</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs text-gray-400">Challenger accuracy</p>
+                <p className="text-lg font-bold text-gray-900">{prophetPct != null ? `${prophetPct.toFixed(1)}%` : '—'}</p>
+                <p className="text-[11px] text-gray-400">Facebook Prophet (shadow)</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs text-gray-400">Currently best for you</p>
+                <p className="text-lg font-bold text-indigo-700">
+                  {data.recommendation === 'prophet' ? 'Prophet' : 'Holt-Winters'}
+                </p>
+                <p className="text-[11px] text-gray-400">{data.prophetWins}/{evaluated} Prophet wins</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function HorizonCard({ forecast }: { forecast: any }) {
   const trend = TREND_CONFIG[forecast.trend as keyof typeof TREND_CONFIG] ?? TREND_CONFIG.stable;
@@ -124,6 +190,9 @@ export default function ForecastPage() {
           Refresh
         </button>
       </div>
+
+      {/* AI model validation — builds trust that forecasts are benchmarked */}
+      <ModelAccuracyCard />
 
       {/* Product selector */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

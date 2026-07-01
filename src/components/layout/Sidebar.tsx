@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -95,7 +95,7 @@ export function Sidebar() {
       <div className="px-6 py-5 border-b border-slate-700">
         <div className={clsx('flex items-center gap-2', isRTL && 'flex-row-reverse')}>
           <span className="text-2xl">💊</span>
-          <span className="text-white font-bold text-xl tracking-tight">MediPulse</span>
+          <span className="text-white font-bold text-xl tracking-tight">Bnoov</span>
         </div>
         {tenantName && <p className={clsx('text-slate-400 text-xs mt-1 truncate', isRTL && 'text-right')}>{tenantName}</p>}
       </div>
@@ -233,7 +233,7 @@ export function Sidebar() {
       </nav>
 
       <div className="px-4 py-4 border-t border-slate-700 text-xs text-slate-500 text-center">
-        MediPulse v1.5
+        Bnoov v1.5
       </div>
     </aside>
   );

@@ -1,4 +1,4 @@
-import { useAuth } from 'react-oidc-context';
+﻿import { useAuth } from 'react-oidc-context';
 import { Navigate } from 'react-router-dom';
 import { getRoleFromToken, getDashboardPath } from '../../auth/oidc';
 
@@ -15,7 +15,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="text-4xl">💊</span>
-            <span className="text-3xl font-bold text-gray-900">MediPulse</span>
+            <span className="text-3xl font-bold text-gray-900">Bnoov</span>
           </div>
           <p className="text-gray-500 text-sm">AI-Powered Pharmacy Procurement Intelligence</p>
         </div>
@@ -23,7 +23,7 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Welcome</h1>
           <p className="text-gray-500 text-sm mb-8">
-            Sign in securely via your MediPulse account
+            Sign in securely via your Bnoov account
           </p>
 
           {auth.error && (
@@ -43,7 +43,7 @@ export default function LoginPage() {
                 Redirecting…
               </>
             ) : (
-              'Sign in with MediPulse'
+              'Sign in with Bnoov'
             )}
           </button>
 
@@ -53,7 +53,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          &copy; {new Date().getFullYear()} MediPulse. All rights reserved.
+          &copy; {new Date().getFullYear()} Bnoov. All rights reserved.
         </p>
       </div>
     </div>

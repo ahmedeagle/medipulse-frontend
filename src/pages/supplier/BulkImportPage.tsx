@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, FileText, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { profileApi } from '../../api/profile.api';
@@ -29,7 +29,7 @@ export default function BulkImportPage() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = 'medipulse-catalog-template.csv';
+    a.download = 'bnoov-catalog-template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };

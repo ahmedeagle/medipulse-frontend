@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -62,7 +62,7 @@ export default function OnboardingHubPage() {
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">
-              {isAr ? 'مرحباً بك في MediPulse' : 'Welcome to MediPulse'}
+              {isAr ? 'مرحباً بك في Bnoov' : 'Welcome to Bnoov'}
             </h1>
             <p className="mt-1 text-sm text-gray-600 max-w-xl">
               {isAr

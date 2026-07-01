@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo, Fragment } from 'react'
+﻿import { useState, useRef, useCallback, useEffect, useMemo, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -83,7 +83,7 @@ function BulkUploadModal({ onClose, onEnqueued }: { onClose: () => void; onEnque
   const downloadTemplate = () => {
     const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' })
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob); a.download = 'medipulse-template.csv'; a.click()
+    a.href = URL.createObjectURL(blob); a.download = 'bnoov-template.csv'; a.click()
   }
 
   return (
@@ -1307,7 +1307,7 @@ function InventorySetupLanding({ onBulkUpload, onAddManually }: { onBulkUpload: 
           {isAr ? 'إعداد لأول مرة' : 'First-time setup'}
         </span>
         <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
-          {isAr ? 'مرحباً بك في MediPulse' : 'Welcome to MediPulse'}
+          {isAr ? 'مرحباً بك في Bnoov' : 'Welcome to Bnoov'}
         </h1>
         <p className="mt-3 text-gray-500 leading-relaxed">
           {isAr

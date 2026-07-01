@@ -1,10 +1,10 @@
-import i18n from 'i18next';
+﻿import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import ar from './locales/ar.json';
 
 // Arabic is the product default. Respect an explicit user choice stored in localStorage.
-const saved = localStorage.getItem('medipulse-lang');
+const saved = localStorage.getItem('bnoov-lang');
 const initialLng: string = (saved === 'en' || saved === 'ar') ? saved : 'ar';
 
 i18n
@@ -21,7 +21,7 @@ i18n
   });
 
 i18n.on('languageChanged', (lng) => {
-  localStorage.setItem('medipulse-lang', lng);
+  localStorage.setItem('bnoov-lang', lng);
   document.documentElement.dir  = lng === 'ar' ? 'rtl' : 'ltr';
   document.documentElement.lang = lng;
 });

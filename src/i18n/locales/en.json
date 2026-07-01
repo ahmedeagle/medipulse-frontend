@@ -1,4 +1,4 @@
-{
+﻿{
   "pagination": {
     "empty": "No items to display.",
     "showing": "Showing {{start}}–{{end}} of {{total}}",
@@ -70,7 +70,7 @@
     "order_detail": "Order Details",
     "login": "Sign In",
     "signing_in": "Signing in…",
-    "app": "MediPulse",
+    "app": "Bnoov",
     "logout": "Logout",
     "reports": "Reports",
     "purchases": "Purchases",
@@ -319,8 +319,8 @@
     "delete_confirm": "Delete this inventory item?",
     "setup": {
       "badge": "Inventory Setup",
-      "title": "Getting started with MediPulse is easier than ever",
-      "subtitle": "All you need is your Excel file with current stock. Upload it once and MediPulse will automatically transfer your products, quantities, and thresholds.",
+      "title": "Getting started with Bnoov is easier than ever",
+      "subtitle": "All you need is your Excel file with current stock. Upload it once and Bnoov will automatically transfer your products, quantities, and thresholds.",
       "bulk_cta": "Bulk Upload",
       "bulk_sub": "Excel or CSV · Fast setup",
       "manual_cta": "Add Manually",
@@ -333,7 +333,7 @@
       "step3_sub": "Real-time tracking",
       "sidebar_label": "What happens next",
       "sidebar_title": "Your inventory becomes ready instantly",
-      "sidebar_desc": "Just upload your file and verify it — your inventory is automatically ready inside MediPulse.",
+      "sidebar_desc": "Just upload your file and verify it — your inventory is automatically ready inside Bnoov.",
       "can_do": "You can immediately:",
       "can_1": "Start ordering from suppliers",
       "can_2": "Get AI procurement recommendations",

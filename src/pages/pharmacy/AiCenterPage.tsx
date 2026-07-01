@@ -10,7 +10,7 @@ import {
   AlertCircle, Info, Loader2, X, Edit3,
   Store, Eye, RefreshCw, Activity, Ban, Zap, Settings,
   ShieldAlert, Banknote, PartyPopper, ExternalLink, Wallet,
-  CalendarClock,
+  CalendarClock, BarChart3,
 } from 'lucide-react'
 import {
   aiCenterApi,
@@ -18,6 +18,7 @@ import {
   type ConfidenceLabel, type ApprovalEvent, type Agent,
   type AgentDefinition,
   type TokenUsageBreakdownRow,
+  type ReportPeriod, type ReportBucket,
 } from '../../api/ai-center.api'
 import { inventoryApi } from '../../api/inventory.api'
 import { posApi } from '../../api/pos.api'
@@ -371,11 +372,12 @@ function executionNav(approval: Approval, executionResult: any): ExecNav | null 
 
 // ── tabs ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'approvals' | 'tasks' | 'agents' | 'audit'
+type Tab = 'dashboard' | 'approvals' | 'report' | 'tasks' | 'agents' | 'audit'
 
 const TABS: Array<{ key: Tab; labelAr: string; icon: React.ElementType; tip?: string }> = [
   { key: 'dashboard', labelAr: 'لوحة العمل',     icon: LayoutDashboard, tip: 'نظرة سريعة على أهم المؤشرات التشغيلية اليوم' },
   { key: 'approvals', labelAr: 'مركز الموافقات', icon: Inbox,           tip: 'كل ما يقترحه مساعدوك وينتظر قرارك' },
+  { key: 'report',    labelAr: 'التقرير',         icon: BarChart3,       tip: 'ماذا أنجز مساعدوك، كم وفّروا، وما الذي فاتك' },
   { key: 'tasks',     labelAr: 'مهامي',           icon: CheckCircle2,    tip: 'عرض مرتّب حسب نوع المهمة: شراء، ربط، تنبيهات' },
   { key: 'agents',    labelAr: 'مساعدوك الأذكياء', icon: Users,    tip: 'إدارة أي مساعد فعّال ومستوى ثقته المطلوب' },
   { key: 'audit',     labelAr: 'السجل والشفافية', icon: ShieldCheck,    tip: 'سجل كامل لكل قرار وتعديل وتنفيذ' },
@@ -579,6 +581,7 @@ export default function AiCenterPage() {
       {/* ── Body ───────────────────────────────────────────────────────── */}
       {activeTab === 'dashboard' && <DashboardTab />}
       {activeTab === 'approvals' && <ApprovalsTab />}
+      {activeTab === 'report'    && <ReportTab />}
       {activeTab === 'tasks'     && <TasksTab />}
       {activeTab === 'agents'    && <AgentsTab />}
       {activeTab === 'audit'     && <AuditTab />}
@@ -727,8 +730,68 @@ function MissedRevenueWidget() {
   )
 }
 
-// ─── Financial Health Cards (Sprint 3c) ──────────────────────────────────────
+// ─── POS Integrity / Loss-Prevention widget ──────────────────────────────────
+// Surfaces the Isolation-Forest + rule-based cashier-shift anomalies (cash
+// mismatches, high refund rates, behavioural drift) on the dashboard instead of
+// burying them inside the approvals queue. This is the loss-prevention hook that
+// keeps an owner logging in daily.
 
+const POS_SCENARIO_AR: Record<string, string> = {
+  cash_mismatch:    'فروقات نقدية في الخزينة',
+  high_refund_rate: 'نسبة مرتجعات مرتفعة',
+  behavioral_anomaly: 'سلوك غير معتاد في الوردية',
+}
+
+function PosIntegrityWidget() {
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['pos-integrity-pending'],
+    queryFn: () => aiCenterApi.listApprovals({ subjectType: 'pos_shift_action', status: 'pending', limit: 50 }),
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+
+  if (!data || data.total === 0) return null
+
+  // Break down by scenario so the owner instantly knows the type of risk.
+  const counts = new Map<string, number>()
+  for (const a of data.data) {
+    const scenario = (a.payload?.scenario as string) ?? 'behavioral_anomaly'
+    counts.set(scenario, (counts.get(scenario) ?? 0) + 1)
+  }
+  const breakdown = [...counts.entries()].sort((a, b) => b[1] - a[1])
+  const critical = data.data.filter((a) => a.priority === 'critical').length
+
+  return (
+    <button
+      onClick={() => navigate('/pharmacy/ai-center?tab=approvals')}
+      className="w-full text-start p-4 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white hover:shadow-md hover:border-amber-300 transition-all group flex items-center gap-4"
+    >
+      <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+        <ShieldAlert size={20} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-amber-900">
+          {data.total} وردية بيع تحتاج مراجعتك
+          {critical > 0 && <span className="ms-1 text-red-700">({critical} حرجة)</span>}
+        </p>
+        <p className="text-[11px] text-amber-700/80 mt-0.5">
+          رصد الذكاء الاصطناعي أنماطاً قد تعني خسارة نقدية أو خطأ في الكاشير — راجعها قبل أن تتراكم
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {breakdown.map(([scenario, n]) => (
+            <span key={scenario} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+              {POS_SCENARIO_AR[scenario] ?? scenario} ×{n}
+            </span>
+          ))}
+        </div>
+      </div>
+      <ChevronLeft size={14} className="text-amber-300 group-hover:text-amber-500 rtl:rotate-180 shrink-0" />
+    </button>
+  )
+}
+
+// ─── Financial Health Cards (Sprint 3c) ──────────────────────────────────────
 function FinancialHealthCards() {
   const navigate = useNavigate()
   const { data, isLoading, isError, refetch } = useQuery({
@@ -863,6 +926,41 @@ function FinancialHealthCards() {
   )
 }
 
+/** Anti-miss strip: warns when pending decisions are about to expire unactioned. */
+function ExpiryBacklogStrip() {
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['ai-center', 'report', 'week'],
+    queryFn:  () => aiCenterApi.report('week'),
+    refetchInterval: 60_000,
+  })
+
+  const expiring = data?.backlog.expiringNext24h ?? 0
+  if (expiring <= 0) return null
+
+  return (
+    <button
+      onClick={() => navigate('/pharmacy/ai-center?tab=approvals')}
+      className="w-full text-right p-4 rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white flex items-center gap-3 hover:shadow-md transition"
+    >
+      <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center shrink-0">
+        <CalendarClock size={18} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-orange-900">
+          {expiring} قرار{expiring > 1 ? 'اً' : ''} ينتهي وقته خلال ٢٤ ساعة
+        </p>
+        <p className="text-[11px] text-orange-700 mt-0.5">
+          اعتمدها الآن قبل أن تُغلَق تلقائياً ويفوتك التصرف.
+        </p>
+      </div>
+      <span className="shrink-0 px-3 py-1.5 text-[11px] font-semibold text-orange-700 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors whitespace-nowrap">
+        راجعها ←
+      </span>
+    </button>
+  )
+}
+
 function DashboardTab() {
   const navigate = useNavigate()
   const { data, isLoading, error, refetch, isFetching } = useQuery({
@@ -873,7 +971,6 @@ function DashboardTab() {
   })
 
   if (isLoading) return <SkeletonGrid />
-
   if (error || !data) {
     return (
       <div className="p-6 rounded-2xl border border-red-200 bg-red-50 text-red-900 flex items-start gap-3">
@@ -900,6 +997,9 @@ function DashboardTab() {
     <div className="space-y-5">
       {/* Seasonal demand radar (Hijri calendar — works from day one, no sales history needed) */}
       <SeasonalDemandBanner />
+
+      {/* Anti-miss strip — surfaces decisions about to expire unactioned */}
+      <ExpiryBacklogStrip />
 
       {totalSignals === 0 && (
         <div className="p-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white flex items-start gap-4">
@@ -971,6 +1071,9 @@ function DashboardTab() {
 
       {/* Missed revenue insight widget */}
       <MissedRevenueWidget />
+
+      {/* POS loss-prevention — cashier-shift anomalies needing review */}
+      <PosIntegrityWidget />
 
       {/* Financial health + market availability snapshot */}
       <FinancialHealthCards />
@@ -3274,6 +3377,204 @@ const TASK_DEFS: Array<{
     toneActive: 'border-emerald-500 bg-white',
   },
 ]
+
+// ═════════════════════════════════════════════════════════════════════════════
+// REPORT TAB — impact & status report (funnel · missed · savings · backlog SLA)
+// ═════════════════════════════════════════════════════════════════════════════
+
+const REPORT_BUCKET_ICON: Record<ReportBucket['bucket'], React.ElementType> = {
+  purchasing: ShoppingCart,
+  inventory:  Package,
+  p2p:        Store,
+  pos:        Banknote,
+  other:      Sparkles,
+}
+
+const fmtNum = (n: number) => n.toLocaleString('en-US')
+const fmtEgp = (n: number) => `${n.toLocaleString('en-US')} ج.م`
+
+function ReportTab() {
+  const [, setSearchParams] = useSearchParams()
+  const [period, setPeriod] = useState<ReportPeriod>('week')
+
+  const q = useQuery({
+    queryKey: ['ai-center', 'report', period],
+    queryFn:  () => aiCenterApi.report(period),
+    refetchInterval: 60_000,
+  })
+
+  const goApprovals = () => setSearchParams({ tab: 'approvals' })
+
+  if (q.isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-gray-400">
+        <Loader2 size={22} className="animate-spin" />
+      </div>
+    )
+  }
+  if (q.isError || !q.data) {
+    return (
+      <div className="py-16 text-center text-gray-500">
+        <AlertCircle size={28} className="mx-auto mb-2 text-gray-300" />
+        تعذّر تحميل التقرير. حاول مرة أخرى.
+      </div>
+    )
+  }
+
+  const r = q.data
+  const nothing = r.proposed === 0 && r.executed === 0 && r.missed === 0 && r.backlog.pending === 0
+
+  return (
+    <div className="space-y-6">
+      {/* period toggle */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">تقرير أداء مساعديك الأذكياء</h2>
+          <p className="text-sm text-gray-500">
+            ماذا أنجزوا، كم وفّروا لك، وما الذي كاد يفوتك — {period === 'week' ? 'آخر ٧ أيام' : 'آخر ٣٠ يوماً'}.
+          </p>
+        </div>
+        <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 text-sm">
+          {(['week', 'month'] as ReportPeriod[]).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-4 py-1.5 rounded-lg font-medium transition ${
+                period === p ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {p === 'week' ? 'أسبوع' : 'شهر'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {nothing ? (
+        <div className="py-16 text-center">
+          <PartyPopper size={32} className="mx-auto mb-3 text-emerald-400" />
+          <p className="font-semibold text-gray-800">كله تمام — لا يوجد نشاط لعرضه في هذه الفترة.</p>
+          <p className="text-sm text-gray-500">هيظهر هنا كل ما ينجزه مساعدوك أول ما يبدأوا العمل.</p>
+        </div>
+      ) : (
+        <>
+          {/* hero cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5">
+              <div className="flex items-center gap-2 text-emerald-700 text-sm font-medium">
+                <Wallet size={16} /> وفّرنا لك
+              </div>
+              <div className="mt-2 text-3xl font-extrabold text-emerald-800">{fmtEgp(r.realizedSavingsEgp)}</div>
+              <p className="mt-1 text-xs text-emerald-700/80">من أوامر الشراء المنفّذة بعد موافقتك.</p>
+            </div>
+            <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
+              <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
+                <CheckCircle2 size={16} /> قرارات نُفّذت
+              </div>
+              <div className="mt-2 text-3xl font-extrabold text-blue-800">{fmtNum(r.executed)}</div>
+              <p className="mt-1 text-xs text-blue-700/80">من إجمالي {fmtNum(r.proposed)} اقتراحاً في الفترة.</p>
+            </div>
+            <button
+              onClick={goApprovals}
+              className={`text-right rounded-2xl border p-5 transition ${
+                r.missed > 0
+                  ? 'border-red-200 bg-gradient-to-br from-red-50 to-orange-50 hover:shadow-md'
+                  : 'border-gray-200 bg-white'
+              }`}
+            >
+              <div className={`flex items-center gap-2 text-sm font-medium ${r.missed > 0 ? 'text-red-700' : 'text-gray-500'}`}>
+                <AlertOctagon size={16} /> فاتك (انتهت المهلة)
+              </div>
+              <div className={`mt-2 text-3xl font-extrabold ${r.missed > 0 ? 'text-red-700' : 'text-gray-800'}`}>
+                {fmtNum(r.missed)}
+              </div>
+              <p className={`mt-1 text-xs ${r.missed > 0 ? 'text-red-700/80' : 'text-gray-400'}`}>
+                {r.missed > 0 ? 'قرارات انتهى وقتها قبل ما تتصرف — راجعها.' : 'ممتاز — لم يفتك أي قرار.'}
+              </p>
+            </button>
+          </div>
+
+          {/* funnel */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <h3 className="text-sm font-bold text-gray-800 mb-4">مسار القرارات</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: 'مُقترَح',  value: r.proposed, color: 'text-gray-800',    bg: 'bg-gray-50 border-gray-200' },
+                { label: 'مُعتمَد',  value: r.approved, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+                { label: 'مُنفَّذ',  value: r.executed, color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200' },
+                { label: 'مرفوض',   value: r.rejected, color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+                { label: 'فات',     value: r.missed,   color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+              ].map(s => (
+                <div key={s.label} className={`rounded-xl border p-3 text-center ${s.bg}`}>
+                  <div className={`text-2xl font-extrabold ${s.color}`}>{fmtNum(s.value)}</div>
+                  <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* per-bucket */}
+          {r.byBucket.length > 0 && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <h3 className="text-sm font-bold text-gray-800 mb-4">حسب المجال</h3>
+              <div className="space-y-2">
+                {r.byBucket.map(b => {
+                  const Icon = REPORT_BUCKET_ICON[b.bucket]
+                  return (
+                    <div key={b.bucket} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                      <div className="w-9 h-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600">
+                        <Icon size={16} />
+                      </div>
+                      <div className="flex-1 font-medium text-gray-800 text-sm">{b.labelAr}</div>
+                      <div className="flex items-center gap-4 text-xs">
+                        <span className="text-gray-500">مقترَح <b className="text-gray-800">{fmtNum(b.created)}</b></span>
+                        <span className="text-blue-600">نُفّذ <b>{fmtNum(b.executed)}</b></span>
+                        {b.missed > 0 && <span className="text-red-600">فات <b>{fmtNum(b.missed)}</b></span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* backlog SLA strip */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-800">حالة قائمة الانتظار الآن</h3>
+              <button onClick={goApprovals} className="text-xs font-medium text-emerald-700 hover:underline flex items-center gap-1">
+                افتح الموافقات <ChevronLeft size={14} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="text-2xl font-extrabold text-gray-800">{fmtNum(r.backlog.pending)}</div>
+                <div className="text-xs text-gray-500 mt-1">بانتظار قرارك</div>
+              </div>
+              <div className={`rounded-xl border p-3 ${r.backlog.expiringNext24h > 0 ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className={`text-2xl font-extrabold ${r.backlog.expiringNext24h > 0 ? 'text-orange-700' : 'text-gray-800'}`}>
+                  {fmtNum(r.backlog.expiringNext24h)}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">يخلص خلال ٢٤ ساعة</div>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="text-2xl font-extrabold text-gray-800">
+                  {r.backlog.oldestPendingAgeHours != null ? `${Math.round(r.backlog.oldestPendingAgeHours)}س` : '—'}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">عمر أقدم قرار منتظر</div>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="text-2xl font-extrabold text-gray-800">
+                  {r.avgTimeToDecideHours != null ? `${r.avgTimeToDecideHours}س` : '—'}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">متوسط زمن اتخاذ القرار</div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 function TasksTab() {
   const [searchParams, setSearchParams] = useSearchParams()

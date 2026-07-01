@@ -1,4 +1,4 @@
-import type { PurchaseInvoice } from '../../../api/purchases.api';
+﻿import type { PurchaseInvoice } from '../../../api/purchases.api';
 
 const STATUS_AR: Record<string, string> = {
   draft: 'مسودة', received: 'مستلمة', paid: 'مدفوعة', cancelled: 'ملغاة',
@@ -75,7 +75,7 @@ export function buildInvoicePrintHtml(inv: PurchaseInvoice): string {
 <div class="header">
   <div>
     <div class="brand">إدارة المشتريات</div>
-    <div class="brand-sub">Medipulse — نظام إدارة الصيدليات</div>
+    <div class="brand-sub">Bnoov — نظام إدارة الصيدليات</div>
   </div>
   <div class="po-badge">
     <div class="po-number">${inv.poNumber}</div>
@@ -140,7 +140,7 @@ export function buildInvoicePrintHtml(inv: PurchaseInvoice): string {
 ${inv.notes ? `<div class="notes"><strong>ملاحظات:</strong> ${inv.notes}</div>` : ''}
 
 <div class="footer">
-  تم إنشاء هذه الفاتورة بواسطة نظام Medipulse — ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+  تم إنشاء هذه الفاتورة بواسطة نظام Bnoov — ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
 </div>
 
 <script>

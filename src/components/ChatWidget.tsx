@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { Send, X, Loader2, Sparkles, CheckCircle, ChevronRight, ChevronDown, History, Plus, Trash2, Copy, Check, Mic, Maximize2, Minimize2, Flag } from 'lucide-react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
@@ -857,7 +857,7 @@ export function ChatWidget() {
               href={(() => {
                 const raw = (import.meta as any).env?.VITE_SUPPORT_WHATSAPP ?? '201000000000';
                 const phone = String(raw).replace(/\D/g, '');
-                const greeting = encodeURIComponent('مرحباً، أحتاج مساعدة من فريق الدعم في MediPulse');
+                const greeting = encodeURIComponent('مرحباً، أحتاج مساعدة من فريق الدعم في Bnoov');
                 return `https://wa.me/${phone}?text=${greeting}`;
               })()}
               target="_blank"

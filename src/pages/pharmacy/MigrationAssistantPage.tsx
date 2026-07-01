@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+﻿import { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useProfileStore } from '../../store/auth.store'
 import {
@@ -176,7 +176,7 @@ export default function MigrationAssistantPage() {
     const raw = (import.meta as any).env?.VITE_SUPPORT_WHATSAPP ?? '201000000000'
     const phone = String(raw).replace(/\D/g, '')
     const text = encodeURIComponent(
-      `مرحباً، أود نقل مخزون صيدليتي${tenantName ? ` (${tenantName})` : ''} إلى MediPulse. سأرسل لكم ملف المخزون (Excel / CSV / صورة) هنا، وسيقوم فريقكم بمعالجته نيابة عني.`
+      `مرحباً، أود نقل مخزون صيدليتي${tenantName ? ` (${tenantName})` : ''} إلى Bnoov. سأرسل لكم ملف المخزون (Excel / CSV / صورة) هنا، وسيقوم فريقكم بمعالجته نيابة عني.`
     )
     return `https://wa.me/${phone}?text=${text}`
   })()
@@ -185,7 +185,7 @@ export default function MigrationAssistantPage() {
     const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8;' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = 'medipulse-migration-template.csv'
+    a.download = 'bnoov-migration-template.csv'
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -254,7 +254,7 @@ export default function MigrationAssistantPage() {
                 <span>نقل مخزونك — بالذكاء الاصطناعي</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
-                نقل مخزونك إلى MediPulse
+                نقل مخزونك إلى Bnoov
               </h1>
               <p className="text-gray-500 text-sm mt-1.5 max-w-3xl leading-relaxed">
                 لا تحتاج إلى قالب ثابت أو تعديل أعمدتك. ارفع ملف مخزونك بأي صيغة (Excel أو CSV) وبأي ترتيب أعمدة —
