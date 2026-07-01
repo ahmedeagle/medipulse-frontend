@@ -3275,108 +3275,63 @@ function CatalogLinkPanel({ items }: { items: { isLoading: boolean; isFetching?:
 // list of approvals.
 // ═════════════════════════════════════════════════════════════════════════════
 
-type TaskKind = 'purchase' | 'catalog_link' | 'linking' | 'risk' | 'p2p' | 'p2p_monitor' | 'pos_integrity' | 'expiry_clearance' | 'low_stock' | 'dead_stock'
+type DomainKind = 'purchasing' | 'inventory' | 'p2p' | 'pos'
 
-const TASK_DEFS: Array<{
-  key:        TaskKind
-  labelAr:    string
-  hintAr:     string
-  subjectType: string
-  icon:       React.ElementType
-  tone:       string
-  toneActive: string
+const DOMAIN_DEFS: Array<{
+  key: DomainKind
+  labelAr: string
+  hintAr: string
+  icon: React.ElementType
 }> = [
   {
-    key: 'purchase',
-    labelAr: 'مهام شراء',
-    hintAr:  'أوامر شراء مقترحة بانتظار موافقتك',
-    subjectType: 'procurement_draft',
+    key: 'purchasing',
+    labelAr: 'الشراء',
+    hintAr: 'مسودات الشراء والشراء الذكي والتوصيات المرتبطة بالشراء',
     icon: ShoppingCart,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
+  },
+  {
+    key: 'inventory',
+    labelAr: 'المخزون والانتهاء',
+    hintAr: 'النقص، الراكد، قرب الانتهاء، والعناصر التي تحتاج ربطاً',
+    icon: Package,
   },
   {
     key: 'p2p',
-    labelAr: 'فرص شراء ذكية',
-    hintAr:  'صيدليات قريبة منك تبيع بأسعار أقل من مورّدك — النظام يكتشفها لك',
-    subjectType: 'smart_procurement',
+    labelAr: 'سوق P2P',
+    hintAr: 'توصيات الإدراج وطلبات التبادل بين الصيدليات',
     icon: Store,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
   },
   {
-    key: 'catalog_link',
-    labelAr: 'ربط بالكتالوج المركزي',
-    hintAr:  'منتجات صيدليتك التي اقترح الذكاء مطابقتها بالكتالوج — راجع وأكّد',
-    subjectType: '__catalog_link__',
-    icon: LinkIcon,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
-  },
-  {
-    key: 'linking',
-    labelAr: 'كشف التكرار',
-    hintAr:  'أصناف في المخزون يبدو أنها نفس المنتج المُكرَّر — أكّد الدمج أو تجاهل',
-    subjectType: 'inventory_item',
-    icon: LinkIcon,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
-  },
-  {
-    key: 'risk',
-    labelAr: 'توصيات الذكاء الاصطناعي',
-    hintAr:  'تحليل شامل من محرك الذكاء: نفاد وشيك، مخزون راكد، اقتراحات إعادة طلب — كلها في مكان واحد',
-    subjectType: 'recommendation',
-    icon: AlertOctagon,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
-  },
-  {
-    key: 'p2p_monitor',
-    labelAr: 'طلبات تبادل الأدوية',
-    hintAr:  'طلب شراء من صيدلية أخرى تأخر أو لم يرد عليه — قرارك ينهي الأمر',
-    subjectType: 'p2p_order_action',
-    icon: AlertTriangle,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
-  },
-  {
-    key: 'pos_integrity',
-    labelAr: 'سلامة الكاشير',
-    hintAr:  'فوارق نقدية أو معدلات مرتجعات غير طبيعية تستوجب مراجعتك',
-    subjectType: 'pos_shift_action',
+    key: 'pos',
+    labelAr: 'الكاشير',
+    hintAr: 'نزاهة الشفتات وفروقات النقد والتنبيهات المرتبطة بنقطة البيع',
     icon: ShieldCheck,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
-  },
-  {
-    key: 'expiry_clearance',
-    labelAr: 'إدراج قريبة الانتهاء للبيع',
-    hintAr:  'مهام إدراج: منتجات اقترح الذكاء نشرها في البورصة بخصم ذكي قبل انتهاء صلاحيتها',
-    subjectType: 'expiry_liquidation',
-    icon: Package,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
-  },
-  {
-    key: 'low_stock',
-    labelAr: 'نقص مخزون (حد أدنى)',
-    hintAr:  'أصناف تجاوزت حد التنبيه — النظام يقترح الشراء من البورصة أو من المورد المعتاد',
-    subjectType: 'low_stock',
-    icon: AlertCircle,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
-  },
-  {
-    key: 'dead_stock',
-    labelAr: 'تسييل المخزون الراكد',
-    hintAr:  'تحليل متخصص للأصناف التي لم تتحرك لأشهر — اقتراحات إدراج في البورصة بخصم لاسترداد رأس المال',
-    subjectType: 'dead_stock_clearance',
-    icon: Archive,
-    tone:       'border-gray-200 bg-white hover:bg-gray-50',
-    toneActive: 'border-emerald-500 bg-white',
   },
 ]
+
+function domainFromApproval(a: Approval): DomainKind | null {
+  switch (a.subjectType) {
+    case 'smart_procurement':
+    case 'procurement_draft':
+    case 'procurement_basket':
+    case 'recommendation':
+      return 'purchasing'
+    case 'low_stock':
+    case 'dead_stock_clearance':
+    case 'expiry_liquidation':
+    case 'expired_quarantine':
+    case 'inventory_item':
+      return 'inventory'
+    case 'p2p_listing_suggestion':
+    case 'listing_suggestion':
+    case 'p2p_order_action':
+      return 'p2p'
+    case 'pos_shift_action':
+      return 'pos'
+    default:
+      return null
+  }
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // REPORT TAB — impact & status report (funnel · missed · savings · backlog SLA)
@@ -3579,9 +3534,11 @@ function ReportTab() {
 function TasksTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const focusId   = searchParams.get('id')
-  const explicitTask = searchParams.get('task') as TaskKind | null
-  const taskParam = explicitTask ?? 'purchase'
-  const setTask = (k: TaskKind) => setSearchParams({ tab: 'tasks', task: k })
+  const explicitDomain = searchParams.get('domain') as DomainKind | null
+  const stateParam = (searchParams.get('state') as 'open' | 'done' | null) ?? 'open'
+  const domainParam = explicitDomain ?? 'purchasing'
+  const setDomain = (k: DomainKind) => setSearchParams({ tab: 'tasks', domain: k, state: stateParam })
+  const setStateView = (s: 'open' | 'done') => setSearchParams({ tab: 'tasks', domain: domainParam, state: s })
   const detailRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (focusId && detailRef.current) {
@@ -3589,11 +3546,9 @@ function TasksTab() {
     }
   }, [focusId])
 
-  const def = TASK_DEFS.find(d => d.key === taskParam) ?? TASK_DEFS[0]
-
   // Counts per task type — fetch both pending + modified (both need user action).
-  const allPending = useQuery({
-    queryKey: ['ai-center', 'approvals', 'pending+modified', 'all'],
+  const openApprovals = useQuery({
+    queryKey: ['ai-center', 'approvals', 'pending+modified', 'domains-all'],
     queryFn:  async () => {
       const [p, m] = await Promise.all([
         aiCenterApi.listApprovals({ status: 'pending',  limit: 200 }),
@@ -3604,107 +3559,103 @@ function TasksTab() {
     refetchInterval: 30_000,
   })
 
+  const doneApprovals = useQuery({
+    queryKey: ['ai-center', 'approvals', 'done', 'domains-all'],
+    enabled: stateParam === 'done',
+    queryFn: async () => {
+      const [approved, executed, rejected] = await Promise.all([
+        aiCenterApi.listApprovals({ status: 'approved', limit: 150 }),
+        aiCenterApi.listApprovals({ status: 'executed', limit: 150 }),
+        aiCenterApi.listApprovals({ status: 'rejected', limit: 150 }),
+      ])
+      const merged = [...approved.data, ...executed.data, ...rejected.data]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      return { data: merged, total: merged.length }
+    },
+    refetchInterval: 60_000,
+  })
+
   const catalogLinkCount = useQuery({
     queryKey: ['inventory', 'suggested-count'],
     queryFn:  () => inventoryApi.getSuggestedCount(),
     refetchInterval: 30_000,
   })
 
-  const counts: Record<TaskKind, number> = useMemo(() => {
-    const c: Record<TaskKind, number> = { purchase: 0, catalog_link: 0, linking: 0, risk: 0, p2p: 0, p2p_monitor: 0, pos_integrity: 0, expiry_clearance: 0, low_stock: 0, dead_stock: 0 }
-    for (const a of allPending.data?.data ?? []) {
-      // Supplier baskets are still "purchase" tasks — the bridge just
-      // consolidated several drafts into one approval for the same supplier.
-      if (a.subjectType === 'procurement_basket') { c.purchase++; continue }
-      const t = TASK_DEFS.find(d => d.subjectType === a.subjectType)?.key
-      if (t) c[t]++
+  const openCounts: Record<DomainKind, number> = useMemo(() => {
+    const c: Record<DomainKind, number> = { purchasing: 0, inventory: 0, p2p: 0, pos: 0 }
+    for (const a of openApprovals.data?.data ?? []) {
+      const d = domainFromApproval(a)
+      if (d) c[d]++
     }
-    c.catalog_link = catalogLinkCount.data ?? 0
+    c.inventory += catalogLinkCount.data ?? 0
     return c
-  }, [allPending.data, catalogLinkCount.data])
+  }, [openApprovals.data, catalogLinkCount.data])
+
+  const doneCounts: Record<DomainKind, number> = useMemo(() => {
+    const c: Record<DomainKind, number> = { purchasing: 0, inventory: 0, p2p: 0, pos: 0 }
+    for (const a of doneApprovals.data?.data ?? []) {
+      const d = domainFromApproval(a)
+      if (d) c[d]++
+    }
+    return c
+  }, [doneApprovals.data])
+
+  const openDomainApprovals = useMemo(
+    () => (openApprovals.data?.data ?? []).filter(a => domainFromApproval(a) === domainParam),
+    [openApprovals.data, domainParam],
+  )
+  const doneDomainApprovals = useMemo(
+    () => (doneApprovals.data?.data ?? []).filter(a => domainFromApproval(a) === domainParam),
+    [doneApprovals.data, domainParam],
+  )
+
+  const currentList = stateParam === 'open' ? openDomainApprovals : doneDomainApprovals
+
+  const selectedDomain = DOMAIN_DEFS.find(d => d.key === domainParam) ?? DOMAIN_DEFS[0]
 
   // When the user arrives without choosing a sub-tab (e.g. from a notification
-  // or the generic ?tab=tasks link) and the default "purchase" queue is empty,
-  // jump to the first sub-tab that actually has pending tasks so they never see
-  // an empty page while real tasks wait under another sub-tab.
+  // or the generic ?tab=tasks link) and the default queue is empty,
+  // jump to the first domain that actually has pending tasks.
   const autoJumped = useRef(false)
   useEffect(() => {
-    if (explicitTask || autoJumped.current) return
-    if (!allPending.data) return
-    if ((counts.purchase ?? 0) > 0) return
-    const firstWithTasks = TASK_DEFS.find(d => (counts[d.key] ?? 0) > 0)
-    if (firstWithTasks) {
+    if (explicitDomain || autoJumped.current) return
+    if (!openApprovals.data) return
+    if ((openCounts.purchasing ?? 0) > 0) return
+    const firstWithTasks = DOMAIN_DEFS.find(d => (openCounts[d.key] ?? 0) > 0)
+    if (firstWithTasks?.key) {
       autoJumped.current = true
-      setSearchParams({ tab: 'tasks', task: firstWithTasks.key }, { replace: true })
+      setSearchParams({ tab: 'tasks', domain: firstWithTasks.key, state: 'open' }, { replace: true })
     }
-  }, [explicitTask, allPending.data, counts, setSearchParams])
+  }, [explicitDomain, openApprovals.data, openCounts, setSearchParams])
 
-  const isCatalogLink = def.key === 'catalog_link'
+  const isInventoryOpen = domainParam === 'inventory' && stateParam === 'open'
 
-  // For catalog_link: fetch inventory items with linkStatus=suggested directly
   const catalogLinkItems = useQuery({
     queryKey: ['inventory', 'suggested-items'],
     queryFn:  () => inventoryApi.getAll({ linkStatus: 'suggested', limit: 50 }).then(r => r.data),
-    enabled:  isCatalogLink,
+    enabled:  isInventoryOpen,
     refetchInterval: 30_000,
   })
 
-  const list = useQuery({
-    queryKey: ['ai-center', 'approvals', 'pending+modified', def.subjectType],
-    queryFn:  async () => {
-      if (isCatalogLink) return { data: [], total: 0 }
-      // For the purchase task, fetch BOTH legacy single-product drafts and
-      // the new supplier-basket approvals so the consolidated PO shows up
-      // in the same list as ungrouped drafts.
-      const isPurchase = def.subjectType === 'procurement_draft'
-      const types = isPurchase ? ['procurement_draft', 'procurement_basket'] : [def.subjectType]
-      const results = await Promise.all(
-        types.flatMap(st => [
-          aiCenterApi.listApprovals({ status: 'pending',  subjectType: st }),
-          aiCenterApi.listApprovals({ status: 'modified', subjectType: st }),
-        ])
-      )
-      const data  = results.flatMap(r => r.data)
-      const total = results.reduce((sum, r) => sum + r.total, 0)
-      // Client-side safety dedupe: in case the bridge cron hasn't yet rolled
-      // up several `procurement_draft` approvals into a basket, hide the
-      // singles for any supplier that ALREADY has a `procurement_basket`
-      // approval — the basket supersedes them.
-      if (isPurchase) {
-        const supplierIdsWithBasket = new Set(
-          data
-            .filter(a => a.subjectType === 'procurement_basket')
-            .map(a => (a.payload as any)?.supplierId)
-            .filter(Boolean),
-        )
-        const filtered = data.filter(a => {
-          if (a.subjectType !== 'procurement_draft') return true
-          const sid = (a.payload as any)?.supplierId
-          return !sid || !supplierIdsWithBasket.has(sid)
-        })
-        return { ...results[0], data: filtered, total: filtered.length }
-      }
-      return { ...results[0], data, total }
-    },
-    enabled: !isCatalogLink,
-    refetchInterval: 30_000,
-  })
+  const focused = currentList.find(a => a.id === focusId)
+    ?? (focusId ? ((stateParam === 'open' ? openApprovals.isLoading : doneApprovals.isLoading) ? undefined : null) : undefined)
 
-  const focused = list.data?.data.find(a => a.id === focusId)
-    ?? (focusId ? (list.isLoading ? undefined : null) : undefined)
+  const totalOpen = openCounts.purchasing + openCounts.inventory + openCounts.p2p + openCounts.pos
+  const totalDone = doneCounts.purchasing + doneCounts.inventory + doneCounts.p2p + doneCounts.pos
 
   return (
     <div className="space-y-5">
-      {/* Task selector cards — unified emerald icon style */}
+      {/* Domain selector cards — simple 4-bucket UX */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {TASK_DEFS.map(d => {
+        {DOMAIN_DEFS.map(d => {
           const Icon = d.icon
-          const active = d.key === taskParam
-          const n = counts[d.key]
+          const active = d.key === domainParam
+          const n = stateParam === 'open' ? openCounts[d.key] : doneCounts[d.key]
+          const doneN = doneCounts[d.key]
           return (
             <button
               key={d.key}
-              onClick={() => setTask(d.key)}
+              onClick={() => setDomain(d.key)}
               className={`text-start p-4 rounded-2xl border transition-all ${
                 active
                   ? 'border-emerald-400 bg-emerald-50/40 ring-2 ring-emerald-100'
@@ -3725,6 +3676,9 @@ function TasksTab() {
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">{d.hintAr}</p>
+                  {doneN > 0 && (
+                    <p className="text-[10px] text-gray-500 mt-1">مكتمل مؤخراً: {doneN}</p>
+                  )}
                 </div>
               </div>
             </button>
@@ -3732,24 +3686,55 @@ function TasksTab() {
         })}
       </div>
 
+      {/* Open / Done state switch */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-2 inline-flex items-center gap-2">
+        <button
+          onClick={() => setStateView('open')}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+            stateParam === 'open' ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          غير مكتملة ({totalOpen})
+        </button>
+        <button
+          onClick={() => setStateView('done')}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+            stateParam === 'done' ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          مكتملة ({totalDone})
+        </button>
+      </div>
+
       {/* Filtered list + detail (reuse same layout as ApprovalsTab) */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-5">
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 text-xs text-gray-600">
-            <def.icon size={14} className="text-gray-500" />
+            <selectedDomain.icon size={14} className="text-gray-500" />
             <span>
-              {def.labelAr}
-              {def.key === 'p2p'
-                ? ' — قرارات الشراء الذكي'
-                : ' — بانتظار قرارك'}
+              {selectedDomain.labelAr}
+              {stateParam === 'open' ? ' — بانتظار قرارك' : ' — أُغلِقت مؤخراً'}
             </span>
           </div>
-          {isCatalogLink ? (
-            <CatalogLinkPanel items={catalogLinkItems} />
-          ) : list.isLoading ? (
+
+          {stateParam === 'open' && isInventoryOpen && (catalogLinkCount.data ?? 0) > 0 && (
+            <div className="px-4 py-2.5 bg-sky-50 border-b border-sky-100 text-xs text-sky-800 flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2"><LinkIcon size={13} /> اقتراحات ربط كتالوج بانتظار المراجعة: {catalogLinkCount.data}</span>
+              <a href="/pharmacy/inventory?linkStatus=suggested" className="px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors text-[11px] font-semibold whitespace-nowrap">راجعها</a>
+            </div>
+          )}
+
+          {(stateParam === 'open' ? openApprovals.isLoading : doneApprovals.isLoading) ? (
             <SkeletonRows />
-          ) : (list.data?.data.length ?? 0) === 0 ? (
-            def.key === 'p2p' ? (
+          ) : currentList.length === 0 ? (
+            stateParam === 'done' ? (
+              <EmptyState
+                icon={CheckCircle2}
+                iconCls="bg-emerald-100 text-emerald-700"
+                title="لا توجد مهام مكتملة في هذه الفئة بعد"
+                body="بمجرد الموافقة أو الرفض أو التنفيذ، ستظهر هنا كسجل مختصر يسهل مراجعته."
+              />
+            ) : domainParam === 'p2p' ? (
               <div className="py-12 px-6 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
                   <Store size={22} className="text-emerald-600" />
@@ -3766,7 +3751,7 @@ function TasksTab() {
                   <Store size={13} /> تصفح فرص الشراء الذكي
                 </a>
               </div>
-            ) : def.key === 'purchase' ? (
+            ) : domainParam === 'purchasing' ? (
               <div className="py-12 px-6 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto mb-3">
                   <ShoppingCart size={22} className="text-sky-600" />
@@ -3783,50 +3768,31 @@ function TasksTab() {
                   <ShoppingCart size={13} /> استعرض المخزون الحالي
                 </a>
               </div>
-            ) : def.key === 'linking' ? (
+            ) : domainParam === 'inventory' ? (
               <div className="py-12 px-6 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-3">
-                  <LinkIcon size={22} className="text-violet-600" />
+                  <Package size={22} className="text-violet-600" />
                 </div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">لا يوجد تكرار مكتشف الآن</p>
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد مهام مخزون بانتظارك الآن</p>
                 <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
-                  يكتشف النظام الأصناف المتكررة في مخزونك — يعني منتجين متشابهين مُدخَلَين بأسماء مختلفة.
-                  عند اكتشاف أي تكرار، تظهر هنا للتأكيد: دمج أو إبقاء منفصلَين.
+                  هذا يشمل: النقص، الراكد، قرب الانتهاء، واقتراحات الربط بالكتالوج.
+                  عند ظهور أي حالة تحتاج قراراً، ستجدها هنا مباشرة.
                 </p>
               </div>
-            ) : def.key === 'risk' ? (
+            ) : domainParam === 'pos' ? (
               <div className="py-12 px-6 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
-                  <Sparkles size={22} className="text-violet-600" />
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center mx-auto mb-3">
+                  <ShieldCheck size={22} className="text-rose-600" />
                 </div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد توصيات من محرك الذكاء الآن</p>
+                <p className="font-semibold text-gray-900 text-sm mb-1">لا توجد تنبيهات كاشير بانتظارك الآن</p>
                 <p className="text-xs text-gray-500 mb-4 max-w-[360px] mx-auto leading-relaxed">
-                  محرك الذكاء يحلّل مخزونك مرة يومياً ويُنشئ هنا توصيات شاملة: نفاد وشيك، مخزون راكد، اقتراح إعادة طلب.
-                  للتنبيهات الفورية عند تجاوز الحد الأدنى، راجع تبويب "نقص مخزون".
-                  ولإدراج المنتجات الراكدة يدوياً، راجع تبويب "تسييل المخزون الراكد".
+                  عندما يرصد الذكاء فروقات نقدية أو سلوك غير معتاد في الشفتات، ستظهر هنا للمراجعة الفورية.
                 </p>
                 <a
-                  href="/pharmacy/inventory"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-colors"
+                  href="/pharmacy/pos/shifts"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-xl transition-colors"
                 >
-                  <AlertOctagon size={13} /> تفقّد مستويات المخزون
-                </a>
-              </div>
-            ) : def.key === 'p2p_monitor' ? (
-              <div className="py-12 px-6 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3">
-                  <AlertTriangle size={22} className="text-orange-600" />
-                </div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">جميع طلبات التبادل تسير بانتظام</p>
-                <p className="text-xs text-gray-500 mb-4 max-w-[320px] mx-auto leading-relaxed">
-                  يراقب النظام طلبات الشراء بين الصيدليات تلقائياً كل 15 دقيقة.
-                  إن تأخّر رد أو توقّف طلب دون مبرر، تصلك إشعار هنا مع خيار الإلغاء أو المتابعة — لا يمر شيء دون علمك.
-                </p>
-                <a
-                  href="/pharmacy/p2p?tab=orders"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition-colors"
-                >
-                  <AlertTriangle size={13} /> تصفح طلبات التبادل
+                  <ShieldCheck size={13} /> افتح سجل الشفتات
                 </a>
               </div>
             ) : (
@@ -3839,43 +3805,18 @@ function TasksTab() {
             )
           ) : (
             <>
-              {def.key === 'risk' && (
-                <div className="px-4 py-2.5 bg-violet-50 border-b border-violet-100 text-xs text-violet-800 flex items-start gap-2">
-                  <Info size={13} className="shrink-0 mt-0.5" />
-                  <span>
-                    هذه توصيات محرك الذكاء الشامل: قد تشمل مخاطر نفاد، مخزون راكد، واقتراحات إعادة طلب.
-                    التنبيهات الفورية عند تجاوز الحد الأدنى موجودة في <strong>نقص مخزون</strong>.
-                    تسييل الراكد في <strong>تسييل المخزون الراكد</strong>.
-                  </span>
-                </div>
-              )}
-              {def.key === 'expiry_clearance' && (
-                <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-800 flex items-start gap-2">
-                  <Info size={13} className="shrink-0 mt-0.5" />
-                  <span>
-                    هذه مهام إدراج للبيع في البورصة — الذكاء يقترح نشر منتجاتك القريبة من الانتهاء بخصم لاسترداد قيمتها.
-                    تنبيهات الاقتراب من الانتهاء (إشعارات) موجودة في جرس الإشعارات.
-                  </span>
-                </div>
-              )}
-              {def.key === 'dead_stock' && (
-                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-xs text-gray-600 flex items-start gap-2">
-                  <Info size={13} className="shrink-0 mt-0.5" />
-                  <span>
-                    تحليل متخصص يعمل مرة يومياً: يكتشف الأصناف التي لم تُباع لأشهر ويقترح إدراجها في البورصة.
-                    مختلف عن "توصيات الذكاء" أعلاه — هذا تحليل راكد فقط، بمنهجية منفصلة.
-                  </span>
-                </div>
+              {stateParam === 'open' && domainParam === 'inventory' && (catalogLinkCount.data ?? 0) > 0 && (
+                <CatalogLinkPanel items={catalogLinkItems} />
               )}
               <ul className="divide-y divide-gray-100 max-h-[calc(100vh-26rem)] overflow-y-auto">
-                {list.data!.data.map(a => (
+                {currentList.map(a => (
                   <ApprovalRow
                     key={a.id}
                     approval={a}
                     selected={false}
                     focused={focusId === a.id}
                     onToggleSelect={() => {}}
-                    onFocus={() => setSearchParams({ tab: 'tasks', task: taskParam, id: a.id })}
+                    onFocus={() => setSearchParams({ tab: 'tasks', domain: domainParam, state: stateParam, id: a.id })}
                     showCheckbox={false}
                   />
                 ))}
@@ -3886,7 +3827,7 @@ function TasksTab() {
         <div ref={detailRef}>
           <ApprovalDetail
             approval={focused ?? null}
-            onClose={() => setSearchParams({ tab: 'tasks', task: taskParam })}
+            onClose={() => setSearchParams({ tab: 'tasks', domain: domainParam, state: stateParam })}
           />
         </div>
       </div>
