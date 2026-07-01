@@ -3629,6 +3629,7 @@ function TasksTab() {
   }, [explicitDomain, openApprovals.data, openCounts, setSearchParams])
 
   const isInventoryOpen = domainParam === 'inventory' && stateParam === 'open'
+  const hasCatalogLinks = isInventoryOpen && (catalogLinkCount.data ?? 0) > 0
 
   const catalogLinkItems = useQuery({
     queryKey: ['inventory', 'suggested-items'],
@@ -3717,16 +3718,9 @@ function TasksTab() {
             </span>
           </div>
 
-          {stateParam === 'open' && isInventoryOpen && (catalogLinkCount.data ?? 0) > 0 && (
-            <div className="px-4 py-2.5 bg-sky-50 border-b border-sky-100 text-xs text-sky-800 flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2"><LinkIcon size={13} /> اقتراحات ربط كتالوج بانتظار المراجعة: {catalogLinkCount.data}</span>
-              <a href="/pharmacy/inventory?linkStatus=suggested" className="px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors text-[11px] font-semibold whitespace-nowrap">راجعها</a>
-            </div>
-          )}
-
           {(stateParam === 'open' ? openApprovals.isLoading : doneApprovals.isLoading) ? (
             <SkeletonRows />
-          ) : currentList.length === 0 ? (
+          ) : currentList.length === 0 && !hasCatalogLinks ? (
             stateParam === 'done' ? (
               <EmptyState
                 icon={CheckCircle2}
