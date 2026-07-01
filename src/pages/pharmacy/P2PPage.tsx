@@ -4543,6 +4543,8 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
       region:      p?.region      ?? '',
       address:     p?.address     ?? '',
       gpsLocation: p?.gpsLocation ?? '',
+      latitude:    p?.latitude    ?? null,
+      longitude:   p?.longitude   ?? null,
       phone:       p?.phone       ?? '',
       email:       p?.email       ?? '',
       whatsapp:    p?.whatsapp    ?? '',
@@ -4595,7 +4597,30 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
   function handleMapsInput(val: string) {
     setMapsInput(val)
     const parsed = parseGoogleMapsUrl(val)
-    if (parsed !== val) setForm(f => ({ ...f, gpsLocation: parsed }))
+    if (parsed !== val) setGps(parsed)
+  }
+  // Parse a "lat,lng" string into structured coords so the backend gets both.
+  function setGps(coordStr: string) {
+    const m = coordStr.match(/(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)/)
+    const lat = m ? Number(m[1]) : null
+    const lng = m ? Number(m[2]) : null
+    const valid = lat != null && lng != null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+    setForm(f => ({ ...f, gpsLocation: coordStr, latitude: valid ? lat : null, longitude: valid ? lng : null }))
+  }
+  const [geoLoading, setGeoLoading] = useState(false)
+  function useMyLocation() {
+    if (!navigator.geolocation) return
+    setGeoLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = +pos.coords.latitude.toFixed(6)
+        const lng = +pos.coords.longitude.toFixed(6)
+        setForm(f => ({ ...f, gpsLocation: `${lat},${lng}`, latitude: lat, longitude: lng }))
+        setGeoLoading(false)
+      },
+      () => setGeoLoading(false),
+      { enableHighAccuracy: true, timeout: 10_000 },
+    )
   }
   function setAuto(key: keyof typeof form.automations, val: boolean) {
     setForm(f => ({ ...f, automations: { ...f.automations, [key]: val } }))
@@ -4777,12 +4802,12 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
                 </div>
                 <div>
                   <label className={LABEL}>
-                    <span className="flex items-center gap-1.5"><MessageCircle size={11} className="text-emerald-600" />WhatsApp</span>
+                    <span className="flex items-center gap-1.5"><MessageCircle size={11} className="text-emerald-600" />WhatsApp <span className="text-rose-500">*</span></span>
                   </label>
                   <input value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
-                    placeholder="+201234567890" className={INPUT} dir="ltr" />
+                    placeholder="+201234567890" className={INPUT} dir="ltr" required />
                   <p className="text-[10px] text-gray-400 mt-1">
-                    {isRTL ? 'صيغة E.164. يتم استخدام الهاتف إذا كان فارغاً.' : 'E.164 format. Falls back to phone if blank.'}
+                    {isRTL ? 'مطلوب — قناة التنبيه الأساسية لطلبات الأدوية الطارئة القريبة منك.' : 'Required — the primary channel for urgent nearby drug requests.'}
                   </p>
                 </div>
                 <div>
@@ -4796,7 +4821,7 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
             </div>
 
             <div className="flex justify-end">
-              <button onClick={() => setStep(1)} disabled={!form.legalName.trim()}
+              <button onClick={() => setStep(1)} disabled={!form.legalName.trim() || !form.whatsapp.trim()}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 {isRTL ? 'التالي' : 'Next'} <ArrowRight size={14} />
               </button>
@@ -4815,8 +4840,22 @@ function ProfileTab({ isRTL, sellerProfile, onShowLegalAck, apiRef }: {
               </div>
               <div>
                 <label className={LABEL}>{isRTL ? 'إحداثيات GPS' : 'GPS Coordinates'}</label>
-                <input id="p2p-profile-gps" value={form.gpsLocation} onChange={e => setForm(f => ({ ...f, gpsLocation: e.target.value }))}
-                  placeholder="30.0626,31.2497" className={INPUT} />
+                <input id="p2p-profile-gps" value={form.gpsLocation} onChange={e => setGps(e.target.value)}
+                  placeholder="30.0626,31.2497" className={INPUT} dir="ltr" />
+                <button
+                  type="button"
+                  onClick={useMyLocation}
+                  disabled={geoLoading}
+                  className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 disabled:opacity-60"
+                >
+                  <MapPin size={12} />
+                  {geoLoading ? (isRTL ? 'جارٍ تحديد موقعك…' : 'Locating…') : (isRTL ? 'حدّد موقعي تلقائياً' : 'Use my location')}
+                </button>
+                {form.latitude != null && form.longitude != null && (
+                  <p className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
+                    <Check size={11} strokeWidth={3} />{isRTL ? 'تم حفظ الإحداثيات — سيصلك طلب الأدوية القريب أولاً' : 'Coordinates saved — nearest demand reaches you first'}
+                  </p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <label className={LABEL}>

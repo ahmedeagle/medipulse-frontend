@@ -56,6 +56,9 @@ export interface SellerProfile {
   legalName: string
   country?: string
   gpsLocation?: string
+  /** Structured coordinates — power nearest-first demand broadcast targeting */
+  latitude?: number | null
+  longitude?: number | null
   city?: string
   region?: string
   address?: string
